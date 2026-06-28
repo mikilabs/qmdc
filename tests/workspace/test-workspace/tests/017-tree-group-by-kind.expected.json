@@ -1,0 +1,22 @@
+{
+  "columns": [
+    "__kind"
+  ],
+  "rows": [
+    [
+      "Column"
+    ],
+    [
+      "Kind"
+    ],
+    [
+      "Query"
+    ],
+    [
+      "Service"
+    ],
+    [
+      "Table"
+    ]
+  ]
+}

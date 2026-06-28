@@ -1,0 +1,13 @@
+{
+  "diagnostics": [
+    {
+      "message": "Duplicate ID 'item' (first defined on line 1)",
+      "range": {
+        "start": { "line": 4, "character": 9 },
+        "end": { "line": 4, "character": 17 }
+      },
+      "severity": 1,
+      "code": "QMDC003"
+    }
+  ]
+}

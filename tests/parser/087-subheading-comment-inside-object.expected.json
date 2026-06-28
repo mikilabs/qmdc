@@ -1,0 +1,44 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Basic user profile with nested address and preferences."
+      },
+      {
+        "after": "email",
+        "content": "### User Settings\n\nSettings for the user interface and notifications."
+      }
+    ],
+    "name": "John Doe",
+    "email": "john@example.com",
+    "address": "[[#user.address]]",
+    "__types": {
+      "name": "string",
+      "email": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "user.address",
+    "__local_id": "address",
+    "__label": "Address",
+    "__kind": "__Object",
+    "__parent": "[[#user]]",
+    "__parent_field": "address",
+    "street": "Main Street",
+    "city": "New York",
+    "zip": 10001,
+    "country": "USA",
+    "__types": {
+      "street": "string",
+      "city": "string",
+      "zip": "number",
+      "country": "string"
+    },
+    "__level": 3
+  }
+]

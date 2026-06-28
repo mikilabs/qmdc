@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "algo",
+    "__label": "Algorithm",
+    "__kind": "Algorithm",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "This is a description paragraph that should be preserved."
+      },
+      {
+        "after": "complexity",
+        "content": "**Section Title:**\n\n1. First item in numbered list\n2. Second item in numbered list\n3. Third item in numbered list\n\n```sql\nSELECT * FROM objects WHERE __kind = 'Algorithm';\n```\n\n| Column | Type | Description |\n|--------|------|-------------|\n| id | TEXT | Primary key |\n| name | TEXT | Algorithm name |"
+      }
+    ],
+    "complexity": "O(n)",
+    "__types": {
+      "complexity": "string"
+    },
+    "__level": 2
+  }
+]

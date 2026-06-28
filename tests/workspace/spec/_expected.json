@@ -1,0 +1,304 @@
+{
+  "workspace_id": "transcription",
+  "files": [
+    "architecture/cross_cutting/readme.qmd.md",
+    "architecture/domain/readme.qmd.md",
+    "architecture/flows/readme.qmd.md",
+    "architecture/integrations/readme.qmd.md",
+    "architecture/readme.qmd.md",
+    "deliverables/backend/readme.qmd.md",
+    "deliverables/readme.qmd.md",
+    "deliverables/telegram_bot/readme.qmd.md",
+    "deliverables/web_app/readme.qmd.md",
+    "deliverables/workers/readme.qmd.md",
+    "readme.qmd.md",
+    "storage/postgres/readme.qmd.md",
+    "storage/readme.qmd.md",
+    "storage/s3/readme.qmd.md"
+  ],
+  "objects": {
+    "Actor": [
+      "actors.user",
+      "actors.viewer"
+    ],
+    "Architecture": [
+      "analytics",
+      "authentication",
+      "localization",
+      "versioning"
+    ],
+    "Bucket": [
+      "s3.s3_files"
+    ],
+    "Command": [
+      "telegram_bot.payment",
+      "telegram_bot.upload",
+      "telegram_bot.welcome"
+    ],
+    "Component": [
+      "backend",
+      "telegram_bot",
+      "web_app",
+      "workers"
+    ],
+    "DataSource": [
+      "postgres",
+      "s3"
+    ],
+    "Endpoint": [
+      "backend.auth_endpoint",
+      "backend.summary_api",
+      "backend.tasks_api",
+      "backend.transcripts_api",
+      "backend.versions_api"
+    ],
+    "Entity": [
+      "File",
+      "Summary",
+      "Task",
+      "Transcript",
+      "Version"
+    ],
+    "Feature": [
+      "telegram_bot.bot_statuses",
+      "web_app.export"
+    ],
+    "Flow": [
+      "payment_flow",
+      "task_processing"
+    ],
+    "Integration": [
+      "aws_s3",
+      "llm_api",
+      "stt_api",
+      "telegram_api"
+    ],
+    "Mode": [
+      "web_app.auth_mode",
+      "web_app.public_mode"
+    ],
+    "Page": [
+      "web_app.auth_mode.tab_chat",
+      "web_app.auth_mode.tab_summary",
+      "web_app.auth_mode.tab_transcript"
+    ],
+    "Table": [
+      "postgres.files",
+      "postgres.tasks",
+      "postgres.transcripts",
+      "postgres.users",
+      "postgres.versions"
+    ],
+    "Worker": [
+      "workers.merge_worker",
+      "workers.stt_worker",
+      "workers.summary_worker"
+    ],
+    "__Namespace": [
+      "architecture",
+      "cross_cutting",
+      "deliverables",
+      "domain",
+      "flows",
+      "integrations",
+      "storage"
+    ],
+    "__Object": [
+      "actors"
+    ],
+    "__Workspace": [
+      "transcription"
+    ]
+  },
+  "errors": [
+    {
+      "type": "broken_link",
+      "object": "File",
+      "reference": "[[#files]]",
+      "file": "architecture/domain/readme.qmd.md",
+      "line": 32
+    },
+    {
+      "type": "broken_link",
+      "object": "File",
+      "reference": "[[#s3_files]]",
+      "file": "architecture/domain/readme.qmd.md",
+      "line": 33
+    },
+    {
+      "type": "broken_link",
+      "object": "Transcript",
+      "reference": "[[#transcripts]]",
+      "file": "architecture/domain/readme.qmd.md",
+      "line": 51
+    },
+    {
+      "type": "broken_link",
+      "object": "Task",
+      "reference": "[[#tasks]]",
+      "file": "architecture/domain/readme.qmd.md",
+      "line": 7
+    },
+    {
+      "type": "broken_link",
+      "object": "Version",
+      "reference": "[[#versions]]",
+      "file": "architecture/domain/readme.qmd.md",
+      "line": 72
+    },
+    {
+      "type": "broken_link",
+      "object": "task_processing",
+      "reference": "[[#stt_worker]]",
+      "file": "architecture/flows/readme.qmd.md",
+      "line": 16
+    },
+    {
+      "type": "broken_link",
+      "object": "task_processing",
+      "reference": "[[#merge_worker]]",
+      "file": "architecture/flows/readme.qmd.md",
+      "line": 17
+    },
+    {
+      "type": "broken_link",
+      "object": "task_processing",
+      "reference": "[[#summary_worker]]",
+      "file": "architecture/flows/readme.qmd.md",
+      "line": 18
+    },
+    {
+      "type": "broken_link",
+      "object": "task_processing",
+      "reference": "[[#merge_worker]]",
+      "file": "architecture/flows/readme.qmd.md",
+      "line": 8
+    },
+    {
+      "type": "broken_link",
+      "object": "task_processing",
+      "reference": "[[#stt_worker]]",
+      "file": "architecture/flows/readme.qmd.md",
+      "line": 8
+    },
+    {
+      "type": "broken_link",
+      "object": "task_processing",
+      "reference": "[[#summary_worker]]",
+      "file": "architecture/flows/readme.qmd.md",
+      "line": 8
+    },
+    {
+      "type": "broken_link",
+      "object": "llm_api",
+      "reference": "[[#merge_worker]]",
+      "file": "architecture/integrations/readme.qmd.md",
+      "line": 17
+    },
+    {
+      "type": "broken_link",
+      "object": "llm_api",
+      "reference": "[[#summary_worker]]",
+      "file": "architecture/integrations/readme.qmd.md",
+      "line": 17
+    },
+    {
+      "type": "broken_link",
+      "object": "llm_api",
+      "reference": "[[#tab_chat]]",
+      "file": "architecture/integrations/readme.qmd.md",
+      "line": 17
+    },
+    {
+      "type": "broken_link",
+      "object": "aws_s3",
+      "reference": "[[#s3_files]]",
+      "file": "architecture/integrations/readme.qmd.md",
+      "line": 33
+    },
+    {
+      "type": "broken_link",
+      "object": "stt_api",
+      "reference": "[[#stt_worker]]",
+      "file": "architecture/integrations/readme.qmd.md",
+      "line": 9
+    },
+    {
+      "type": "broken_link",
+      "object": "backend.auth_endpoint",
+      "reference": "[[#user]]",
+      "file": "deliverables/backend/readme.qmd.md",
+      "line": 45
+    },
+    {
+      "type": "broken_link",
+      "object": "backend",
+      "reference": "[[#s3_files]]",
+      "file": "deliverables/backend/readme.qmd.md",
+      "line": 5
+    },
+    {
+      "type": "broken_link",
+      "object": "telegram_bot.welcome",
+      "reference": "[[#user]]",
+      "file": "deliverables/telegram_bot/readme.qmd.md",
+      "line": 13
+    },
+    {
+      "type": "broken_link",
+      "object": "telegram_bot.upload",
+      "reference": "[[#user]]",
+      "file": "deliverables/telegram_bot/readme.qmd.md",
+      "line": 23
+    },
+    {
+      "type": "broken_link",
+      "object": "telegram_bot.upload",
+      "reference": "[[#s3_files]]",
+      "file": "deliverables/telegram_bot/readme.qmd.md",
+      "line": 25
+    },
+    {
+      "type": "broken_link",
+      "object": "telegram_bot.payment",
+      "reference": "[[#user]]",
+      "file": "deliverables/telegram_bot/readme.qmd.md",
+      "line": 33
+    },
+    {
+      "type": "broken_link",
+      "object": "telegram_bot.bot_statuses",
+      "reference": "[[#user]]",
+      "file": "deliverables/telegram_bot/readme.qmd.md",
+      "line": 46
+    },
+    {
+      "type": "broken_link",
+      "object": "telegram_bot",
+      "reference": "[[#s3_files]]",
+      "file": "deliverables/telegram_bot/readme.qmd.md",
+      "line": 6
+    },
+    {
+      "type": "broken_link",
+      "object": "web_app.auth_mode",
+      "reference": "[[#user]]",
+      "file": "deliverables/web_app/readme.qmd.md",
+      "line": 13
+    },
+    {
+      "type": "broken_link",
+      "object": "web_app.public_mode",
+      "reference": "[[#viewer]]",
+      "file": "deliverables/web_app/readme.qmd.md",
+      "line": 38
+    },
+    {
+      "type": "broken_link",
+      "object": "postgres.users",
+      "reference": "[[#user]]",
+      "file": "storage/postgres/readme.qmd.md",
+      "line": 9
+    }
+  ]
+}

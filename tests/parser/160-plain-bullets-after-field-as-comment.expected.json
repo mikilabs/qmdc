@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "cfg1",
+    "__label": "Config",
+    "__kind": "Config",
+    "__comments": [
+      {
+        "after": "mode",
+        "content": "- Items to check\n- Must pass validation\n- Should be documented"
+      }
+    ],
+    "mode": "strict",
+    "__types": {
+      "mode": "string"
+    },
+    "__level": 2
+  }
+]

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>{{STYLES}}</style>
+  {{MERMAID_TAG}}
+</head>
+<body>
+  <div class="qmdc-search-bar">
+    <input type="text" class="qmdc-search-input" placeholder="Search objects… (press /)" autocomplete="off" spellcheck="false">
+    <button class="sb-toggle" onclick="document.getElementById('qmdc-sidebar').classList.toggle('sb-open')" aria-label="Toggle sidebar">☰</button>
+    <div class="qmdc-search-results"></div>
+  </div>
+  <div class="qmdc-layout">
+    <div class="qmdc-content">
+      {{CONTENT}}
+    </div>
+    {{SIDEBAR}}
+  </div>
+  <script>
+    {{VSCODE_SCRIPT}}
+    {{SCROLL_SCRIPT}}
+
+    // ── Workspace search ──
+    (function() {
+      var searchData = {{SEARCH_INDEX}};
+      var input = document.querySelector('.qmdc-search-input');
+      var results = document.querySelector('.qmdc-search-results');
+      var activeIdx = -1;
+
+      function fuzzyMatch(query, text) {
+        var q = query.toLowerCase();
+        var t = text.toLowerCase();
+        if (t.indexOf(q) !== -1) return { match: true, score: t.indexOf(q) === 0 ? 2 : 1 };
+        var qi = 0;
+        for (var ti = 0; ti < t.length && qi < q.length; ti++) {
+          if (t[ti] === q[qi]) qi++;
+        }
+        return { match: qi === q.length, score: 0 };
+      }
+
+      function highlight(text, query) {
+        var idx = text.toLowerCase().indexOf(query.toLowerCase());
+        if (idx === -1) return text;
+        return text.substring(0, idx) + '<mark>' + text.substring(idx, idx + query.length) + '</mark>' + text.substring(idx + query.length);
+      }
+
+      function search(query) {
+        if (!query || query.length < 2) { results.classList.remove('visible'); return; }
+        var matches = [];
+        for (var i = 0; i < searchData.length; i++) {
+          var item = searchData[i];
+          var m = fuzzyMatch(query, item.label);
+          if (!m.match) m = fuzzyMatch(query, item.id);
+          if (!m.match && item.kind) m = fuzzyMatch(query, item.kind);
+          if (m.match) matches.push({ item: item, score: m.score });
+        }
+        matches.sort(function(a, b) { return b.score - a.score; });
+        matches = matches.slice(0, 12);
+
+        if (matches.length === 0) { results.classList.remove('visible'); return; }
+
+        results.innerHTML = matches.map(function(m, idx) {
+          var label = highlight(m.item.label, query);
+          var meta = m.item.kind + (m.item.ns ? ' · ' + m.item.ns : '');
+          return '<div class="qmdc-search-item" data-ref="' + m.item.id + '" data-idx="' + idx + '">' +
+            '<span class="qmdc-search-item-label">' + label + '</span>' +
+            '<span class="qmdc-search-item-meta">' + meta + '</span></div>';
+        }).join('');
+        results.classList.add('visible');
+        activeIdx = -1;
+      }
+
+      input.addEventListener('input', function() { search(this.value); });
+      input.addEventListener('focus', function() { if (this.value.length >= 2) search(this.value); });
+      input.addEventListener('blur', function() { setTimeout(function() { results.classList.remove('visible'); }, 150); });
+
+      input.addEventListener('keydown', function(e) {
+        var items = results.querySelectorAll('.qmdc-search-item');
+        if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, items.length - 1); updateActive(items); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); updateActive(items); }
+        else if (e.key === 'Enter' && activeIdx >= 0 && items[activeIdx]) {
+          e.preventDefault();
+          navigateToRef(items[activeIdx].dataset.ref);
+          input.value = ''; results.classList.remove('visible');
+        }
+        else if (e.key === 'Escape') { input.blur(); results.classList.remove('visible'); }
+      });
+
+      function updateActive(items) {
+        items.forEach(function(el, i) { el.classList.toggle('active', i === activeIdx); });
+        if (items[activeIdx]) items[activeIdx].scrollIntoView({ block: 'nearest' });
+      }
+
+      results.addEventListener('mousedown', function(e) {
+        var item = e.target.closest('.qmdc-search-item');
+        if (item) { navigateToRef(item.dataset.ref); input.value = ''; results.classList.remove('visible'); }
+      });
+
+      // "/" shortcut to focus search
+      document.addEventListener('keydown', function(e) {
+        if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement !== input) {
+          e.preventDefault(); input.focus();
+        }
+      });
+    })();
+
+    // ── Scroll spy: highlight current section in TOC ──
+    (function() {
+      var tocLinks = document.querySelectorAll('.sb-toc-link');
+      if (!tocLinks.length) return;
+      var idToLink = {};
+      var headings = [];
+      tocLinks.forEach(function(link) {
+        var m = link.getAttribute('onclick');
+        if (!m) return;
+        var idMatch = m.match(/getElementById\('([^']+)'\)/);
+        if (!idMatch) return;
+        var id = idMatch[1];
+        idToLink[id] = link;
+        var span = document.getElementById(id);
+        if (span) {
+          var heading = span.closest('h1,h2,h3,h4,h5,h6') || span.parentElement;
+          if (heading) headings.push({ id: id, el: heading });
+        }
+      });
+      if (!headings.length) return;
+      function update() {
+        var current = null;
+        var scrollY = window.scrollY || document.documentElement.scrollTop;
+        for (var i = headings.length - 1; i >= 0; i--) {
+          if (headings[i].el.offsetTop <= scrollY + 80) {
+            current = headings[i].id;
+            break;
+          }
+        }
+        if (!current) current = headings[0].id;
+        tocLinks.forEach(function(link) { link.classList.remove('sb-toc-active'); });
+        if (current && idToLink[current]) {
+          idToLink[current].classList.add('sb-toc-active');
+        }
+      }
+      var ticking = false;
+      window.addEventListener('scroll', function() {
+        if (!ticking) {
+          requestAnimationFrame(function() { update(); ticking = false; });
+          ticking = true;
+        }
+      });
+      update();
+    })();
+  </script>
+</body>
+</html>

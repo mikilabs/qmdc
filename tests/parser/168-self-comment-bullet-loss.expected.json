@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "bug1",
+    "__label": "Bug",
+    "__kind": "Bug",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Description of the bug with details."
+      },
+      {
+        "after": "__self",
+        "content": "**Problem:**\n\n- Parser correctly recognizes YAML array `[\"[[#library:simple_zoe]]\"]`\n- But extraction calls `extract_references(\"[[[#library:simple_zoe]]]\")`\n- Regex finds only outer match `[[[#library:simple_zoe]]]`\n- LSP cannot find reference at position 36"
+      },
+      {
+        "after": "__self",
+        "content": "**Reproduction:**\n\n1. Create file with field\n2. Run LSP and try to find definition"
+      }
+    ],
+    "__level": 2
+  }
+]

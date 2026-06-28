@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "components",
+    "__label": "Components",
+    "__kind": "Section",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Overview of system components."
+      },
+      {
+        "after": "category",
+        "content": "**Main Components:**\n\n| Component | Description |\n|-----------|-------------|\n| Parser | Converts QMD to JSON |\n| LSP | Language server protocol |\n| Extension | VS Code integration |"
+      }
+    ],
+    "category": "architecture",
+    "__types": {
+      "category": "string"
+    },
+    "__level": 2
+  }
+]

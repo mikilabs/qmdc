@@ -1,0 +1,11 @@
+{
+  "input": "SELECT __id FROM objects WHERE __id IN (SELECT source_id FROM edges WHERE target_id = 'task1')",
+  "workspace": "ws1",
+  "expected": "SELECT __id FROM objects WHERE __id IN (SELECT source_id FROM edges WHERE target_id = 'task1' AND __workspace = 'ws1') AND __workspace = 'ws1'",
+  "expected_result": {
+    "columns": ["__id"],
+    "rows": []
+  }
+}
+
+

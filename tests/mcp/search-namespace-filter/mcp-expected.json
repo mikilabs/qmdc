@@ -1,0 +1,7 @@
+{
+  "success": true,
+  "truncated": false,
+  "items": [
+    { "id": "widget", "kind": "Thing", "namespace": "alpha" }
+  ]
+}

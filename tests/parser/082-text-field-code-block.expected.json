@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "cap_test",
+    "__label": "Capability",
+    "__kind": "Capability",
+    "id": "CAP-TEST",
+    "status": "planned",
+    "deliverables": "```\nproject/\n├── src/\n│   └── main.py\n└── README.md\n```",
+    "description": "Test capability with code block in text field.",
+    "__types": {
+      "id": "string",
+      "status": "string",
+      "deliverables": "string",
+      "description": "string"
+    },
+    "__syntax": {
+      "deliverables": "multiline_text",
+      "description": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "deliverables": "Deliverables",
+      "description": "Description"
+    }
+  }
+]

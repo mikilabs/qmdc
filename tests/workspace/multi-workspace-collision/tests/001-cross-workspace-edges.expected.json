@@ -1,0 +1,12 @@
+{
+  "columns": ["__workspace", "__id", "source_field", "__workspace", "__id"],
+  "rows": [
+    ["ws1", "cross_ref", "depends_on", "ws2", "target_obj"]
+  ]
+}
+
+
+
+
+
+

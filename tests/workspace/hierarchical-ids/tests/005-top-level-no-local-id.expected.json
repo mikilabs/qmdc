@@ -1,0 +1,7 @@
+{
+  "columns": ["__id", "__parent"],
+  "rows": [
+    ["auth_svc", null],
+    ["payment_svc", null]
+  ]
+}

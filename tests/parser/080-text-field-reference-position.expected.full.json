@@ -1,0 +1,62 @@
+[
+  {
+    "__id": "plan",
+    "__label": "Plan",
+    "__kind": "ProjectPlan",
+    "status": "active",
+    "statuses": "Status model and workflow — see [[#planning_workflow]].",
+    "planning_workflow": "[[#plan.planning_workflow]]",
+    "__types": {
+      "status": "string",
+      "statuses": "string"
+    },
+    "__syntax": {
+      "statuses": "multiline_text"
+    },
+    "__level": 1,
+    "__line": 1,
+    "__references": [
+      {
+        "target": "#planning_workflow",
+        "type": "hash_local",
+        "line": 7,
+        "start_col": 32,
+        "end_col": 54,
+        "raw": "[[#planning_workflow]]"
+      }
+    ],
+    "__positions": {
+      "status": {
+        "line": 3,
+        "col": 2
+      },
+      "statuses": {
+        "line": 5,
+        "col": 12
+      }
+    },
+    "__labels": {
+      "statuses": "Statuses"
+    }
+  },
+  {
+    "__id": "plan.planning_workflow",
+    "__local_id": "planning_workflow",
+    "__label": "Planning Workflow",
+    "__kind": "SOP",
+    "__parent": "[[#plan]]",
+    "__parent_field": "planning_workflow",
+    "version": 1.0,
+    "__types": {
+      "version": "number"
+    },
+    "__level": 2,
+    "__line": 9,
+    "__positions": {
+      "version": {
+        "line": 11,
+        "col": 2
+      }
+    }
+  }
+]

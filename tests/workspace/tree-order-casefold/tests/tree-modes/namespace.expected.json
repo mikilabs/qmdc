@@ -1,0 +1,73 @@
+{
+  "id": "tree_order_casefold",
+  "label": "Tree Order Casefold",
+  "file": "readme.qmd.md",
+  "line": 1,
+  "count": 3,
+  "kindGroups": [],
+  "namespaces": [
+    {
+      "id": "learn",
+      "label": "Learn",
+      "file": "learn/readme.qmd.md",
+      "line": 1,
+      "kindGroups": [
+        {
+          "kind": "Topic",
+          "label": "Topic",
+          "count": 1,
+          "objects": [
+            {
+              "id": "learn_start",
+              "kind": "Topic",
+              "label": "Getting Started",
+              "level": 2,
+              "file": "learn/readme.qmd.md",
+              "line": 6,
+              "workspace": "tree_order_casefold",
+              "namespace": "learn",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lsp",
+      "label": "LSP Server",
+      "file": "lsp/readme.qmd.md",
+      "line": 1,
+      "kindGroups": [
+        {
+          "kind": "LSPFeature",
+          "label": "LSPFeature",
+          "count": 2,
+          "objects": [
+            {
+              "id": "lexer",
+              "kind": "LSPFeature",
+              "label": "Lexer",
+              "level": 2,
+              "file": "lsp/readme.qmd.md",
+              "line": 6,
+              "workspace": "tree_order_casefold",
+              "namespace": "lsp",
+              "children": []
+            },
+            {
+              "id": "lsp_hover",
+              "kind": "LSPFeature",
+              "label": "LSP Hover",
+              "level": 2,
+              "file": "lsp/readme.qmd.md",
+              "line": 10,
+              "workspace": "tree_order_casefold",
+              "namespace": "lsp",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

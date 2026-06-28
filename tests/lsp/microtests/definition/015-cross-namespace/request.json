@@ -1,0 +1,6 @@
+{
+  "method": "textDocument/definition",
+  "uri": "workspace/ambiguous_refs.qmd.md",
+  "position": { "line": 16, "character": 20 },
+  "_comment": "Go to [[#alpha:users]] - cross-namespace reference"
+}

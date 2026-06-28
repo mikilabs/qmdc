@@ -1,0 +1,19 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "**kind**: Person\n**label**: John Doe"
+      }
+    ],
+    "age": 30,
+    "__types": {
+      "age": "number"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

@@ -1,0 +1,42 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run QMDC Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/qmdc-vscode"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/qmdc-vscode/out/**/*.js"
+      ],
+      "preLaunchTask": "Build All (Rust + Extension)"
+    },
+    {
+      "name": "Run QMDC Extension (Copy Binary)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/qmdc-vscode"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/qmdc-vscode/out/**/*.js"
+      ],
+      "preLaunchTask": "Copy qmdc binary"
+    },
+    {
+      "name": "Run QMDC Extension (TS only)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/qmdc-vscode"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/qmdc-vscode/out/**/*.js"
+      ],
+      "preLaunchTask": "npm: compile - qmdc-vscode"
+    }
+  ]
+}
+

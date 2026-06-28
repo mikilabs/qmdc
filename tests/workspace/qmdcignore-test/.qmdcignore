@@ -1,0 +1,9 @@
+# Ignore a specific file
+excluded.qmd.md
+
+# Ignore everything in the temp folder
+temp/
+
+# Ignore the entire workspace-b
+workspace-b/
+

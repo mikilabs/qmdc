@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "rule",
+    "__label": "Rule",
+    "__kind": "__Object",
+    "code": "QMD001",
+    "pattern": "`[[#id]]` where id does not exist",
+    "message": "Object '{id}' not found",
+    "real_ref": "[[#rule]]",
+    "__types": {
+      "code": "string",
+      "pattern": "string",
+      "message": "string",
+      "real_ref": "string"
+    },
+    "__level": 1
+  }
+]

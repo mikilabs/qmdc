@@ -1,0 +1,7 @@
+{
+  "columns": ["__id", "__kind", "__file", "__line"],
+  "rows": [
+    ["virtual-workspace-qmdcignore-issue", "__Workspace", "", 1]
+  ]
+}
+

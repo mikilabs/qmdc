@@ -1,0 +1,23 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "description": "",
+    "bio": "Some bio text here.",
+    "__types": {
+      "description": "string",
+      "bio": "string"
+    },
+    "__syntax": {
+      "description": "multiline_text",
+      "bio": "multiline_text"
+    },
+    "__level": 2,
+    "__has_explicit_id": false,
+    "__labels": {
+      "description": "Description",
+      "bio": "Bio"
+    }
+  }
+]

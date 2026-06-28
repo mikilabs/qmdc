@@ -1,0 +1,28 @@
+{
+  "id": "virtual-workspace-qmdcignore-issue",
+  "label": "virtual-workspace-qmdcignore-issue",
+  "file": "",
+  "line": 1,
+  "count": 2,
+  "objects": [
+    {
+      "id": "order",
+      "kind": "Entity",
+      "label": "Order",
+      "level": 2,
+      "file": "models.qmd.md",
+      "line": 8,
+      "children": []
+    },
+    {
+      "id": "user",
+      "kind": "Entity",
+      "label": "User",
+      "level": 2,
+      "file": "models.qmd.md",
+      "line": 1,
+      "children": []
+    }
+  ]
+}
+

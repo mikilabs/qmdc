@@ -1,0 +1,4 @@
+{
+  "contents": "**Users** `Table`\n\n🔍 `workspace::users`\n- name: users_table\n- columns: id, name, email",
+  "_comment": "Hover on [[#Table:users]] shows Table object info"
+}

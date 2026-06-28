@@ -1,0 +1,13 @@
+{
+  "id": "users",
+  "kind": "Table",
+  "file": "input.qmd.md",
+  "line": 1,
+  "namespace": "",
+  "parent": "",
+  "fields": {
+    "name": "users",
+    "schema": "public"
+  },
+  "success": true
+}

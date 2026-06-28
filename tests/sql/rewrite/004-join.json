@@ -1,0 +1,6 @@
+{
+  "input": "SELECT * FROM objects JOIN edges ON objects.__id = edges.source_id",
+  "workspace": "ws1",
+  "expected": "SELECT * FROM objects INNER JOIN edges ON objects.__id = edges.source_id AND edges.__workspace = 'ws1' WHERE objects.__workspace = 'ws1'"
+}
+

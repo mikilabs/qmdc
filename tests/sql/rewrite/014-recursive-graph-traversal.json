@@ -1,0 +1,15 @@
+{
+  "input": "WITH RECURSIVE reachable(id, depth) AS (SELECT 'doc_ry4ljv' as id, 0 as depth UNION ALL SELECT t.__id, r.depth + 1 FROM reachable r INNER JOIN edges e ON e.source_id = (SELECT __global_id FROM objects WHERE __id = r.id AND __workspace = 'ws2') INNER JOIN objects t ON e.target_id = t.__global_id WHERE r.depth < 3 AND e.__workspace = 'ws2' AND t.__workspace = 'ws2') SELECT id, depth FROM reachable ORDER BY depth, id",
+  "workspace": "ws2",
+  "expected": "WITH RECURSIVE reachable (id, depth) AS (SELECT 'doc_ry4ljv' AS id, 0 AS depth UNION ALL SELECT t.__id, r.depth + 1 FROM reachable r INNER JOIN edges e ON e.source_id = (SELECT __global_id FROM objects WHERE __id = r.id AND __workspace = 'ws2') AND e.__workspace = 'ws2' INNER JOIN objects t ON e.target_id = t.__global_id AND t.__workspace = 'ws2' WHERE r.depth < 3 AND e.__workspace = 'ws2' AND t.__workspace = 'ws2') SELECT id, depth FROM reachable ORDER BY depth ASC, id ASC",
+  "expected_result": {
+    "columns": ["id", "depth"],
+    "rows": [
+      ["doc_ry4ljv", 0],
+      ["task2", 1],
+      ["task3", 1],
+      ["text_0", 1]
+    ]
+  }
+}
+

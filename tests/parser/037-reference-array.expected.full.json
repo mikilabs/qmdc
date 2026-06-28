@@ -1,0 +1,44 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "orders": [
+      "[[#order_1]]",
+      "[[#order_2]]"
+    ],
+    "__types": {
+      "orders": "array"
+    },
+    "__syntax": {
+      "orders": "yaml_array"
+    },
+    "__level": 2,
+    "__line": 1,
+    "__has_explicit_id": false,
+    "__references": [
+      {
+        "target": "#order_1",
+        "type": "hash_local",
+        "line": 3,
+        "start_col": 11,
+        "end_col": 23,
+        "raw": "[[#order_1]]"
+      },
+      {
+        "target": "#order_2",
+        "type": "hash_local",
+        "line": 3,
+        "start_col": 25,
+        "end_col": 37,
+        "raw": "[[#order_2]]"
+      }
+    ],
+    "__positions": {
+      "orders": {
+        "line": 3,
+        "col": 2
+      }
+    }
+  }
+]

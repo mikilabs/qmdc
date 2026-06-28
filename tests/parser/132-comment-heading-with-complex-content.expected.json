@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "solution1",
+    "__label": "Solution",
+    "__kind": "Finding",
+    "__comments": [
+      {
+        "after": "status",
+        "content": "### Part 1: Comment handling\n\nComments go to `__comments`, fields below go to parent.\n\nAffects all three parsers."
+      },
+      {
+        "after": "status",
+        "content": "### Part 2: Error handling\n\nAdd error type for structured content in textblock.\n\n```json\n{\n  \"type\": \"structured_in_textblock\",\n  \"line\": 17\n}\n```\n\nLogic:\n1. If pending text block is active\n2. And TextBlock has content\n3. Generate error"
+      },
+      {
+        "after": "status",
+        "content": "### Part 3: Testing\n\nRun all microtests after changes.\n\n- severity: high"
+      }
+    ],
+    "status": "confirmed",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 2
+  }
+]

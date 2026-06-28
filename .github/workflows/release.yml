@@ -1,0 +1,54 @@
+name: Release
+
+# Publish ONLY on a version tag (e.g. v1.2.3). The publish job is gated behind
+# the full cross-platform CI matrix — nothing reaches a registry unless every
+# OS (incl. Windows) is green. Re-running the same tag is safe: release-publish
+# is idempotent and skips anything already published.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Gate: reuse the exact CI matrix (Linux/macOS/Windows binary + py + ts + docs).
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: test
+    # Build host is macOS on purpose: Apple targets build with the native
+    # toolchain (zig has no macOS SDK), while cargo-zigbuild cross-compiles the
+    # Linux and Windows targets from the same runner. See scripts/release-build.sh.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: mlugg/setup-zig@v1
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Install package dev deps (vsce/tsc for the matrix build)
+        run: |
+          (cd qmdc-ts && npm ci)
+          (cd qmdc-vscode && npm ci)
+
+      - name: Build full matrix + idempotent publish to all registries
+        run: make publish
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.UV_PUBLISH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}

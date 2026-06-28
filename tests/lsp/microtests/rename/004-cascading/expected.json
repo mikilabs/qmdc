@@ -1,0 +1,11 @@
+{
+  "_comment": "Renaming team to squad cascades to all children references",
+  "changes": {
+    "input.qmd.md": [
+      { "range": { "start": {"line": 0, "character": 9}, "end": {"line": 0, "character": 13} }, "newText": "squad" },
+      { "range": { "start": {"line": 14, "character": 18}, "end": {"line": 14, "character": 22} }, "newText": "squad" },
+      { "range": { "start": {"line": 16, "character": 17}, "end": {"line": 16, "character": 21} }, "newText": "squad" },
+      { "range": { "start": {"line": 18, "character": 16}, "end": {"line": 18, "character": 20} }, "newText": "squad" }
+    ]
+  }
+}

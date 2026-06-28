@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "total": 4,
+  "truncated": true,
+  "next_cursor": "::tree_ws",
+  "nodes": [
+    { "id": "tree_ws", "global_id": "::tree_ws", "kind": "__Workspace", "level": 1 }
+  ]
+}

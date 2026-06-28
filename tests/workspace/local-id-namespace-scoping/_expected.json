@@ -1,0 +1,16 @@
+{
+  "workspace_id": "local_id_ns_scoping",
+  "files": [
+    "backend/readme.qmd.md",
+    "backend/service.qmd.md",
+    "frontend/app.qmd.md",
+    "frontend/readme.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["local_id_ns_scoping"],
+    "__Namespace": ["backend", "frontend"],
+    "__Object": ["api_svc", "api_svc.config", "consumer", "web_app", "web_app.config"]
+  },
+  "errors": []
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "note",
+    "__label": "Note",
+    "__kind": "Note",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Important information about the feature."
+      },
+      {
+        "after": "category",
+        "content": "> This is a blockquote with important information.\n> It can span multiple lines.\n\nAdditional text after the blockquote."
+      }
+    ],
+    "category": "documentation",
+    "__types": {
+      "category": "string"
+    },
+    "__level": 2
+  }
+]

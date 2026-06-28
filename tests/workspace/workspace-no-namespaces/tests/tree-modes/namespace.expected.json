@@ -1,0 +1,71 @@
+{
+  "id": "simple_ws",
+  "label": "Simple Workspace",
+  "file": "readme.qmd.md",
+  "line": 1,
+  "count": 4,
+  "kindGroups": [
+    {
+      "kind": "Bug",
+      "label": "Bug",
+      "count": 1,
+      "objects": [
+        {
+          "id": "bug1",
+          "kind": "Bug",
+          "label": "Bug Fixes",
+          "level": 2,
+          "file": "readme.qmd.md",
+          "line": 23,
+          "children": [],
+          "workspace": "simple_ws"
+        }
+      ]
+    },
+    {
+      "kind": "Feature",
+      "label": "Feature",
+      "count": 2,
+      "objects": [
+        {
+          "id": "feature1",
+          "kind": "Feature",
+          "label": "Features",
+          "level": 2,
+          "file": "readme.qmd.md",
+          "line": 9,
+          "children": [],
+          "workspace": "simple_ws"
+        },
+        {
+          "id": "feature2",
+          "kind": "Feature",
+          "label": "Features",
+          "level": 2,
+          "file": "readme.qmd.md",
+          "line": 16,
+          "children": [],
+          "workspace": "simple_ws"
+        }
+      ]
+    },
+    {
+      "kind": "Section",
+      "label": "Section",
+      "count": 1,
+      "objects": [
+        {
+          "id": "overview",
+          "kind": "Section",
+          "label": "Overview",
+          "level": 2,
+          "file": "readme.qmd.md",
+          "line": 5,
+          "children": [],
+          "workspace": "simple_ws"
+        }
+      ]
+    }
+  ],
+  "namespaces": []
+}

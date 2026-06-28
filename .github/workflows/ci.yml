@@ -1,0 +1,233 @@
+name: CI
+
+# Runs on every push to main and on PRs. Also callable from release.yml
+# (workflow_call) so a release publishes ONLY after this whole matrix is green.
+#
+# Selective by design: a `changes` job (dorny/paths-filter) computes which parts
+# of the monorepo were touched, and each component job runs only when its area
+# (or a shared/core path, or a release) changed. A final `ci-gate` job aggregates
+# the results into ONE blocking status — it FAILS if any job that actually ran
+# failed (skipped jobs are tolerated). Use ci-gate as the required status check.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Detect which parts changed. `run_all` forces the full matrix for releases
+  # (tag pushes), manual/called runs, or when a shared/core path changed
+  # (Makefile, workflows, bin/, scripts/, the shared test corpus).
+  # ---------------------------------------------------------------------------
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run_all: ${{ steps.decide.outputs.run_all }}
+      rs: ${{ steps.filter.outputs.rs }}
+      py: ${{ steps.filter.outputs.py }}
+      ts: ${{ steps.filter.outputs.ts }}
+      semantic: ${{ steps.filter.outputs.semantic }}
+      mkdocs: ${{ steps.filter.outputs.mkdocs }}
+      vscode: ${{ steps.filter.outputs.vscode }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            core:
+              - 'Makefile'
+              - '.github/workflows/**'
+              - 'bin/**'
+              - 'scripts/**'
+              - 'tests/**'
+            rs:
+              - 'qmdc-rs/**'
+            py:
+              - 'qmdc-py/**'
+            ts:
+              - 'qmdc-ts/**'
+            semantic:
+              - 'qmdc-semantic/**'
+            mkdocs:
+              - 'qmdc-mkdocs/**'
+            vscode:
+              - 'qmdc-vscode/**'
+            docs:
+              - 'docs/**'
+              - '**/*.md'
+              - '.markdownlint*'
+      - id: decide
+        # Force the whole matrix on releases (tags), manual/reusable runs, or any
+        # core change. Otherwise jobs run selectively from the filter outputs.
+        run: |
+          if [ "${{ steps.filter.outputs.core }}" = "true" ] \
+             || [ "${{ github.event_name }}" = "workflow_dispatch" ] \
+             || [ "${{ github.event_name }}" = "workflow_call" ] \
+             || [ "${{ startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
+            echo "run_all=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_all=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The shipped native binary (parser + LSP + MCP server) is the platform-risky
+  # part — test it on Linux, macOS AND Windows so we never publish an MCP/CLI
+  # that's broken on a platform we don't develop on.
+  binary:
+    needs: changes
+    if: ${{ needs.changes.outputs.run_all == 'true' || needs.changes.outputs.rs == 'true' }}
+    name: binary (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: qmdc-rs
+      - name: Lint (clippy)
+        run: cd qmdc-rs && cargo clippy --all-targets -- -D warnings
+      # Debug profile on purpose: clippy --all-targets already compiled the dep
+      # tree in debug, so debug tests reuse it (one compile, not two). CI checks
+      # correctness, not runtime speed; the shipped release binaries are built
+      # separately by release.yml.
+      - name: Rust tests (parser, LSP, MCP server)
+        run: cd qmdc-rs && cargo test
+      - name: CLI smoke — parse on this OS
+        run: |
+          printf '## Server [[server: Config]]\n\n- port: 8080\n- debug: true\n' \
+            | cargo run --manifest-path qmdc-rs/Cargo.toml -- parse
+
+  python:
+    needs: changes
+    # Cross-parser consistency tests drive all three parsers, so a change to the
+    # Rust or TS parser can affect the Python suite too.
+    if: ${{ needs.changes.outputs.run_all == 'true' || needs.changes.outputs.py == 'true' || needs.changes.outputs.rs == 'true' || needs.changes.outputs.ts == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      # The cross-parser consistency tests in qmdc-py drive all three parsers via
+      # bin/qmdc-{py,ts,rs}. Node deps are needed for bin/qmdc-ts (tsx + commander);
+      # the Rust binary is built on demand by bin/qmdc-rs (cargo is preinstalled on
+      # the runner).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: qmdc-ts/package-lock.json
+      - name: Install TypeScript deps (for cross-parser tests)
+        run: cd qmdc-ts && npm ci
+      - name: Python tests
+        run: make py-test
+
+  typescript:
+    needs: changes
+    if: ${{ needs.changes.outputs.run_all == 'true' || needs.changes.outputs.ts == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: qmdc-ts/package-lock.json
+      - name: Install dependencies
+        run: cd qmdc-ts && npm ci
+      - name: TypeScript tests
+        run: make ts-test
+
+  semantic:
+    needs: changes
+    if: ${{ needs.changes.outputs.run_all == 'true' || needs.changes.outputs.semantic == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: qmdc-semantic tests (provider-free units + ruff)
+        run: make semantic-test
+
+  mkdocs:
+    needs: changes
+    if: ${{ needs.changes.outputs.run_all == 'true' || needs.changes.outputs.mkdocs == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: qmdc-mkdocs tests
+        run: make mkdocs-test
+
+  vscode:
+    needs: changes
+    if: ${{ needs.changes.outputs.run_all == 'true' || needs.changes.outputs.vscode == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: qmdc-vscode/package-lock.json
+      - name: Install dependencies
+        run: cd qmdc-vscode && npm ci
+      - name: Install Playwright Chromium
+        run: cd qmdc-vscode && npx playwright install --with-deps chromium
+      - name: VS Code preview tests (Playwright)
+        run: make vscode-test
+
+  docs:
+    needs: changes
+    # validate-docs runs the Python CLI, so a qmdc-py change can change results.
+    if: ${{ needs.changes.outputs.run_all == 'true' || needs.changes.outputs.docs == 'true' || needs.changes.outputs.py == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate docs workspace + markdownlint
+        run: |
+          make validate-docs
+          make md-lint
+
+  # ---------------------------------------------------------------------------
+  # Single blocking status. Fails if ANY job that ran failed or was cancelled;
+  # tolerates skipped jobs (the whole point of the selective matrix). Make THIS
+  # the required status check in branch protection.
+  # ---------------------------------------------------------------------------
+  ci-gate:
+    if: ${{ always() }}
+    needs: [changes, binary, python, typescript, semantic, mkdocs, vscode, docs]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check component results
+        run: |
+          results="${{ join(needs.*.result, ' ') }}"
+          echo "Component results: $results"
+          for r in $results; do
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              echo "::error::A required CI job failed or was cancelled."
+              exit 1
+            fi
+          done
+          echo "All component jobs passed (or were skipped)."

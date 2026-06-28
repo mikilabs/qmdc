@@ -1,0 +1,19 @@
+[
+  {
+    "__id": "task1",
+    "__label": "Task",
+    "__kind": "Task",
+    "assignee": "alice",
+    "checklist": "- Review PR\n- Run tests\n- Update docs\n- Deploy to staging",
+    "status": "in_progress",
+    "__types": {
+      "assignee": "string",
+      "checklist": "string",
+      "status": "string"
+    },
+    "__syntax": {
+      "checklist": "yaml_multiline"
+    },
+    "__level": 2
+  }
+]

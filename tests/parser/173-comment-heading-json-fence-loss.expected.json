@@ -1,0 +1,63 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#feat1]]",
+      "[[#text_0]]",
+      "[[#text_1]]",
+      "[[#text_2]]",
+      "[[#next1]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "## Output Format",
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "text_1",
+    "__kind": "__TextBlock",
+    "content": "### JSON Schema\n\n```json\n{\n  \"count\": 4\n}\n```",
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "text_2",
+    "__kind": "__TextBlock",
+    "content": "### Distribution\n\n```json\n{\n  \"namespaces\": 12\n}\n```",
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "feat1",
+    "__label": "Feature",
+    "__kind": "Feature",
+    "__container": "[[#doc_ry4ljv]]",
+    "status": "planned",
+    "category": "analysis",
+    "description": "Overview of the feature.",
+    "__types": {
+      "status": "string",
+      "category": "string",
+      "description": "string"
+    },
+    "__syntax": {
+      "description": "multiline_text"
+    },
+    "__level": 2,
+    "__labels": {
+      "description": "Description"
+    }
+  },
+  {
+    "__id": "next1",
+    "__label": "Next",
+    "__kind": "Task",
+    "__container": "[[#doc_ry4ljv]]",
+    "priority": "low",
+    "__types": {
+      "priority": "string"
+    },
+    "__level": 2
+  }
+]

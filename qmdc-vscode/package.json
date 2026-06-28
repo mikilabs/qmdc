@@ -1,0 +1,291 @@
+{
+  "name": "qmdc-vscode",
+  "displayName": "QMDC — QMD.md Language Support",
+  "description": "QMDC language support for QMD.md files: LSP-powered IntelliSense, live preview, and SQL queries over your Markdown.",
+  "version": "1.0.8",
+  "publisher": "mikilabs",
+  "icon": "icons/qmdc-marketplace.png",
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mikilabs/qmdc"
+  },
+  "homepage": "https://github.com/mikilabs/qmdc#readme",
+  "bugs": {
+    "url": "https://github.com/mikilabs/qmdc/issues"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "keywords": [
+    "qmd.md",
+    "qmdc",
+    "markdown",
+    "structured data",
+    "lsp",
+    "language server"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "qmdc-explorer",
+          "title": "QMDC Explorer",
+          "icon": "$(database)"
+        }
+      ]
+    },
+    "views": {
+      "qmdc-explorer": [
+        {
+          "id": "qmdcObjects",
+          "name": "Objects",
+          "contextualTitle": "QMDC Objects"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "qmdmd",
+        "aliases": [
+          "QMD.md"
+        ],
+        "extensions": [
+          ".qmd.md"
+        ],
+        "filenamePatterns": [
+          "*.qmd.md"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/qmdc-light.svg",
+          "dark": "./icons/qmdc-dark.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "qmdmd",
+        "scopeName": "text.qmd.md",
+        "path": "./syntaxes/qmdc.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.sql": "sql",
+          "meta.embedded.block.javascript": "javascript",
+          "meta.embedded.block.typescript": "typescript",
+          "meta.embedded.block.python": "python",
+          "meta.embedded.block.json": "json",
+          "meta.embedded.block.yaml": "yaml",
+          "meta.embedded.block.markdown": "markdown"
+        }
+      }
+    ],
+    "configuration": {
+      "title": "QMDC",
+      "properties": {
+        "qmdc.server.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to qmdc binary. If empty, uses 'qmdc' from PATH."
+        },
+        "qmdc.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the QMDC language server."
+        },
+        "qmdc.dimMetadata": {
+          "type": "boolean",
+          "default": true,
+          "description": "Dim [[id]] and [[id: Kind]] metadata for better readability"
+        },
+        "qmdc.showPreviewButton": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show Open Preview button in editor title bar"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "qmdc.restartServer",
+        "title": "QMDC: Restart Language Server"
+      },
+      {
+        "command": "qmdc.goToObject",
+        "title": "QMDC: Go to Object..."
+      },
+      {
+        "command": "qmdc.showReferences",
+        "title": "QMDC: Show References"
+      },
+      {
+        "command": "qmdc.parseWorkspace",
+        "title": "QMDC: Parse Workspace"
+      },
+      {
+        "command": "qmdc.validateWorkspace",
+        "title": "QMDC: Validate Workspace"
+      },
+      {
+        "command": "qmdc.runSqlQuery",
+        "title": "QMDC: Run SQL Query"
+      },
+      {
+        "command": "qmdc.runQueryFromBlock",
+        "title": "QMDC: Run Query from Block"
+      },
+      {
+        "command": "qmdc.openPreview",
+        "title": "QMDC: Open Preview",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "qmdc.openPreviewBeside",
+        "title": "QMDC: Open Preview in Split Screen",
+        "icon": "$(split-horizontal)"
+      },
+      {
+        "command": "qmdc.refreshExplorer",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "qmdc.groupByNamespace",
+        "title": "Group by Namespace",
+        "icon": "$(folder-library)"
+      },
+      {
+        "command": "qmdc.groupByFile",
+        "title": "Group by File",
+        "icon": "$(files)"
+      },
+      {
+        "command": "qmdc.groupBySmart",
+        "title": "Smart Hierarchy",
+        "icon": "$(type-hierarchy-sub)"
+      },
+      {
+        "command": "qmdc.copyGlobalId",
+        "title": "Copy Global ID"
+      },
+      {
+        "command": "qmdc.revealInExplorer",
+        "title": "Reveal in File Explorer"
+      },
+      {
+        "command": "qmdc.previewObjectFile",
+        "title": "Open Preview"
+      }
+    ],
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "qmdc.previewObjectFile",
+          "when": "view == qmdcObjects && viewItem == object || view == qmdcObjects && viewItem == smart-object",
+          "group": "navigation@1"
+        },
+        {
+          "command": "qmdc.copyGlobalId",
+          "when": "view == qmdcObjects && viewItem == object || view == qmdcObjects && viewItem == smart-object",
+          "group": "navigation@2"
+        },
+        {
+          "command": "qmdc.revealInExplorer",
+          "when": "view == qmdcObjects && viewItem == object || view == qmdcObjects && viewItem == smart-object",
+          "group": "navigation@3"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "qmdc.refreshExplorer",
+          "when": "view == qmdcObjects",
+          "group": "navigation@1"
+        },
+        {
+          "command": "qmdc.groupByNamespace",
+          "when": "view == qmdcObjects",
+          "group": "navigation@2"
+        },
+        {
+          "command": "qmdc.groupByFile",
+          "when": "view == qmdcObjects",
+          "group": "navigation@4"
+        },
+        {
+          "command": "qmdc.groupBySmart",
+          "when": "view == qmdcObjects",
+          "group": "navigation@5"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "qmdc.openPreview",
+          "group": "navigation@1",
+          "when": "editorLangId == qmdmd"
+        },
+        {
+          "command": "qmdc.openPreviewBeside",
+          "group": "navigation@2",
+          "when": "editorLangId == qmdmd"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "qmdc.goToObject",
+        "key": "ctrl+shift+o",
+        "mac": "cmd+shift+o",
+        "when": "editorLangId == qmdmd"
+      },
+      {
+        "command": "qmdc.showReferences",
+        "key": "shift+f12",
+        "when": "editorLangId == qmdmd"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src",
+    "clean": "rm -rf out bin *.vsix",
+    "package:darwin-x64": "cd ../qmdc-rs && cargo build --release --target x86_64-apple-darwin && cd ../qmdc-vscode && mkdir -p bin && cp ../qmdc-rs/target/x86_64-apple-darwin/release/qmdc bin/ && npm run compile && vsce package --target darwin-x64",
+    "package:darwin-arm64": "cd ../qmdc-rs && cargo build --release --target aarch64-apple-darwin && cd ../qmdc-vscode && mkdir -p bin && cp ../qmdc-rs/target/aarch64-apple-darwin/release/qmdc bin/ && npm run compile && vsce package --target darwin-arm64",
+    "package:linux-x64": "cd ../qmdc-rs && cargo zigbuild --release --target x86_64-unknown-linux-gnu && cd ../qmdc-vscode && mkdir -p bin && cp ../qmdc-rs/target/x86_64-unknown-linux-gnu/release/qmdc bin/ && npm run compile && vsce package --target linux-x64",
+    "package:linux-arm64": "cd ../qmdc-rs && cargo zigbuild --release --target aarch64-unknown-linux-gnu && cd ../qmdc-vscode && mkdir -p bin && cp ../qmdc-rs/target/aarch64-unknown-linux-gnu/release/qmdc bin/ && npm run compile && vsce package --target linux-arm64",
+    "package:win32-x64": "cd ../qmdc-rs && cargo zigbuild --release --target x86_64-pc-windows-gnu && cd ../qmdc-vscode && mkdir -p bin && cp ../qmdc-rs/target/x86_64-pc-windows-gnu/release/qmdc.exe bin/qmdc.exe && npm run compile && vsce package --target win32-x64",
+    "package:win32-arm64": "cd ../qmdc-rs && cargo zigbuild --release --target aarch64-pc-windows-gnullvm && cd ../qmdc-vscode && mkdir -p bin && cp ../qmdc-rs/target/aarch64-pc-windows-gnullvm/release/qmdc.exe bin/qmdc.exe && npm run compile && vsce package --target win32-arm64",
+    "package:all": "npm run clean && npm run package:darwin-x64 && npm run package:darwin-arm64 && npm run package:linux-x64 && npm run package:linux-arm64 && npm run package:win32-x64 && npm run package:win32-arm64",
+    "build": "cd ../qmdc-rs && cargo build --release && cd ../qmdc-vscode && mkdir -p bin && cp ../qmdc-rs/target/release/qmdc bin/ && npm run compile && vsce package",
+    "bump-version": "tsx scripts/bump_version.ts",
+    "test:e2e": "npx playwright test"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.1",
+    "marked": "^15.0.0",
+    "mermaid": "^11.13.0",
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.22.0",
+    "eslint": "^9.39.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.0",
+    "typescript-eslint": "^8.59.3"
+  }
+}

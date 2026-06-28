@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "spec1",
+    "__label": "Spec",
+    "__kind": "Section",
+    "source": "docs",
+    "syntax1": "Example with table block:\n\n```table\nsql: SELECT __id FROM objects\nscope: workspace\n```\n\nWithout filtering:\n\n```table\nsql: SELECT __id FROM objects\nscope: all\n```\n\nThat is all.",
+    "__types": {
+      "source": "string",
+      "syntax1": "string"
+    },
+    "__syntax": {
+      "syntax1": "multiline_text"
+    },
+    "__level": 2,
+    "__labels": {
+      "syntax1": "Syntax"
+    }
+  }
+]

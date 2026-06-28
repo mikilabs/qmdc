@@ -1,0 +1,10 @@
+{
+  "columns": ["__id", "columns", "primary_key"],
+  "rows": [
+    ["order_items", "id, order_id, product_id, quantity", "id"],
+    ["orders", "id, user_id, total, status", "id"],
+    ["products", "id, name, price, stock", "id"],
+    ["users", "id, email, name, created_at", "id"]
+  ]
+}
+

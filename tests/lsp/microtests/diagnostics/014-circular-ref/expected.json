@@ -1,0 +1,4 @@
+{
+  "_comment": "Circular references (a→b→c→a) all resolve — no broken links. Cycle detection is not implemented in LSP.",
+  "diagnostics": []
+}

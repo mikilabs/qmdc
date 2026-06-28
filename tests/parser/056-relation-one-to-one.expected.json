@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "alice",
+    "__label": "User",
+    "__kind": "__Object",
+    "name": "Alice",
+    "profile": "[[#alice_profile]]",
+    "__types": {
+      "name": "string",
+      "profile": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "alice_profile",
+    "__label": "Profile",
+    "__kind": "__Object",
+    "theme": "dark",
+    "language": "en",
+    "__types": {
+      "theme": "string",
+      "language": "string"
+    },
+    "__level": 1
+  }
+]

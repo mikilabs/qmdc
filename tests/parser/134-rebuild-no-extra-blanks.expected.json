@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "config1",
+    "__label": "Config",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "schema_version",
+        "content": "### Description\n\nMain configuration object.\n\n- name: default"
+      }
+    ],
+    "schema_version": 1,
+    "__types": {
+      "schema_version": "number"
+    },
+    "__level": 2
+  }
+]

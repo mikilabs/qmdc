@@ -1,0 +1,19 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "orders": [
+      "[[#order_1]]",
+      "[[#order_2]]"
+    ],
+    "__types": {
+      "orders": "array"
+    },
+    "__syntax": {
+      "orders": "yaml_array"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

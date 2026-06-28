@@ -1,0 +1,8 @@
+{
+  "items": [
+    { "label": "item-one" },
+    { "label": "item-two" }
+  ],
+  "_comment": "Completion inside empty [[ shows user-defined IDs (system objects filtered)"
+}
+

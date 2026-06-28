@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "task",
+    "__label": "Task",
+    "__kind": "Task",
+    "__comments": [
+      {
+        "after": "status",
+        "content": "### Progress\n\n- [x] Understood the task\n- [x] Studied the code\n- [ ] Wrote tests\n- [ ] Fixed the bug"
+      }
+    ],
+    "status": "in_progress",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 1
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "items": [
+    {
+      "id": "orders",
+      "name": "Orders",
+      "kind": "Table",
+      "file": "readme.qmd.md",
+      "line": 6,
+      "namespace": ""
+    }
+  ],
+  "truncated": false,
+  "success": true
+}

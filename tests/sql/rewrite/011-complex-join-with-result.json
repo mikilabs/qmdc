@@ -1,0 +1,13 @@
+{
+  "input": "SELECT o.__id, o.__kind, COUNT(e.target_id) as edge_count FROM objects o LEFT JOIN edges e ON o.__id = e.source_id WHERE o.__kind = 'Feature' GROUP BY o.__id, o.__kind ORDER BY o.__id",
+  "workspace": "ws2",
+  "expected": "SELECT o.__id, o.__kind, COUNT(e.target_id) AS edge_count FROM objects o LEFT JOIN edges e ON o.__id = e.source_id AND e.__workspace = 'ws2' WHERE o.__kind = 'Feature' AND o.__workspace = 'ws2' GROUP BY o.__id, o.__kind ORDER BY o.__id ASC",
+  "expected_result": {
+    "columns": ["__id", "__kind", "edge_count"],
+    "rows": [
+      ["task2", "Feature", 0],
+      ["task3", "Feature", 0]
+    ]
+  }
+}
+

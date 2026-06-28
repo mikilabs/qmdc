@@ -1,0 +1,226 @@
+
+=== query: "how to install qmdc" ===
+  [parser OR, title^3]
+    1. [21.821] semantic/readme.qmd.md:16  ::  Installation
+    2. [21.311] learn/markdown-to-graph.qmd.md:52  ::  How QMDC interprets it
+    3. [20.456] guides/vscode.qmd.md:55  ::  Install the Extension
+    4. [18.523] learn/qmdc-for-agents.qmd.md:50  ::  How an Agent Uses QMDC
+    5. [18.013] testing/sql-rewrite-tests.qmd.md:74  ::  How to Add a Test
+  [parser AND, title^3]
+    (no hits)
+  [fuzzy d=1]
+    1. [5.000] learn/qmdc-for-agents.qmd.md:50  ::  How an Agent Uses QMDC
+    2. [4.000] extension/commands.qmd.md:30  ::  Show References
+    3. [4.000] guides/vscode.qmd.md:15  ::  Prompt
+    4. [4.000] ssg/readme.qmd.md:11  ::  How It Works
+    5. [4.000] guides/vscode.qmd.md:107  ::  QMDC Explorer Panel
+
+=== query: "semantic search" ===
+  [parser OR, title^3]
+    1. [28.291] semantic/commands.qmd.md:47  ::  search
+    2. [25.405] semantic/algorithms.qmd.md:44  ::  Hybrid Search
+    3. [24.381] semantic/commands.qmd.md:80  ::  Simple search
+    4. [23.613] semantic/readme.qmd.md:1  ::  Semantic Layer
+    5. [23.103] semantic/algorithms.qmd.md:1  ::  Semantic Algorithms
+  [parser AND, title^3]
+    1. [28.291] semantic/commands.qmd.md:47  ::  search
+    2. [25.405] semantic/algorithms.qmd.md:44  ::  Hybrid Search
+    3. [24.381] semantic/commands.qmd.md:80  ::  Simple search
+    4. [23.613] semantic/readme.qmd.md:1  ::  Semantic Layer
+    5. [23.103] semantic/algorithms.qmd.md:1  ::  Semantic Algorithms
+  [fuzzy d=1]
+    1. [2.000] mcp/discovery.qmd.md:29  ::  Search Objects
+    2. [2.000] semantic/algorithms.qmd.md:44  ::  Hybrid Search
+    3. [2.000] semantic/commands.qmd.md:47  ::  search
+    4. [2.000] semantic/commands.qmd.md:80  ::  Simple search
+    5. [2.000] semantic/testing.qmd.md:53  ::  test_search.py
+
+=== query: "broken link validation" ===
+  [parser OR, title^3]
+    1. [41.943] lsp/diagnostics.qmd.md:57  ::  Broken Link
+    2. [41.130] guides/qmdc-guide.qmd.md:945  ::  Broken Link
+    3. [37.951] format/validation-errors.qmd.md:7  ::  Broken Link
+    4. [29.526] guides/validate-document.qmd.md:82  ::  `broken_link`
+    5. [24.342] guides/qmdc-guide.qmd.md:805  ::  Workspace Validate
+  [parser AND, title^3]
+    1. [41.943] lsp/diagnostics.qmd.md:57  ::  Broken Link
+    2. [41.130] guides/qmdc-guide.qmd.md:945  ::  Broken Link
+    3. [24.342] guides/qmdc-guide.qmd.md:805  ::  Workspace Validate
+    4. [23.317] parsers/commands.qmd.md:199  ::  Workspace Validate
+    5. [13.880] guides/validate-document.qmd.md:47  ::  Validate an entire workspace
+  [fuzzy d=1]
+    1. [4.000] guides/qmdc-guide.qmd.md:945  ::  Broken Link
+    2. [4.000] lsp/diagnostics.qmd.md:57  ::  Broken Link
+    3. [4.000] format/validation-errors.qmd.md:7  ::  Broken Link
+    4. [2.000] format/fields.qmd.md:87  ::  Config
+    5. [2.000] format/validation-errors.qmd.md:391  ::  Broken Parent
+
+=== query: "rename an object and update references" ===
+  [parser OR, title^3]
+    1. [40.734] lsp/refactoring.qmd.md:5  ::  Rename
+    2. [36.958] mcp/refactoring.qmd.md:5  ::  Rename Object
+    3. [21.204] guides/qmdc-guide.qmd.md:828  ::  Find all references to an object
+    4. [20.059] semantic/storage.qmd.md:123  ::  Incremental Updates
+    5. [19.340] parsers/commands.qmd.md:156  ::  Count objects and edges
+  [parser AND, title^3]
+    1. [10.726] guides/vscode.qmd.md:75  ::  Key Features
+  [fuzzy d=1]
+    1. [6.000] lsp/refactoring.qmd.md:5  ::  Rename
+    2. [5.000] architecture/components.qmd.md:40  ::  LSP Server
+    3. [5.000] learn/qmdc-for-agents.qmd.md:50  ::  How an Agent Uses QMDC
+    4. [5.000] tutorials/first-file.qmd.md:289  ::  7. Parse and inspect
+    5. [5.000] extension/readme.qmd.md:11  ::  Editor Features
+
+=== query: "query objects with sql" ===
+  [parser OR, title^3]
+    1. [32.763] learn/markdown-to-graph.qmd.md:83  ::  Query it with SQL
+    2. [32.422] mcp/query.qmd.md:5  ::  Query SQL
+    3. [32.064] guides/qmdc-guide.qmd.md:818  ::  Query — SQL Queries
+    4. [29.169] extension/commands.qmd.md:68  ::  Run SQL Query
+    5. [28.233] lsp/commands.qmd.md:98  ::  Run SQL Query
+  [parser AND, title^3]
+    1. [32.763] learn/markdown-to-graph.qmd.md:83  ::  Query it with SQL
+    2. [18.719] guides/query-graph.qmd.md:52  ::  Run a query
+    3. [18.295] guides/query-graph.qmd.md:1  ::  Query Your Markdown Graph
+    4. [9.022] guides/qmdc-guide.qmd.md:635  ::  Get Tables
+    5. [8.495] format/dynamic-blocks.qmd.md:5  ::  Description
+  [fuzzy d=1]
+    1. [6.000] learn/markdown-to-graph.qmd.md:83  ::  Query it with SQL
+    2. [5.000] extension/commands.qmd.md:68  ::  Run SQL Query
+    3. [5.000] guides/query-graph.qmd.md:1  ::  Query Your Markdown Graph
+    4. [5.000] guides/query-graph.qmd.md:52  ::  Run a query
+    5. [4.000] guides/qmdc-guide.qmd.md:818  ::  Query — SQL Queries
+
+=== query: "list mcp tools" ===
+  [parser OR, title^3]
+    1. [29.548] mcp/readme.qmd.md:1  ::  MCP Server
+    2. [28.412] mcp/readme.qmd.md:16  ::  Tool Naming
+    3. [19.548] guides/small-workspace.qmd.md:102  ::  List Users
+    4. [15.702] format/validation-errors.qmd.md:226  ::  Ordered List In Array
+    5. [15.604] guides/validate-document.qmd.md:160  ::  `ordered_list_in_array`
+  [parser AND, title^3]
+    1. [10.631] mcp/server.qmd.md:5  ::  Protocol
+    2. [8.604] lsp/navigation.qmd.md:38  ::  Description
+  [fuzzy d=1]
+    1. [3.000] format/validation-errors.qmd.md:449  ::  Invalid Map Content
+    2. [3.000] mcp/readme.qmd.md:1  ::  MCP Server
+    3. [3.000] mcp/server.qmd.md:5  ::  Protocol
+    4. [3.000] format/validation-errors.qmd.md:348  ::  Invalid Map Entry
+    5. [3.000] lsp/navigation.qmd.md:38  ::  Description
+
+=== query: "namespace reference syntax" ===
+  [parser OR, title^3]
+    1. [24.868] lsp/completion.qmd.md:165  ::  Namespace in Reference
+    2. [24.407] guides/qmdc-guide.qmd.md:432  ::  Cross-Namespace References
+    3. [22.969] lsp/diagnostics.qmd.md:198  ::  Invalid Reference Syntax
+    4. [20.021] lsp/commands.qmd.md:66  ::  Syntax
+    5. [19.612] format/references.qmd.md:14  ::  Syntax
+  [parser AND, title^3]
+    1. [19.612] format/references.qmd.md:14  ::  Syntax
+    2. [6.413] guides/small-workspace.qmd.md:136  ::  Architecture
+    3. [6.068] guides/small-workspace.qmd.md:208  ::  How it all fits together
+    4. [5.629] tutorials/first-file.qmd.md:256  ::  Bob
+    5. [5.017] format/objects.qmd.md:9  ::  System Fields
+  [fuzzy d=1]
+    1. [3.000] format/references.qmd.md:14  ::  Syntax
+    2. [3.000] lsp/commands.qmd.md:66  ::  Syntax
+    3. [3.000] format/workspaces.qmd.md:9  ::  Syntax
+    4. [2.000] extension/commands.qmd.md:125  ::  Group by Namespace
+    5. [2.000] format/comments.qmd.md:9  ::  Syntax
+
+=== query: "vscode extension features" ===
+  [parser OR, title^3]
+    1. [22.784] lsp/completion.qmd.md:299  ::  Feature
+    2. [22.481] architecture/components.qmd.md:59  ::  VS Code Extension
+    3. [22.444] lsp/completion.qmd.md:308  ::  Feature
+    4. [21.541] parsers/python-parser.qmd.md:69  ::  Features
+    5. [21.177] extension/commands.qmd.md:1  ::  Extension Commands
+  [parser AND, title^3]
+    1. [22.481] architecture/components.qmd.md:59  ::  VS Code Extension
+    2. [8.396] guides/vscode.qmd.md:15  ::  Prompt
+  [fuzzy d=1]
+    1. [1.000] extension/readme.qmd.md:41  ::  QMDC Objects Explorer
+    2. [1.000] extension/readme.qmd.md:159  ::  Configuration Files
+    3. [1.000] guides/qmdc-guide.qmd.md:131  ::  Feature
+    4. [1.000] guides/query-graph.qmd.md:16  ::  Prompt
+    5. [1.000] guides/readme.qmd.md:3  ::  Content Generator
+
+=== query: "typed edges" ===
+  [parser OR, title^3]
+    1. [33.570] guides/qmdc-guide.qmd.md:472  ::  Typed Edges
+    2. [33.527] format/references.qmd.md:51  ::  Typed Edges
+    3. [21.038] guides/qmdc-guide.qmd.md:524  ::  Preamble edges (where edge_type differs from source_field)
+    4. [18.006] semantic/storage.qmd.md:67  ::  edges Table
+    5. [17.155] semantic/algorithms.qmd.md:95  ::  Inferred Edges
+  [parser AND, title^3]
+    1. [33.570] guides/qmdc-guide.qmd.md:472  ::  Typed Edges
+    2. [33.527] format/references.qmd.md:51  ::  Typed Edges
+    3. [21.038] guides/qmdc-guide.qmd.md:524  ::  Preamble edges (where edge_type differs from source_field)
+    4. [15.445] testing/sql-tests.qmd.md:106  ::  Table: edges
+    5. [7.080] guides/qmdc-guide.qmd.md:479  ::  Payment
+  [fuzzy d=1]
+    1. [2.000] guides/qmdc-guide.qmd.md:306  ::  System Types
+    2. [2.000] guides/qmdc-guide.qmd.md:472  ::  Typed Edges
+    3. [2.000] lsp/completion.qmd.md:243  ::  Built-in Types
+    4. [2.000] format/references.qmd.md:51  ::  Typed Edges
+    5. [2.000] format/types.qmd.md:1  ::  Data Type
+
+=== query: "ignore files from the workspace" ===
+  [parser OR, title^3]
+    1. [25.260] ssg/readme.qmd.md:61  ::  Excluding Files
+    2. [22.987] semantic/readme.qmd.md:41  ::  Impact scan (query from file)
+    3. [21.165] semantic/commands.qmd.md:83  ::  Impact scan from task file
+    4. [20.458] learn/markdown-to-graph.qmd.md:134  ::  The whole workspace is the graph
+    5. [19.737] format/validation-errors.qmd.md:90  ::  Workspace In Wrong File
+  [parser AND, title^3]
+    1. [25.260] ssg/readme.qmd.md:61  ::  Excluding Files
+  [fuzzy d=1]
+    1. [6.000] ssg/readme.qmd.md:61  ::  Excluding Files
+    2. [5.000] learn/human-machine-readable.qmd.md:52  ::  The machine view
+    3. [5.000] mcp/readme.qmd.md:12  ::  Workspace Anchoring
+    4. [5.000] semantic/readme.qmd.md:41  ::  Impact scan (query from file)
+    5. [5.000] learn/why-qmdc.qmd.md:91  ::  The building blocks
+
+=== query: "render docs to a website" ===
+  [parser OR, title^3]
+    1. [29.698] format/dynamic-blocks.qmd.md:37  ::  Renderers
+    2. [16.294] learn/qmdc-for-agents.qmd.md:83  ::  One Set of Docs, Two Audiences
+    3. [15.038] testing/sql-rewrite-tests.qmd.md:74  ::  How to Add a Test
+    4. [13.634] lsp/navigation.qmd.md:5  ::  Go to Definition
+    5. [13.557] learn/markdown-to-graph.qmd.md:1  ::  Markdown to Graph
+  [parser AND, title^3]
+    (no hits)
+  [fuzzy d=1]
+    1. [5.000] learn/qmd-md-vs-quarto.qmd.md:12  ::  Two different goals
+    2. [5.000] learn/qmdc-for-agents.qmd.md:83  ::  One Set of Docs, Two Audiences
+    3. [4.000] learn/readme.qmd.md:10  ::  Prompt
+    4. [4.000] releasing/demos.qmd.md:10  ::  Pipeline
+    5. [4.000] tutorials/readme.qmd.md:10  ::  Prompt
+
+=== query: "find all references to an object" ===
+  [parser OR, title^3]
+    1. [44.743] guides/qmdc-guide.qmd.md:828  ::  Find all references to an object
+    2. [37.521] lsp/navigation.qmd.md:30  ::  Find References
+    3. [34.727] mcp/graph.qmd.md:5  ::  Find References
+    4. [24.129] format/validation-errors.qmd.md:210  ::  Findings
+    5. [23.492] guides/qmdc-guide.qmd.md:825  ::  Find all objects of type Table
+  [parser AND, title^3]
+    1. [44.744] guides/qmdc-guide.qmd.md:828  ::  Find all references to an object
+    2. [10.106] guides/query-graph.qmd.md:16  ::  Prompt
+    3. [7.874] guides/vscode.qmd.md:75  ::  Key Features
+    4. [6.905] learn/why-qmdc.qmd.md:83  ::  Who benefits
+    5. [5.933] learn/qmdc-for-agents.qmd.md:14  ::  Prompt
+  [fuzzy d=1]
+    1. [6.000] learn/qmdc-for-agents.qmd.md:50  ::  How an Agent Uses QMDC
+    2. [6.000] tutorials/first-file.qmd.md:289  ::  7. Parse and inspect
+    3. [6.000] guides/small-workspace.qmd.md:208  ::  How it all fits together
+    4. [6.000] guides/validate-document.qmd.md:47  ::  Validate an entire workspace
+    5. [6.000] readme.qmd.md:8  ::  Anchor Kinds
+
+=== query: "referense resolusion" ===
+  [parser OR, title^3]
+    (no hits)
+  [parser AND, title^3]
+    (no hits)
+  [fuzzy d=1]
+    (no hits)

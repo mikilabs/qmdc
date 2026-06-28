@@ -1,0 +1,14 @@
+{
+  "columns": ["__workspace", "__kind", "cnt"],
+  "rows": [
+    ["backend", "Endpoint", 4],
+    ["backend", "Table", 4],
+    ["frontend", "Component", 3],
+    ["frontend", "Page", 3],
+    ["", "__Workspace", 2],
+    ["backend", "__Namespace", 2],
+    ["frontend", "__Namespace", 2],
+    ["backend", "Config", 1],
+    ["frontend", "Config", 1]
+  ]
+}

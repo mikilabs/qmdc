@@ -1,0 +1,10 @@
+{
+  "columns": ["__id", "__parent", "parent_id"],
+  "rows": [
+    ["auth_svc.config", "auth_svc", "auth_svc"],
+    ["auth_svc.endpoints.login", "auth_svc", "auth_svc"],
+    ["auth_svc.endpoints.logout", "auth_svc", "auth_svc"],
+    ["payment_svc.config", "payment_svc", "payment_svc"],
+    ["payment_svc.endpoints.charge", "payment_svc", "payment_svc"]
+  ]
+}

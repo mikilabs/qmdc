@@ -1,0 +1,14 @@
+{
+  "_comment": "[[#users]] resolves to existing object, [[#missing]] does not — broken link reported",
+  "diagnostics": [
+    {
+      "message": "Object 'missing' not found",
+      "range": {
+        "start": { "line": 5, "character": 15 },
+        "end": { "line": 5, "character": 27 }
+      },
+      "severity": 1,
+      "code": "QMDC001"
+    }
+  ]
+}

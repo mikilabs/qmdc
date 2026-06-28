@@ -1,0 +1,7 @@
+{
+  "method": "textDocument/references",
+  "uri": "workspace/models.qmd.md",
+  "position": { "line": 0, "character": 12 },
+  "context": { "includeDeclaration": false }
+}
+

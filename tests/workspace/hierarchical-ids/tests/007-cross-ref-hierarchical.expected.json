@@ -1,0 +1,6 @@
+{
+  "columns": ["source_id", "source_field", "target_id"],
+  "rows": [
+    ["payment_svc", "auth", "auth_svc.endpoints.login"]
+  ]
+}

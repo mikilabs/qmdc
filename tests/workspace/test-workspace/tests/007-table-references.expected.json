@@ -1,0 +1,17 @@
+{
+  "columns": ["source_id", "source_field", "target_id"],
+  "rows": [
+    ["order_items", "order_ref", "orders"],
+    ["order_items", "product_ref", "products"],
+    ["orders", "user_ref", "users"],
+    ["tbl_orders", "col_orders_id", "tbl_orders.col_orders_id"],
+    ["tbl_orders", "col_orders_total", "tbl_orders.col_orders_total"],
+    ["tbl_orders", "col_orders_user_id", "tbl_orders.col_orders_user_id"],
+    ["tbl_products", "col_products_id", "tbl_products.col_products_id"],
+    ["tbl_products", "col_products_name", "tbl_products.col_products_name"],
+    ["tbl_products", "col_products_price", "tbl_products.col_products_price"],
+    ["tbl_users", "col_users_email", "tbl_users.col_users_email"],
+    ["tbl_users", "col_users_id", "tbl_users.col_users_id"],
+    ["tbl_users", "col_users_name", "tbl_users.col_users_name"]
+  ]
+}

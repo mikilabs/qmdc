@@ -1,0 +1,5 @@
+{
+  "method": "textDocument/hover",
+  "uri": "workspace/storage/postgres/readme.qmd.md",
+  "position": { "line": 23, "character": 15 }
+}

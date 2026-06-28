@@ -1,0 +1,20 @@
+{
+  "workspace_id": "parent_ws",
+  "files": [
+    "readme.qmd.md",
+    "models.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["parent_ws"],
+    "Model": ["User"]
+  },
+  "errors": [
+    {
+      "type": "nested_workspace",
+      "object": "nested_ws",
+      "file": "subproject/readme.qmd.md",
+      "line": 1
+    }
+  ]
+}
+

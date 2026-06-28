@@ -1,0 +1,5 @@
+{
+  "method": "textDocument/definition",
+  "position": { "line": 7, "character": 13 }
+}
+

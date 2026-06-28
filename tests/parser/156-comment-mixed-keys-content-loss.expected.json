@@ -1,0 +1,24 @@
+[
+  {
+    "__id": "step1",
+    "__label": "Step",
+    "__kind": "Step",
+    "__comments": [
+      {
+        "after": "order",
+        "content": "**Test Constraints:**"
+      },
+      {
+        "after": "PRIORITY",
+        "content": "- Data-driven tests MUST pass in all implementations\n- You MUST NOT write new test code without checking\n- You MUST prefer data files over test code"
+      }
+    ],
+    "order": 1,
+    "PRIORITY": "data-driven tests over code tests",
+    "__types": {
+      "order": "number",
+      "PRIORITY": "string"
+    },
+    "__level": 2
+  }
+]

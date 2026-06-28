@@ -1,0 +1,4 @@
+{
+  "_comment": "Regression for the LSP-vs-validator drift: a file that DEFINES an object and references it in the SAME file by bare __local_id ([[#tool_describe_object]] / [[#tool_locate_object]]) must NOT be flagged QMDC002 ambiguous. The bug: the LSP built its resolution index as (whole workspace ∪ open doc), and the workspace already contains the open file's indexed copy, so each same-file object appeared twice → false ambiguity. The CLI validator (single index) stays clean.",
+  "diagnostics": []
+}

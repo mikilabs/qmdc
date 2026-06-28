@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "cmd1",
+    "__label": "Command",
+    "__kind": "ExtCommand",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Description:\n\n- `objects` — all objects with columns: `__id`, `__kind`\n- `edges` — all references with columns: `source_id`, `target_id`"
+      }
+    ],
+    "command_id": "qmd.runSqlQuery",
+    "keybinding": null,
+    "__types": {
+      "command_id": "string",
+      "keybinding": "null"
+    },
+    "__level": 2
+  }
+]

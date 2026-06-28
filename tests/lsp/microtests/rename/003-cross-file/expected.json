@@ -1,0 +1,12 @@
+{
+  "changes": {
+    "workspace/readme.qmd.md": [
+      { "range": { "start": {"line": 2, "character": 9}, "end": {"line": 2, "character": 13} }, "newText": "customer" }
+    ],
+    "workspace/orders.qmd.md": [
+      { "range": { "start": {"line": 2, "character": 11}, "end": {"line": 2, "character": 15} }, "newText": "customer" },
+      { "range": { "start": {"line": 4, "character": 20}, "end": {"line": 4, "character": 24} }, "newText": "customer" }
+    ]
+  }
+}
+

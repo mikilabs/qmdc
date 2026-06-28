@@ -1,0 +1,12 @@
+{
+  "workspace_id": "dot_id_same_file_test",
+  "files": [
+    "all.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["dot_id_same_file_test"],
+    "__Object": ["svc", "svc.ops", "svc.ops.op1"]
+  },
+  "errors": []
+}

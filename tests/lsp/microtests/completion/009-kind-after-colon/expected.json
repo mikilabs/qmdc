@@ -1,0 +1,9 @@
+{
+  "items": [
+    { "label": "Service", "kind": 7 },
+    { "label": "Table", "kind": 7 },
+    { "label": "__Object", "kind": 7 }
+  ],
+  "_comment": "Completion Kinds after [[id: in header definition"
+}
+

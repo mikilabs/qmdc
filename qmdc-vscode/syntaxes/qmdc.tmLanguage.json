@@ -1,0 +1,285 @@
+{
+  "name": "QMDC",
+  "scopeName": "text.qmd.md",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#header-with-id" },
+    { "include": "#header-plain" },
+    { "include": "#field" },
+    { "include": "#reference" },
+    { "include": "#code-block" },
+    { "include": "text.html.markdown" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.block.html.qmd.md",
+      "begin": "<!--",
+      "end": "-->",
+      "captures": {
+        "0": { "name": "punctuation.definition.comment.qmd.md" }
+      }
+    },
+    "header-with-id": {
+      "comment": "Header with [[id]] or [[id:Kind]] or [[:Kind]] - position flexible",
+      "name": "markup.heading.qmd.md",
+      "match": "^(#{1,6})\\s+(.*)$",
+      "captures": {
+        "1": { "name": "punctuation.definition.heading.qmd.md" },
+        "2": {
+          "patterns": [
+            { "include": "#header-id-definition" },
+            {
+              "name": "entity.name.section.qmd.md",
+              "match": "[^\\[\\]]+"
+            }
+          ]
+        }
+      }
+    },
+    "header-id-definition": {
+      "comment": "[[id]], [[id:Kind]], or [[:Kind]] in headers - these are DEFINITIONS",
+      "name": "meta.definition.qmd.md.bracket",
+      "match": "(\\[\\[)(:?)([^:\\]]*)(:[^\\]]+)?(\\]\\])",
+      "captures": {
+        "1": { "name": "punctuation.definition.tag.begin.qmd.md.bracket" },
+        "2": { "name": "keyword.operator.auto-id.qmd.md" },
+        "3": { "name": "entity.name.tag.qmd.md" },
+        "4": { "name": "entity.name.type.qmd.md" },
+        "5": { "name": "punctuation.definition.tag.end.qmd.md.bracket" }
+      }
+    },
+    "header-plain": {
+      "comment": "Plain markdown header without [[]]",
+      "name": "markup.heading.markdown.qmd.md",
+      "match": "^(#{1,6})\\s+([^\\[]+)$",
+      "captures": {
+        "1": { "name": "punctuation.definition.heading.qmd.md" },
+        "2": { "name": "entity.name.section.qmd.md" }
+      }
+    },
+    "reference": {
+      "comment": "[[#id]] or [[#Kind:id]] or [[#namespace:Kind:id]] or [[#ws:ns:Kind:id]] - REFERENCES with #",
+      "name": "markup.underline.link.qmd.md",
+      "match": "(\\[\\[)(#)([^\\]]+)(\\]\\])",
+      "captures": {
+        "1": { "name": "punctuation.definition.link.begin.qmd.md" },
+        "2": { "name": "keyword.operator.reference.qmd.md" },
+        "3": {
+          "name": "entity.other.attribute-name.qmd.md",
+          "patterns": [
+            {
+              "name": "punctuation.separator.qmd.md",
+              "match": ":"
+            }
+          ]
+        },
+        "4": { "name": "punctuation.definition.link.end.qmd.md" }
+      }
+    },
+    "field": {
+      "comment": "Field definition: - key: value",
+      "name": "meta.field.qmd.md",
+      "match": "^(\\s*-\\s+)(\\*\\*)?([a-zA-Z_][a-zA-Z0-9_]*)(\\*\\*)?(:)\\s*(.*)$",
+      "captures": {
+        "1": { "name": "punctuation.definition.list.qmd.md" },
+        "2": { "name": "markup.bold.qmd.md" },
+        "3": { "name": "variable.other.property.qmd.md" },
+        "4": { "name": "markup.bold.qmd.md" },
+        "5": { "name": "punctuation.separator.key-value.qmd.md" },
+        "6": {
+          "name": "string.unquoted.qmd.md",
+          "patterns": [
+            { "include": "#reference" },
+            { "include": "#yaml-array" },
+            { "include": "#yaml-value" }
+          ]
+        }
+      }
+    },
+    "yaml-array": {
+      "comment": "Inline YAML array: [a, b, c]",
+      "name": "meta.array.qmd.md",
+      "begin": "\\[",
+      "end": "\\]",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.array.begin.qmd.md" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.array.end.qmd.md" }
+      },
+      "patterns": [
+        { "include": "#reference" },
+        {
+          "name": "punctuation.separator.array.qmd.md",
+          "match": ","
+        },
+        { "include": "#yaml-value" }
+      ]
+    },
+    "yaml-value": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.true.qmd.md",
+          "match": "\\btrue\\b"
+        },
+        {
+          "name": "constant.language.boolean.false.qmd.md",
+          "match": "\\bfalse\\b"
+        },
+        {
+          "name": "constant.language.null.qmd.md",
+          "match": "\\bnull\\b"
+        },
+        {
+          "name": "constant.numeric.qmd.md",
+          "match": "-?\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "string.quoted.double.qmd.md",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.qmd.md",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.qmd.md",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.qmd.md",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "code-block": {
+      "patterns": [
+        { "include": "#code-block-sql" },
+        { "include": "#code-block-javascript" },
+        { "include": "#code-block-typescript" },
+        { "include": "#code-block-python" },
+        { "include": "#code-block-json" },
+        { "include": "#code-block-yaml" },
+        { "include": "#code-block-markdown" },
+        { "include": "#code-block-generic" }
+      ]
+    },
+    "code-block-sql": {
+      "name": "markup.fenced_code.block.sql.qmd.md",
+      "begin": "^(\\s*)(`{3,})(sql)\\s*$",
+      "end": "^(\\1)(\\2)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.code.begin.qmd.md" },
+        "3": { "name": "fenced_code.block.language.qmd.md" }
+      },
+      "endCaptures": {
+        "2": { "name": "punctuation.definition.code.end.qmd.md" }
+      },
+      "contentName": "meta.embedded.block.sql",
+      "patterns": [{ "include": "source.sql" }]
+    },
+    "code-block-javascript": {
+      "name": "markup.fenced_code.block.javascript.qmd.md",
+      "begin": "^(\\s*)(`{3,})(javascript|js)\\s*$",
+      "end": "^(\\1)(\\2)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.code.begin.qmd.md" },
+        "3": { "name": "fenced_code.block.language.qmd.md" }
+      },
+      "endCaptures": {
+        "2": { "name": "punctuation.definition.code.end.qmd.md" }
+      },
+      "contentName": "meta.embedded.block.javascript",
+      "patterns": [{ "include": "source.js" }]
+    },
+    "code-block-typescript": {
+      "name": "markup.fenced_code.block.typescript.qmd.md",
+      "begin": "^(\\s*)(`{3,})(typescript|ts)\\s*$",
+      "end": "^(\\1)(\\2)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.code.begin.qmd.md" },
+        "3": { "name": "fenced_code.block.language.qmd.md" }
+      },
+      "endCaptures": {
+        "2": { "name": "punctuation.definition.code.end.qmd.md" }
+      },
+      "contentName": "meta.embedded.block.typescript",
+      "patterns": [{ "include": "source.ts" }]
+    },
+    "code-block-python": {
+      "name": "markup.fenced_code.block.python.qmd.md",
+      "begin": "^(\\s*)(`{3,})(python|py)\\s*$",
+      "end": "^(\\1)(\\2)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.code.begin.qmd.md" },
+        "3": { "name": "fenced_code.block.language.qmd.md" }
+      },
+      "endCaptures": {
+        "2": { "name": "punctuation.definition.code.end.qmd.md" }
+      },
+      "contentName": "meta.embedded.block.python",
+      "patterns": [{ "include": "source.python" }]
+    },
+    "code-block-json": {
+      "name": "markup.fenced_code.block.json.qmd.md",
+      "begin": "^(\\s*)(`{3,})(json)\\s*$",
+      "end": "^(\\1)(\\2)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.code.begin.qmd.md" },
+        "3": { "name": "fenced_code.block.language.qmd.md" }
+      },
+      "endCaptures": {
+        "2": { "name": "punctuation.definition.code.end.qmd.md" }
+      },
+      "contentName": "meta.embedded.block.json",
+      "patterns": [{ "include": "source.json" }]
+    },
+    "code-block-yaml": {
+      "name": "markup.fenced_code.block.yaml.qmd.md",
+      "begin": "^(\\s*)(`{3,})(yaml|yml)\\s*$",
+      "end": "^(\\1)(\\2)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.code.begin.qmd.md" },
+        "3": { "name": "fenced_code.block.language.qmd.md" }
+      },
+      "endCaptures": {
+        "2": { "name": "punctuation.definition.code.end.qmd.md" }
+      },
+      "contentName": "meta.embedded.block.yaml",
+      "patterns": [{ "include": "source.yaml" }]
+    },
+    "code-block-markdown": {
+      "name": "markup.fenced_code.block.markdown.qmd.md",
+      "begin": "^(\\s*)(`{3,})(markdown|md|qmd\\.md)\\s*$",
+      "end": "^(\\1)(\\2)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.code.begin.qmd.md" },
+        "3": { "name": "fenced_code.block.language.qmd.md" }
+      },
+      "endCaptures": {
+        "2": { "name": "punctuation.definition.code.end.qmd.md" }
+      },
+      "contentName": "meta.embedded.block.markdown",
+      "patterns": [{ "include": "text.html.markdown" }]
+    },
+    "code-block-generic": {
+      "name": "markup.fenced_code.block.qmd.md",
+      "begin": "^(\\s*)(`{3,})([^`\\s]*)\\s*$",
+      "end": "^(\\1)(\\2)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.code.begin.qmd.md" },
+        "3": { "name": "fenced_code.block.language.qmd.md" }
+      },
+      "endCaptures": {
+        "2": { "name": "punctuation.definition.code.end.qmd.md" }
+      },
+      "contentName": "meta.embedded.block.qmd.md"
+    }
+  }
+}

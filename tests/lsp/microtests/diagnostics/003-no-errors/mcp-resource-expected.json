@@ -1,0 +1,17 @@
+{
+  "uri": "qmdc://object/users",
+  "mimeType": "application/json",
+  "content": {
+    "id": "users",
+    "kind": "__Object",
+    "file": "input.qmd.md",
+    "line": 1,
+    "namespace": "",
+    "workspace": "003-no-errors",
+    "parent": "",
+    "fields": {
+      "name": "Test users"
+    },
+    "success": true
+  }
+}

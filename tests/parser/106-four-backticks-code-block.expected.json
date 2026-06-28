@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "example",
+    "__label": "Example",
+    "__kind": "Feature",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Code example:\n\n````markdown\n## Object [[id: Kind]]\n\n- field: value\n````"
+      }
+    ],
+    "status": "documented",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 2
+  }
+]

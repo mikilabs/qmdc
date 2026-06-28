@@ -1,0 +1,24 @@
+#!/bin/bash
+# QMDC Rust Parser CLI wrapper
+# Usage: qmdc-rs <command> [args...]
+
+set -e
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [ "${SOURCE#/}" = "$SOURCE" ] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+PARSER_DIR="$SCRIPT_DIR/../qmdc-rs"
+BINARY="$PARSER_DIR/target/debug/qmdc"
+
+# Check whether the parser is built; build it (debug) if not
+if [ ! -f "$BINARY" ]; then
+    echo "Building Rust parser (debug)..." >&2
+    (cd "$PARSER_DIR" && cargo build >/dev/null 2>&1 || cargo build)
+fi
+
+# Run the parser from the project root
+exec "$BINARY" "$@"

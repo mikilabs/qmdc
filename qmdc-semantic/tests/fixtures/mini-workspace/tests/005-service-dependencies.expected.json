@@ -1,0 +1,21 @@
+{
+  "columns": ["service", "depends_on"],
+  "rows": [
+    ["api_gateway", "order_service"],
+    ["api_gateway", "product_service"],
+    ["api_gateway", "user_service"],
+    ["inventory", "auth"],
+    ["notify", "auth"],
+    ["notify", "user-svc"],
+    ["order-svc", "auth"],
+    ["order-svc", "inventory"],
+    ["order-svc", "user-svc"],
+    ["order_service", "order_items"],
+    ["order_service", "orders"],
+    ["payment", "auth"],
+    ["payment", "order-svc"],
+    ["product_service", "products"],
+    ["user-svc", "auth"],
+    ["user_service", "users"]
+  ]
+}

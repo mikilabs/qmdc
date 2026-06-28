@@ -1,0 +1,140 @@
+site_name: QMDC Documentation
+site_description: A Markdown-native context graph for humans and agents — write Markdown, query it with SQL, navigate it over MCP.
+site_url: https://qmdc.mikilabs.io/
+repo_url: https://github.com/mikilabs/qmdc
+repo_name: mikilabs/qmdc
+edit_uri: blob/main/docs/
+theme:
+  name: material
+  palette:
+  - media: "(prefers-color-scheme: light)"
+    scheme: default
+    primary: custom
+    accent: custom
+    toggle:
+      icon: material/weather-night
+      name: Switch to dark mode
+  - media: "(prefers-color-scheme: dark)"
+    scheme: slate
+    primary: custom
+    accent: custom
+    toggle:
+      icon: material/weather-sunny
+      name: Switch to light mode
+  font:
+    text: Noto Sans
+    code: Roboto Mono
+  icon:
+    logo: qmdc/ref
+  features:
+  - content.code.copy
+  - navigation.footer
+  - content.action.edit
+extra_css:
+- css/brand.css
+plugins:
+- search
+- glightbox
+- qmdc:
+    hidden_kinds: [ContentGenerator]
+markdown_extensions:
+- md_in_html
+- pymdownx.details
+- admonition
+- attr_list
+- pymdownx.emoji:
+    emoji_index: !!python/name:material.extensions.emoji.twemoji
+    emoji_generator: !!python/name:material.extensions.emoji.to_svg
+- pymdownx.superfences
+# Mermaid rendering (div.mermaid + zoom/pan viewport) is provided by the `qmdc`
+# plugin, which registers the mermaid superfence and injects the renderer assets.
+nav:
+# ─── Human-facing (top) ───────────────────────────────────────────────
+- Start Here: index.md
+- Explanation:
+  - Overview: learn/index.md
+  - Why QMDC: learn/why-qmdc.md
+  - Markdown to Graph: learn/markdown-to-graph.md
+  - Human Text, Machine Structure: learn/human-machine-readable.md
+  - QMDC for Agents: learn/qmdc-for-agents.md
+  - QMD.md vs Quarto: learn/qmd-md-vs-quarto.md
+- Tutorials:
+  - Overview: tutorials/index.md
+  - Quickstart: tutorials/quickstart.md
+  - Write Your First QMD.md File: tutorials/first-file.md
+- How-to Guides:
+  - Overview: guides/index.md
+  - Validate a Document: guides/validate-document.md
+  - Query Your Markdown Graph: guides/query-graph.md
+  - Build a Small Workspace: guides/small-workspace.md
+  - Use QMDC with VS Code: guides/vscode.md
+  - Agent Guide: guides/qmdc-guide.md
+# ─── Reference (middle) ───────────────────────────────────────────────
+- QMD.md Format Specification:
+  - Overview: format/index.md
+  - Heading: format/headings.md
+  - Object: format/objects.md
+  - Field: format/fields.md
+  - Reference: format/references.md
+  - Array: format/arrays.md
+  - Data Type: format/types.md
+  - Workspace: format/workspaces.md
+  - Comment: format/comments.md
+  - YAML Block: format/yaml-blocks.md
+  - Dynamic Block: format/dynamic-blocks.md
+  - Validation Errors: format/validation-errors.md
+- Tools:
+  - CLI Commands: parsers/commands.md
+  - VS Code Extension:
+    - Overview: extension/index.md
+    - Commands: extension/commands.md
+  - LSP Server:
+    - Overview: lsp/index.md
+    - Commands: lsp/commands.md
+    - Diagnostics: lsp/diagnostics.md
+    - Completion: lsp/completion.md
+    - Navigation: lsp/navigation.md
+    - Formatting: lsp/formatting.md
+    - Refactoring: lsp/refactoring.md
+    - Visual: lsp/visual.md
+    - Information: lsp/information.md
+  - MCP Server:
+    - Overview: mcp/index.md
+    - Discovery: mcp/discovery.md
+    - Graph: mcp/graph.md
+    - Query: mcp/query.md
+    - Refactoring: mcp/refactoring.md
+    - Resources: mcp/resources.md
+    - Server: mcp/server.md
+  - Static Site Generator:
+    - Overview: ssg/index.md
+# ─── Implementation (bottom) ──────────────────────────────────────────
+- Implementation:
+  - Architecture:
+    - Overview: architecture/index.md
+    - Algorithms: architecture/algorithms.md
+    - Components: architecture/components.md
+  - Parsers:
+    - Overview: parsers/index.md
+    - Python Parser: parsers/python-parser.md
+    - TypeScript Parser: parsers/typescript-parser.md
+    - Rust Parser: parsers/rust-parser.md
+  - Semantic Layer:
+    - Overview: semantic/index.md
+    - Algorithms: semantic/algorithms.md
+    - Commands: semantic/commands.md
+    - Configuration: semantic/configuration.md
+    - Storage Schema: semantic/storage.md
+    - Testing: semantic/testing.md
+  - Testing:
+    - Overview: testing/index.md
+    - CLI Tests: testing/cli-tests.md
+    - Parser Microtests: testing/parser-microtests.md
+    - Workspace Tests: testing/workspace-tests.md
+    - SQL Workspace Tests: testing/sql-tests.md
+    - LSP Microtests: testing/lsp-microtests.md
+    - LSP SQL Integration Tests: testing/lsp-sql-tests.md
+    - SQL Rewrite Tests: testing/sql-rewrite-tests.md
+  - Releasing:
+    - Overview: releasing/index.md
+    - Recording Demos: releasing/demos.md

@@ -1,0 +1,16 @@
+{
+  "workspace_id": "dot_id_multi_ns_test",
+  "files": [
+    "modules/readme.qmd.md",
+    "modules/service.qmd.md",
+    "ops/operations.qmd.md",
+    "ops/readme.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["dot_id_multi_ns_test"],
+    "__Namespace": ["modules", "ops"],
+    "__Object": ["my_service", "my_service.operations", "my_service.operations.token_op"]
+  },
+  "errors": []
+}

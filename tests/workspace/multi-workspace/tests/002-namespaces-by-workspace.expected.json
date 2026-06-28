@@ -1,0 +1,9 @@
+{
+  "columns": ["__workspace", "__id", "__kind"],
+  "rows": [
+    ["backend", "api", "__Namespace"],
+    ["backend", "storage", "__Namespace"],
+    ["frontend", "components", "__Namespace"],
+    ["frontend", "pages", "__Namespace"]
+  ]
+}

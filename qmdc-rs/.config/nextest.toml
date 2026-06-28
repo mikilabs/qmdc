@@ -1,0 +1,5 @@
+# Emit JUnit XML so the repo-root aggregator (scripts/test-report.py) can read
+# Rust results alongside the pytest/TS reports. Written to
+# target/nextest/default/junit.xml; the Makefile copies it to test-reports/rs.xml.
+[profile.default.junit]
+path = "junit.xml"

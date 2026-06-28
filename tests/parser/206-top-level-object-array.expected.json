@@ -1,0 +1,47 @@
+[
+  {
+    "__id": "operations",
+    "__label": "Operations",
+    "__kind": "__Object",
+    "operations": [
+      "[[#operations.op_token_exchange]]",
+      "[[#operations.op_billing_check]]"
+    ],
+    "__syntax": {
+      "operations": "headers",
+      "__array_kind": "Operation"
+    },
+    "__level": 2,
+    "__labels": {
+      "operations": "Operations"
+    }
+  },
+  {
+    "__id": "operations.op_token_exchange",
+    "__local_id": "op_token_exchange",
+    "__label": "Token Exchange",
+    "__kind": "Operation",
+    "__parent": "[[#operations]]",
+    "__parent_field": "operations",
+    "type": "rest",
+    "path": "POST /auth/token",
+    "__types": {
+      "type": "string",
+      "path": "string"
+    }
+  },
+  {
+    "__id": "operations.op_billing_check",
+    "__local_id": "op_billing_check",
+    "__label": "Billing Check",
+    "__kind": "Operation",
+    "__parent": "[[#operations]]",
+    "__parent_field": "operations",
+    "type": "rest",
+    "path": "GET /billing/check",
+    "__types": {
+      "type": "string",
+      "path": "string"
+    }
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "first",
+    "__label": "First Object",
+    "__kind": "__Object",
+    "name": "Object One",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "second",
+    "__label": "Second Object",
+    "__kind": "__Object",
+    "name": "Object Two",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 1
+  }
+]

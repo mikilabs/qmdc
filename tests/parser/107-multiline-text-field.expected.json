@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "test",
+    "__label": "Test",
+    "__kind": "Feature",
+    "status": "documented",
+    "description": "- Test data:\n  - `path/to/data/` — main path\n  - `path/to/alt/` — alternative path\n\n**Note:** Test runners look for `tests/*.sql` files.",
+    "__types": {
+      "status": "string",
+      "description": "string"
+    },
+    "__syntax": {
+      "description": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "description": "Description"
+    }
+  }
+]

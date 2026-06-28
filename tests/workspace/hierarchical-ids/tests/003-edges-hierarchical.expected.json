@@ -1,0 +1,12 @@
+{
+  "columns": ["source_id", "source_field", "target_id", "edge_type"],
+  "rows": [
+    ["auth_svc", "config", "auth_svc.config", "config"],
+    ["auth_svc", "endpoints", "auth_svc.endpoints.login", "endpoints"],
+    ["auth_svc", "endpoints", "auth_svc.endpoints.logout", "endpoints"],
+    ["payment_svc", "auth", "auth_svc.endpoints.login", "auth"],
+    ["payment_svc", "auth_timeout", "auth_svc.config", "auth_timeout"],
+    ["payment_svc", "config", "payment_svc.config", "config"],
+    ["payment_svc", "endpoints", "payment_svc.endpoints.charge", "endpoints"]
+  ]
+}

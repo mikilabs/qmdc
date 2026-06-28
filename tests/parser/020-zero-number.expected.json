@@ -1,0 +1,13 @@
+[
+  {
+    "__id": "counter",
+    "__label": "Counter",
+    "__kind": "__Object",
+    "count": 0,
+    "__types": {
+      "count": "number"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

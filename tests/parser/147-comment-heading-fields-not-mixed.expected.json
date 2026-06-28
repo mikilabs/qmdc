@@ -1,0 +1,43 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#text_0]]",
+      "[[#phase1]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "# Doc",
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "phase1",
+    "__label": "Quick Wins",
+    "__kind": "Finding",
+    "__container": "[[#doc_ry4ljv]]",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Three trivial bugs to fix."
+      },
+      {
+        "after": "related_to",
+        "content": "### Bug 1: heading space\n\n- affected_files: [src/parser.py]\n- affected_functions: [rebuild_heading]\n- severity: low\n- fix_size: trivial\n\nRoot cause is a missing space in the format string."
+      },
+      {
+        "after": "related_to",
+        "content": "### test_plan\n\n- Existing tests: make test covers all parsers\n- New tests needed: no\n- How to verify: make test and roundtrip check"
+      }
+    ],
+    "category": "parser",
+    "related_to": "[[#task1]]",
+    "__types": {
+      "category": "string",
+      "related_to": "string"
+    },
+    "__level": 2
+  }
+]

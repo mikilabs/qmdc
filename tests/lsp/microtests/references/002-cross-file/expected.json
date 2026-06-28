@@ -1,0 +1,26 @@
+{
+  "references": [
+    {
+      "uri": "workspace/api.qmd.md",
+      "range": {
+        "start": { "line": 2, "character": 8 },
+        "end": { "line": 2, "character": 18 }
+      }
+    },
+    {
+      "uri": "workspace/main.qmd.md",
+      "range": {
+        "start": { "line": 2, "character": 5 },
+        "end": { "line": 2, "character": 15 }
+      }
+    },
+    {
+      "uri": "workspace/models.qmd.md",
+      "range": {
+        "start": { "line": 2, "character": 10 },
+        "end": { "line": 2, "character": 20 }
+      }
+    }
+  ],
+  "_comment": "References to users across 3 files, sorted alphabetically by URI"
+}

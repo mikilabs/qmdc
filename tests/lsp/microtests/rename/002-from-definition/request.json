@@ -1,0 +1,6 @@
+{
+  "method": "textDocument/rename",
+  "position": { "line": 0, "character": 10 },
+  "newName": "person"
+}
+

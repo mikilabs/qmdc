@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "profile": "",
+    "__types": {
+      "profile": "string"
+    },
+    "__syntax": {
+      "profile": "multiline_text"
+    },
+    "__level": 2,
+    "__line": 1,
+    "__has_explicit_id": false,
+    "__positions": {
+      "profile": {
+        "line": 3,
+        "col": 12
+      }
+    },
+    "__labels": {
+      "profile": "Profile"
+    }
+  }
+]

@@ -1,0 +1,28 @@
+{
+  "workspace_id": "hierarchical_ids_errors",
+  "files": [
+    "objects.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["hierarchical_ids_errors"],
+    "__Object": ["team", "project"],
+    "User": ["team.members.alice"]
+  },
+  "errors": [
+    {
+      "type": "broken_link",
+      "object": "project",
+      "reference": "[[#team.members.nonexistent]]",
+      "file": "objects.qmd.md",
+      "line": 12
+    },
+    {
+      "type": "broken_link",
+      "object": "project",
+      "reference": "[[#team.nonexistent_field]]",
+      "file": "objects.qmd.md",
+      "line": 13
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "items": [
+    { "label": "user-profile" },
+    { "label": "users" }
+  ],
+  "_comment": "Hash local + partial match (alphabetical)"
+}
+

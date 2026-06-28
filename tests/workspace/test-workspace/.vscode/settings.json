@@ -1,0 +1,47 @@
+{
+    "editor.tokenColorCustomizations": {
+      "textMateRules": [
+        {
+          "scope": [
+            "punctuation.definition.tag.begin.qmd.bracket",
+            "punctuation.definition.tag.end.qmd.bracket"
+          ],
+          "settings": { 
+            "foreground": "#5c6370",
+            "fontStyle": ""
+          }
+        },
+        {
+          "scope": [
+            "meta.definition.qmd.bracket punctuation.definition.tag.begin.qmd.bracket",
+            "meta.definition.qmd.bracket punctuation.definition.tag.end.qmd.bracket"
+          ],
+          "settings": { 
+            "foreground": "#5c6370",
+            "fontStyle": ""
+          }
+        },
+        {
+          "scope": [
+            "punctuation.definition.tag.begin.qmd",
+            "punctuation.definition.tag.end.qmd"
+          ],
+          "settings": { 
+            "foreground": "#5c6370",
+            "fontStyle": ""
+          }
+        },
+        {
+          "scope": [
+            "entity.name.tag.qmd",
+            "entity.name.type.qmd",
+            "keyword.operator.auto-id.qmd"
+          ],
+          "settings": { 
+            "foreground": "#6a737d88",
+            "fontStyle": "italic"
+          }
+        }
+      ]
+    }
+  }

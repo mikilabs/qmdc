@@ -1,0 +1,11 @@
+{
+  "input": "SELECT __id FROM objects o WHERE EXISTS (SELECT 1 FROM edges e WHERE e.source_id = o.__id)",
+  "workspace": "ws1",
+  "expected": "SELECT __id FROM objects o WHERE EXISTS (SELECT 1 FROM edges e WHERE e.source_id = o.__id AND e.__workspace = 'ws1') AND o.__workspace = 'ws1'",
+  "expected_result": {
+    "columns": ["__id"],
+    "rows": []
+  }
+}
+
+

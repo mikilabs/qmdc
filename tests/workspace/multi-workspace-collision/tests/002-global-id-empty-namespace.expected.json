@@ -1,0 +1,9 @@
+{
+  "columns": ["__id", "__workspace", "__namespace", "__global_id"],
+  "rows": [
+    ["task_workflow", "ws1", "", "ws1::task_workflow"],
+    ["extra_obj", "ws2", "", "ws2::extra_obj"],
+    ["task_workflow", "ws2", "", "ws2::task_workflow"]
+  ]
+}
+

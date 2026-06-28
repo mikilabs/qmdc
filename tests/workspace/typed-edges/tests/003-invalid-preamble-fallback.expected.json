@@ -1,0 +1,9 @@
+{
+  "columns": ["source_id", "source_field", "target_id", "edge_type"],
+  "rows": [
+    ["invalid_preamble", "invalid_preamble_notes", "authentication", "invalid_preamble_notes"],
+    ["invalid_preamble", "related", "auth", "related"],
+    ["no_preamble", "no_preamble_notes", "authentication", "no_preamble_notes"],
+    ["no_preamble", "related", "auth", "related"]
+  ]
+}

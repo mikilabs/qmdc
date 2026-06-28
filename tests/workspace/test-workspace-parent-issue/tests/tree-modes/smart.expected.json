@@ -1,0 +1,55 @@
+{
+  "id": "test_ws",
+  "label": "Test Workspace",
+  "file": "readme.qmd.md",
+  "line": 1,
+  "count": 4,
+  "objects": [
+    {
+      "id": "storage",
+      "kind": "__Namespace",
+      "label": "Storage",
+      "level": 2,
+      "file": "readme.qmd.md",
+      "line": 8,
+      "parent": "test_ws",
+      "namespace": null,
+      "children": [
+        {
+          "id": "users",
+          "kind": "Table",
+          "label": "Users Table",
+          "level": 3,
+          "file": "readme.qmd.md",
+          "line": 12,
+          "parent": "storage",
+          "namespace": "storage",
+          "children": [
+            {
+              "id": "users.users_id",
+              "kind": "Column",
+              "label": "ID Column",
+              "level": 4,
+              "file": "readme.qmd.md",
+              "line": 17,
+              "parent": "users",
+              "namespace": "storage",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "system_purpose",
+      "kind": "SystemPurpose",
+      "label": "System Purpose",
+      "level": 2,
+      "file": "readme.qmd.md",
+      "line": 3,
+      "parent": "test_ws",
+      "namespace": "storage",
+      "children": []
+    }
+  ]
+}

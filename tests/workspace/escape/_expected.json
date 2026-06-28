@@ -1,0 +1,18 @@
+{
+  "workspace_id": "escape_ws",
+  "files": [
+    "objects.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "__Object": [
+      "docs_object",
+      "real_object"
+    ],
+    "__Workspace": [
+      "escape_ws"
+    ]
+  },
+  "errors": [],
+  "_comment": "No broken link errors! Refs inside backticks are NOT validated"
+}

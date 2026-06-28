@@ -1,0 +1,8 @@
+{
+  "columns": ["__id", "__workspace", "__kind"],
+  "rows": [
+    ["app_config", "backend", "Config"],
+    ["app_config", "frontend", "Config"]
+  ]
+}
+

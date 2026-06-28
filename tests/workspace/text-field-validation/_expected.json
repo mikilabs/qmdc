@@ -1,0 +1,20 @@
+{
+  "workspace_id": "test_ws",
+  "files": [
+    "invalid_structure.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["test_ws"],
+    "__Object": ["algorithm"],
+    "object": ["algorithm.step2"]
+  },
+  "errors": [
+    {
+      "type": "dangling_field",
+      "object": "[[#algorithm]]",
+      "file": "invalid_structure.qmd.md",
+      "line": 1
+    }
+  ]
+}

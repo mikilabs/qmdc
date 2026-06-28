@@ -1,0 +1,31 @@
+[
+  {
+    "__id": "ext1",
+    "__label": "Extension",
+    "__kind": "Component",
+    "__comments": [
+      {
+        "after": "extension_id",
+        "content": "**Features:**\n\n- Language Client for LSP server management\n- Custom Views: Workspace Explorer with grouping\n- Commands for workspace operations\n- Settings for LSP server configuration"
+      },
+      {
+        "after": "extension_id",
+        "content": "See namespace [[#extension]] for details."
+      }
+    ],
+    "depends_on": "[[#lsp_server]]",
+    "extension_id": "qmd.vscode-qmd",
+    "__types": {
+      "depends_on": "string",
+      "extension_id": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "mixed_field_keys",
+    "object": "[[#ext1]]",
+    "line": 9
+  }
+]

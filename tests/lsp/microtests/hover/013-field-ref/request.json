@@ -1,0 +1,4 @@
+{
+  "method": "textDocument/hover",
+  "position": { "line": 10, "character": 14 }
+}

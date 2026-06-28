@@ -1,0 +1,9 @@
+{
+  "columns": ["__id", "__file"],
+  "rows": [
+    ["business", "docs/business/readme.qmd.md"],
+    ["myproject", "docs/readme.qmd.md"],
+    ["researcher", "docs/business/stakeholders.qmd.md"],
+    ["stakeholders", "docs/business/stakeholders.qmd.md"]
+  ]
+}

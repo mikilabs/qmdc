@@ -1,0 +1,44 @@
+[
+  {
+    "__id": "team",
+    "__label": "Team",
+    "__kind": "__Object",
+    "members": [
+      "[[#team.members.alice]]"
+    ],
+    "__syntax": {
+      "members": "headers"
+    },
+    "__level": 2,
+    "__line": 1,
+    "__has_explicit_id": false,
+    "__positions": {
+      "members": {
+        "line": 3,
+        "col": 12
+      }
+    },
+    "__labels": {
+      "members": "Members"
+    }
+  },
+  {
+    "__id": "team.members.alice",
+    "__local_id": "alice",
+    "__label": "Alice",
+    "__kind": "User",
+    "__parent": "[[#team]]",
+    "__parent_field": "members",
+    "role": "Lead",
+    "__types": {
+      "role": "string"
+    },
+    "__line": 5,
+    "__positions": {
+      "role": {
+        "line": 7,
+        "col": 2
+      }
+    }
+  }
+]

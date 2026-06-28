@@ -1,0 +1,36 @@
+{
+  "columns": [
+    "source_id",
+    "source_field",
+    "target_id",
+    "edge_type",
+    "target_field",
+    "__workspace"
+  ],
+  "rows": [
+    [
+      "sql_data_serialization::task",
+      "contains",
+      "sql_data_serialization::file",
+      "contains",
+      "",
+      "sql_data_serialization"
+    ],
+    [
+      "sql_data_serialization::task",
+      "produces",
+      "sql_data_serialization::summary",
+      "produces",
+      "",
+      "sql_data_serialization"
+    ],
+    [
+      "sql_data_serialization::task",
+      "produces",
+      "sql_data_serialization::transcript",
+      "produces",
+      "",
+      "sql_data_serialization"
+    ]
+  ]
+}

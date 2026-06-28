@@ -1,0 +1,4 @@
+{
+  "_comment": "Hover on Kind-qualified reference shows object with Kind",
+  "contents": "**Users** `Table`\n\n🔍 `workspace::users`\n- name: users_table\n- columns: id, name, email"
+}

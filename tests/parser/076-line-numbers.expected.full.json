@@ -1,0 +1,73 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#text_0]]",
+      "[[#obj1]]",
+      "[[#obj2]]",
+      "[[#obj3]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "# Line Numbers Test",
+    "__line": 1,
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "obj1",
+    "__label": "First Object",
+    "__kind": "Feature",
+    "__container": "[[#doc_ry4ljv]]",
+    "status": "planned",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 2,
+    "__line": 3,
+    "__positions": {
+      "status": {
+        "line": 5,
+        "col": 2
+      }
+    }
+  },
+  {
+    "__id": "obj2",
+    "__label": "Second Object",
+    "__kind": "Feature",
+    "__container": "[[#doc_ry4ljv]]",
+    "status": "done",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 2,
+    "__line": 7,
+    "__positions": {
+      "status": {
+        "line": 9,
+        "col": 2
+      }
+    }
+  },
+  {
+    "__id": "obj3",
+    "__label": "Third Object",
+    "__kind": "Bug",
+    "__container": "[[#doc_ry4ljv]]",
+    "severity": "critical",
+    "__types": {
+      "severity": "string"
+    },
+    "__level": 2,
+    "__line": 11,
+    "__positions": {
+      "severity": {
+        "line": 13,
+        "col": 2
+      }
+    }
+  }
+]

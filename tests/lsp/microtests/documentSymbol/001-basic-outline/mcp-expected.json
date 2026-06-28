@@ -1,0 +1,32 @@
+{
+  "file": "input.qmd.md",
+  "symbols": [
+    {
+      "id": "users",
+      "kind": "Table",
+      "name": "Users",
+      "line": 1,
+      "level": 1,
+      "children": [
+        {
+          "id": "users.columns.email_col",
+          "kind": "Column",
+          "name": "email",
+          "line": 16,
+          "level": 1,
+          "children": []
+        },
+        {
+          "id": "users.columns.id_col",
+          "kind": "Column",
+          "name": "id",
+          "line": 12,
+          "level": 1,
+          "children": []
+        }
+      ]
+    }
+  ],
+  "truncated": false,
+  "success": true
+}

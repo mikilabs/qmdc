@@ -1,0 +1,27 @@
+[
+  {
+    "__id": "config1",
+    "__label": "Config",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "tags",
+        "content": "These tags are used for filtering."
+      }
+    ],
+    "version": 1,
+    "tags": [
+      "alpha",
+      "beta"
+    ],
+    "status": "active",
+    "__types": {
+      "version": "number",
+      "status": "string"
+    },
+    "__syntax": {
+      "tags": "markdown_list"
+    },
+    "__level": 2
+  }
+]

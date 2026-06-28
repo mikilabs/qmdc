@@ -1,0 +1,7 @@
+{
+  "items": [
+    { "label": "orders", "detail": "__Object", "kind": 6 },
+    { "label": "users", "detail": "__Object", "kind": 6 }
+  ],
+  "_comment": "IDs from db/models.qmd.md via workspace path, alphabetically sorted"
+}

@@ -1,0 +1,7 @@
+{
+  "method": "textDocument/references",
+  "position": { "line": 0, "character": 12 },
+  "context": { "includeDeclaration": false },
+  "_comment": "Cursor on 'users' in definition [[users]] - should find all [[#users]] references"
+}
+

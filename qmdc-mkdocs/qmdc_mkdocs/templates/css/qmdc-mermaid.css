@@ -1,0 +1,94 @@
+/* ==========================================================================
+   QMDC Mermaid — natural-size rendering + zoom/pan viewport
+   Ported from the original preview/static-site renderer into MkDocs.
+   Uses Material CSS custom properties (design tokens) — no hardcoded colors.
+   ========================================================================== */
+
+/* Diagram container is the positioning context for the floating toolbar. */
+.mermaid {
+  margin: 1.5em 0;
+  position: relative;
+}
+
+/* Scroll wrapper. Only ever scrolls horizontally (when the diagram is zoomed
+   wider than the column). Its height follows the scaled SVG, so the whole
+   diagram stays visible top-to-bottom and the page scrolls normally — the
+   diagram is never clipped into a fixed-height box. */
+.mermaid-viewport {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.4rem;
+  background: var(--md-code-bg-color);
+}
+
+.mermaid-viewport.mermaid-pannable {
+  cursor: grab;
+}
+
+.mermaid-viewport.mermaid-pannable.grabbing {
+  cursor: grabbing;
+}
+
+.mermaid-viewport:focus-visible {
+  outline: 2px solid var(--md-accent-fg-color);
+  outline-offset: -2px;
+}
+
+.mermaid-viewport svg {
+  display: block;
+}
+
+/* Floating toolbar — faint until the diagram is hovered/focused. */
+.mermaid-toolbar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 0.4rem;
+  background: var(--md-default-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  box-shadow: var(--md-shadow-z2);
+  z-index: 2;
+  opacity: 0.35;
+  transition: opacity 0.15s ease;
+}
+
+.mermaid:hover .mermaid-toolbar,
+.mermaid:focus-within .mermaid-toolbar {
+  opacity: 1;
+}
+
+.mermaid-btn {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--md-default-fg-color);
+  font-size: 0.95em;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mermaid-btn:hover {
+  background: color-mix(in srgb, var(--md-accent-fg-color) 12%, transparent);
+  color: var(--md-accent-fg-color);
+}
+
+.mermaid-zoom-label {
+  min-width: 3.2em;
+  text-align: center;
+  font-size: 0.75em;
+  color: var(--md-default-fg-color--light);
+  user-select: none;
+}

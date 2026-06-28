@@ -1,0 +1,8 @@
+{
+  "items": [
+    { "label": "user-preferences" },
+    { "label": "user-profile" }
+  ],
+  "_comment": "IDs with dashes, prefix match (alphabetical order)"
+}
+

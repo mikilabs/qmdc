@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "description": "This is a long\nmultiline description.",
+    "__types": {
+      "description": "string"
+    },
+    "__syntax": {
+      "description": "multiline_text"
+    },
+    "__level": 2,
+    "__line": 1,
+    "__has_explicit_id": false,
+    "__positions": {
+      "description": {
+        "line": 3,
+        "col": 16
+      }
+    },
+    "__labels": {
+      "description": "Description"
+    }
+  }
+]

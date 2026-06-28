@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "doc",
+    "__label": "Doc",
+    "__kind": "Document",
+    "__comments": [
+      {
+        "after": "version",
+        "content": "### Quote Section\n\n> This is an important quote\n> that spans multiple lines\n\nRegular text after."
+      }
+    ],
+    "version": 1.0,
+    "__types": {
+      "version": "number"
+    },
+    "__level": 1
+  }
+]

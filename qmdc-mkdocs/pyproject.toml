@@ -1,0 +1,78 @@
+[project]
+name = "qmdc-mkdocs"
+version = "1.0.2"
+description = "MkDocs integration for QMDC workspaces — builds documentation sites with graph navigation, semantic hints, and dynamic blocks"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "AGPL-3.0-or-later"
+authors = [
+    {name = "mikilabs"}
+]
+keywords = ["qmdc", "mkdocs", "documentation", "knowledge-graph", "static-site"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Documentation",
+    "Topic :: Text Processing :: Markup :: Markdown",
+]
+
+dependencies = [
+    "qmdc>=1.0.0",
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    # Image lightbox / click-to-zoom (Material's recommended plugin). Enabled by default
+    # in generated configs; sizing is handled by SSG-injected CSS, not source attributes.
+    "mkdocs-glightbox>=0.4.0",
+    # We import pymdownx.* directly (superfences mermaid fence, details, emoji).
+    # It is also a transitive dep of mkdocs-material, but declare it explicitly
+    # since we depend on it at the source level.
+    "pymdown-extensions>=10.2",
+    "click>=8.1.7",
+    "pyyaml>=6.0",
+]
+
+[tool.uv.sources]
+qmdc = { path = "../qmdc-py", editable = true }
+
+[project.scripts]
+qmdc-mkdocs = "qmdc_mkdocs.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/mikilabs/qmdc"
+Repository = "https://github.com/mikilabs/qmdc"
+Issues = "https://github.com/mikilabs/qmdc/issues"
+
+[project.entry-points."mkdocs.plugins"]
+qmdc = "qmdc_mkdocs.plugin:QmdcPlugin"
+
+[project.entry-points."pygments.lexers"]
+qmdmd = "qmdc_mkdocs.lexer:QmdcLexer"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.0",
+    "hypothesis>=6.100.0",
+    "ruff>=0.14.0",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["qmdc_mkdocs"]
+
+[tool.setuptools.package-data]
+qmdc_mkdocs = ["templates/**/*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "C4", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

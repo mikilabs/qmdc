@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "table1",
+    "__label": "Table",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "schema_version",
+        "content": "Stores chunk metadata and text.\n\n```sql\nCREATE TABLE chunks (\n    id INTEGER PRIMARY KEY,\n    text TEXT NOT NULL\n);\n```"
+      }
+    ],
+    "schema_version": 1,
+    "name": "chunks",
+    "__types": {
+      "schema_version": "number",
+      "name": "string"
+    },
+    "__level": 2
+  }
+]

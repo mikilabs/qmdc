@@ -1,0 +1,79 @@
+[
+  {
+    "__id": "parent",
+    "__label": "Parent",
+    "__kind": "Group",
+    "description": "Test group",
+    "tier": "3-4",
+    "items": [
+      "[[#parent.items.first]]",
+      "[[#parent.items.second]]",
+      "[[#parent.items.third]]"
+    ],
+    "__types": {
+      "description": "string",
+      "tier": "string"
+    },
+    "__syntax": {
+      "items": "headers"
+    },
+    "__level": 1,
+    "__labels": {
+      "items": "Items"
+    }
+  },
+  {
+    "__id": "parent.items.first",
+    "__local_id": "first",
+    "__label": "First",
+    "__kind": "Item",
+    "__parent": "[[#parent]]",
+    "__parent_field": "items",
+    "tier": 3,
+    "details": "Some intro.\n\n| Col A | Col B |\n|-------|-------|\n| val1  | val2  |\n| val3  | val4  |\n\n---",
+    "__types": {
+      "tier": "number",
+      "details": "string"
+    },
+    "__syntax": {
+      "details": "multiline_text"
+    },
+    "__labels": {
+      "details": "Details"
+    }
+  },
+  {
+    "__id": "parent.items.second",
+    "__local_id": "second",
+    "__label": "Second",
+    "__kind": "Item",
+    "__parent": "[[#parent]]",
+    "__parent_field": "items",
+    "tier": 4,
+    "description": "Test",
+    "more": "| X | Y |\n|---|---|\n| a | b |\n\n---",
+    "__types": {
+      "tier": "number",
+      "description": "string",
+      "more": "string"
+    },
+    "__syntax": {
+      "more": "multiline_text"
+    },
+    "__labels": {
+      "more": "More"
+    }
+  },
+  {
+    "__id": "parent.items.third",
+    "__local_id": "third",
+    "__label": "Third",
+    "__kind": "Item",
+    "__parent": "[[#parent]]",
+    "__parent_field": "items",
+    "tier": 4,
+    "__types": {
+      "tier": "number"
+    }
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "_comment": "References inside code blocks and inline code are NOT parsed. Only [[#outside_code]] is detected as broken.",
+  "diagnostics": [
+    {
+      "message": "Object 'outside_code' not found",
+      "range": {
+        "start": { "line": 8, "character": 10 },
+        "end": { "line": 8, "character": 27 }
+      },
+      "severity": 1,
+      "code": "QMDC001"
+    }
+  ]
+}

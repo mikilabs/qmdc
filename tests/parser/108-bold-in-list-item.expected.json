@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "feature",
+    "__label": "Feature",
+    "__kind": "Feature",
+    "__comments": [
+      {
+        "after": "status",
+        "content": "### Notes\n\n**Fixes after review:**\n\n1. **Created test artifacts:**\n   - workspace-no-namespaces/\n   - workspace-mixed-namespaces/\n\n2. **Improved SQL query:**\n   - Added a comment"
+      }
+    ],
+    "status": "planned",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 1
+  }
+]

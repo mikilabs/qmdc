@@ -1,0 +1,450 @@
+# Data-driven search quality tests for the docs workspace
+# Real workspace with QMD documentation and tasks
+#
+# Known objects:
+#   Tasks/Bugs: qmd10, qmd11, qmd12, qmd21, qmd23, qmd26, qmd27, qmd28, qmd29, qmd34, qmd41
+#   Features: qmd41
+#   Algorithms: parsing_algorithm, workspace_indexing, sqlite_mapping, 
+#               reference_resolution, algo_chunking, algo_hybrid_search
+#   Findings: qmd41_finding_*, qmd10_*, qmd11_*
+
+queries:
+  # ID-like queries - should be exact match via FTS
+  - id: id_qmd41
+    query: "QMD-41"
+    description: "Find task QMD-41 by ID"
+    expected:
+      must_contain:
+        - qmd41
+      should_contain:
+        - qmd41_finding_chunking
+        - qmd41_finding_search
+        - qmd41_result
+    metrics:
+      precision_at_1: 1.0
+      mrr: 1.0
+
+  - id: id_qmd10
+    query: "qmd10"
+    description: "Find task QMD-10 by ID"
+    expected:
+      # All qmd10_* objects should be in top results
+      should_contain:
+        - qmd10_root_cause
+        - qmd10_solution
+        - qmd10_text_fields_after_textblock
+    metrics:
+      # At least 1 of 3 expected in top 3
+      precision_at_3: 0.3
+      # First relevant result in top 3 (MRR >= 0.33)
+      mrr: 0.3
+
+  - id: id_qmd21
+    query: "QMD-21"
+    description: "Find bug QMD-21"
+    expected:
+      must_contain:
+        - qmd21
+    metrics:
+      precision_at_1: 1.0
+      mrr: 1.0
+
+  # Semantic queries about concepts
+  - id: semantic_chunking
+    query: "how does chunking algorithm work"
+    description: "Find chunking algorithm documentation"
+    expected:
+      should_contain:
+        - algo_chunking
+        - qmd41_finding_chunking
+    metrics:
+      recall_at_10: 0.5
+      mrr: 0.3
+
+  - id: semantic_search_algorithm
+    query: "hybrid search implementation"
+    description: "Find hybrid search algorithm"
+    expected:
+      should_contain:
+        - algo_hybrid_search
+        - qmd41_finding_search
+    metrics:
+      recall_at_10: 0.5
+
+  - id: semantic_parsing
+    query: "how to parse QMD files"
+    description: "Find parsing documentation"
+    expected:
+      should_contain:
+        - parsing_algorithm
+        - qmdc_specification
+    metrics:
+      recall_at_10: 0.5
+
+  - id: semantic_storage
+    query: "sqlite database storage"
+    description: "Find storage/sqlite documentation"
+    expected:
+      should_contain:
+        - sqlite_mapping
+        - qmd41_finding_storage
+    metrics:
+      recall_at_10: 0.3
+
+  # Queries about features
+  - id: semantic_graph_walk
+    query: "graph traversal for search"
+    description: "Find graph walk algorithm"
+    expected:
+      should_contain:
+        - algo_graph_walk
+        - qmd41_finding_graph_walk
+    metrics:
+      recall_at_10: 0.5
+
+  - id: semantic_embeddings
+    query: "embedding providers for semantic search"
+    description: "Find embedding provider docs"
+    expected:
+      should_contain:
+        - qmd41_finding_providers
+    metrics:
+      recall_at_10: 0.3
+
+  # Bug-related queries
+  - id: semantic_text_refs_bug
+    query: "bug with text field references"
+    description: "Find text refs bugs"
+    expected:
+      should_contain:
+        - qmd23_text_field_refs
+        - qmd27_text_field_ref_positions
+    metrics:
+      recall_at_10: 0.3
+
+  - id: semantic_explorer_bug
+    query: "explorer view synchronization issue"
+    description: "Find explorer sync bugs"
+    expected:
+      should_contain:
+        - qmd12_explorer_sync
+        - qmd14_explorer_nav
+    metrics:
+      recall_at_10: 0.3
+
+  # Edge cases
+  - id: typo_chunking
+    query: "chukning algorythm"  # typos
+    description: "Typo tolerance for chunking"
+    expected:
+      should_contain:
+        - algo_chunking
+    metrics:
+      recall_at_10: 0.3
+
+  - id: natural_question
+    query: "what tasks are related to parsing?"
+    description: "Natural language question"
+    expected:
+      should_contain:
+        - parsing_algorithm
+        - qmdc_specification
+    metrics:
+      recall_at_10: 0.3
+
+  # ================================================================
+  # Cross-language queries (RU -> EN content, EN -> RU content)
+  # ================================================================
+  
+  - id: ru_query_chunking
+    query: "chunking algorithm"
+    description: "Russian query for chunking (EN content)"
+    expected:
+      should_contain:
+        - algo_chunking
+        - qmd41_finding_chunking
+    metrics:
+      recall_at_10: 0.3
+
+  - id: ru_query_search
+    query: "how semantic search works"
+    description: "Russian query for semantic search"
+    expected:
+      should_contain:
+        - algo_hybrid_search
+        - qmd41_finding_search
+    metrics:
+      recall_at_10: 0.3
+
+  - id: ru_query_parsing
+    query: "parsing QMD documents"
+    description: "Russian query for parsing docs"
+    expected:
+      should_contain:
+        - parsing_algorithm
+        - qmdc_specification
+    metrics:
+      recall_at_10: 0.3
+
+  - id: ru_query_bug
+    query: "explorer navigation bug"
+    description: "Russian query for explorer bug"
+    expected:
+      should_contain:
+        - qmd12_explorer_sync
+        - qmd14_explorer_nav
+    metrics:
+      recall_at_10: 0.3
+
+  - id: ru_natural_question
+    query: "what is the object dependency graph?"
+    description: "Russian natural language question"
+    expected:
+      # The reference syntax doc defines how objects reference (depend on) each other.
+      should_contain:
+        - reference
+    metrics:
+      recall_at_10: 0.3
+
+  # ================================================================
+  # More realistic queries (what users actually search for)
+  # ================================================================
+  
+  - id: realistic_how_to_index
+    query: "how to index my workspace"
+    description: "User wants to index workspace"
+    expected:
+      should_contain:
+        - workspace_indexing
+        - cmd_index
+    metrics:
+      recall_at_10: 0.3
+
+  - id: realistic_search_not_working
+    query: "search not finding results"
+    description: "User has search issues"
+    expected:
+      should_contain:
+        - algo_hybrid_search
+        - qmd41_finding_search
+    metrics:
+      recall_at_10: 0.2
+
+  - id: realistic_configuration
+    query: "how to configure embedding model"
+    description: "User wants to change config"
+    expected:
+      should_contain:
+        - qmd41_finding_providers
+    metrics:
+      recall_at_10: 0.3
+
+  - id: realistic_error_message
+    query: "broken link validation error"
+    description: "User got error message"
+    expected:
+      should_contain:
+        - err_broken_link
+    metrics:
+      recall_at_10: 0.5
+
+  # ================================================================
+  # Factual questions about the system
+  # ================================================================
+  
+  - id: fact_lsp_testing
+    query: "how do we test LSP server"
+    description: "Question about LSP testing approach"
+    expected:
+      should_contain:
+        - suite_lsp_microtests
+        - suite_lsp_sql_tests
+        - lsp
+    metrics:
+      recall_at_10: 0.3
+
+  - id: fact_extension_lsp_communication
+    query: "how does VSCode extension communicate with LSP server"
+    description: "Question about ext-LSP integration"
+    expected:
+      should_contain:
+        - extension
+        - lsp
+        - ext_cmd_restart
+    metrics:
+      recall_at_10: 0.3
+
+  - id: fact_goto_definition
+    query: "how does go to definition work"
+    description: "LSP definition capability"
+    expected:
+      should_contain:
+        - definition
+        - ext_cmd_goto
+    metrics:
+      recall_at_10: 0.3
+
+  - id: fact_validation_errors
+    query: "what validation errors can occur"
+    description: "List of validation errors"
+    expected:
+      # Error-related objects (err_* or validation-related)
+      should_contain:
+        - err_invalid_field_key
+        - err_type_mismatch
+    metrics:
+      # At least 1 of 2 in top 10
+      recall_at_10: 0.5
+
+  - id: fact_sql_queries
+    query: "how to run SQL queries on workspace"
+    description: "SQL query functionality"
+    expected:
+      should_contain:
+        - cmd_run_sql_query
+        - ext_cmd_sql
+    metrics:
+      recall_at_10: 0.5
+
+  - id: fact_tree_view
+    query: "how does object tree view work"
+    description: "Tree view in extension"
+    expected:
+      should_contain:
+        - view_objects
+        - cmd_get_workspace_tree
+    metrics:
+      recall_at_10: 0.3
+
+  - id: fact_completion
+    query: "what autocompletion is available"
+    description: "Completion capabilities"
+    expected:
+      should_contain:
+        - completion
+    metrics:
+      recall_at_10: 0.5
+
+  - id: fact_references
+    query: "how to find all references to an object"
+    description: "References feature"
+    expected:
+      should_contain:
+        - references
+        - ext_cmd_show_refs
+    metrics:
+      recall_at_10: 0.3
+
+  - id: fact_rename
+    query: "can I rename objects across files"
+    description: "Rename refactoring"
+    expected:
+      should_contain:
+        - rename
+    metrics:
+      recall_at_10: 0.5
+
+  # Russian factual questions
+  - id: ru_fact_lsp_testing
+    query: "how the LSP server is tested"
+    description: "RU: LSP testing"
+    expected:
+      should_contain:
+        - suite_lsp_microtests
+        - lsp
+    metrics:
+      recall_at_10: 0.3
+
+  - id: ru_fact_extension
+    query: "how the VS Code extension works with the server"
+    description: "RU: Extension-server communication"
+    expected:
+      should_contain:
+        - extension
+        - lsp
+    metrics:
+      recall_at_10: 0.3
+
+  - id: ru_fact_sql
+    query: "how to run SQL queries against the workspace"
+    description: "RU: SQL queries"
+    expected:
+      should_contain:
+        - cmd_run_sql_query
+        - ext_cmd_sql
+    metrics:
+      recall_at_10: 0.3
+
+  # ================================================================
+  # Realistic developer questions with unambiguous correct answers.
+  # Each targets a distinctive object that directly documents the answer.
+  # ================================================================
+
+  - id: howto_rename_object
+    query: "how do I rename an object and update all references to it"
+    description: "Rename refactoring across the workspace"
+    expected:
+      should_contain:
+        - rename
+    metrics:
+      recall_at_10: 0.5
+
+  - id: howto_goto_definition
+    query: "how do I jump to the definition of a referenced object"
+    description: "Go-to-definition navigation"
+    expected:
+      should_contain:
+        - definition
+    metrics:
+      recall_at_10: 0.5
+
+  - id: howto_reference_completion
+    query: "how does autocomplete suggest reference ids while typing"
+    description: "Reference id completion"
+    expected:
+      should_contain:
+        - completion
+    metrics:
+      recall_at_10: 0.5
+
+  - id: howto_broken_reference_error
+    query: "which validation error means a reference points to a missing object"
+    description: "Broken-reference diagnostic / validation error"
+    expected:
+      should_contain:
+        - err_broken_link
+        - rule_broken_link
+    metrics:
+      recall_at_10: 0.5
+
+  - id: howto_configure_embedding_model
+    query: "how do I configure the embedding model for semantic search"
+    description: "Embedding provider/model configuration"
+    expected:
+      should_contain:
+        - qmd41_finding_providers
+    metrics:
+      recall_at_10: 0.3
+
+  - id: howto_lsp_capabilities
+    query: "what LSP capabilities are supported"
+    description: "Overview of LSP features"
+    expected:
+      should_contain:
+        - lsp
+    metrics:
+      recall_at_10: 0.3
+
+# Expected to fail - for tracking improvements
+expected_failures:
+  - id_qmd41
+  - semantic_parsing
+  - ru_query_parsing
+  - natural_question
+  - fact_extension_lsp_communication  # complex question
+  - typo_chunking  # double typo ("chukning algorythm") — embedding can't recover
+
+# Global thresholds
+global_thresholds:
+  min_avg_mrr: 0.3
+  min_avg_precision_at_5: 0.15

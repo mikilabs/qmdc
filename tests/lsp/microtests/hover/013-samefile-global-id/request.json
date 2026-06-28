@@ -1,0 +1,5 @@
+{
+  "method": "textDocument/hover",
+  "uri": "workspace/mcp/discovery.qmd.md",
+  "position": { "line": 9, "character": 20 }
+}

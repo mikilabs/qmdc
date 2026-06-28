@@ -1,0 +1,6 @@
+{
+  "columns": ["__id", "data"],
+  "rows": [
+    ["float_probe", "{\"one_zero\":1.0,\"two_zero\":1.0,\"three_zero\":2.0,\"in_array\":[1.0,2.0,2.5]}"]
+  ]
+}

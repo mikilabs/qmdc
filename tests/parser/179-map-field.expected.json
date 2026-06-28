@@ -1,0 +1,23 @@
+[
+  {
+    "__id": "adapter",
+    "__label": "Adapter",
+    "__kind": "__Object",
+    "ad_location": {
+      "path": "src/adapter/",
+      "language": "Python",
+      "package": "tg_acp.adapter"
+    },
+    "__types": {
+      "ad_location": "map"
+    },
+    "__syntax": {
+      "ad_location": "map"
+    },
+    "__level": 2,
+    "__has_explicit_id": false,
+    "__labels": {
+      "ad_location": "Physical Location"
+    }
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "input": "SELECT __id FROM objects WHERE __kind = 'Feature' AND (json_extract(data, '$.status') = 'done' OR json_extract(data, '$.status') = 'planned')",
+  "workspace": "ws1",
+  "expected": "SELECT __id FROM objects WHERE __kind = 'Feature' AND (json_extract(data, '$.status') = 'done' OR json_extract(data, '$.status') = 'planned') AND __workspace = 'ws1'",
+  "expected_result": {
+    "columns": ["__id"],
+    "rows": [["task1"]]
+  }
+}
+

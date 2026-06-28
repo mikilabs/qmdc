@@ -1,0 +1,47 @@
+[
+  {
+    "__id": "rule",
+    "__label": "Rule",
+    "__kind": "__Object",
+    "code": "QMD001",
+    "pattern": "`[[#id]]` where id does not exist",
+    "message": "Object '{id}' not found",
+    "real_ref": "[[#rule]]",
+    "__types": {
+      "code": "string",
+      "pattern": "string",
+      "message": "string",
+      "real_ref": "string"
+    },
+    "__level": 1,
+    "__line": 1,
+    "__references": [
+      {
+        "target": "#rule",
+        "type": "hash_local",
+        "line": 6,
+        "start_col": 12,
+        "end_col": 21,
+        "raw": "[[#rule]]"
+      }
+    ],
+    "__positions": {
+      "code": {
+        "line": 3,
+        "col": 2
+      },
+      "pattern": {
+        "line": 4,
+        "col": 2
+      },
+      "message": {
+        "line": 5,
+        "col": 2
+      },
+      "real_ref": {
+        "line": 6,
+        "col": 2
+      }
+    }
+  }
+]

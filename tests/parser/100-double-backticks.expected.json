@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "refs",
+    "__label": "References",
+    "__kind": "Feature",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Reference formats:\n\n- ``[[#id]]`` - local reference\n- ``[[#Kind:id]]`` - with type\n- ``[[#namespace:id]]`` - other namespace"
+      }
+    ],
+    "status": "implemented",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 2
+  }
+]

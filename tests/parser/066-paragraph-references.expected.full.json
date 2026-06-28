@@ -1,0 +1,62 @@
+[
+  {
+    "__id": "users",
+    "__label": "Users",
+    "__kind": "Table",
+    "name": "users_table",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 1,
+    "__line": 1,
+    "__positions": {
+      "name": {
+        "line": 3,
+        "col": 2
+      }
+    }
+  },
+  {
+    "__id": "orders",
+    "__label": "Orders",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Ref to users: [[#Table.users]]"
+      },
+      {
+        "after": "__self",
+        "content": "Also see [[#users]] and [[#orders]]."
+      }
+    ],
+    "__level": 1,
+    "__line": 5,
+    "__references": [
+      {
+        "target": "#Table.users",
+        "type": "kind",
+        "line": 7,
+        "start_col": 14,
+        "end_col": 30,
+        "raw": "[[#Table.users]]"
+      },
+      {
+        "target": "#users",
+        "type": "hash_local",
+        "line": 9,
+        "start_col": 9,
+        "end_col": 19,
+        "raw": "[[#users]]"
+      },
+      {
+        "target": "#orders",
+        "type": "hash_local",
+        "line": 9,
+        "start_col": 24,
+        "end_col": 35,
+        "raw": "[[#orders]]"
+      }
+    ]
+  }
+]

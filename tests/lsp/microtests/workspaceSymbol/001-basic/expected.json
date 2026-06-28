@@ -1,0 +1,8 @@
+{
+  "symbols": [
+    { "name": "Orders (orders)", "kind": 5, "containerName": "Table" },
+    { "name": "Users (users)", "kind": 5, "containerName": "Table" },
+    { "name": "Workspace (ws)", "kind": 3, "containerName": "__Workspace" }
+  ]
+}
+

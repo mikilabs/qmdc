@@ -1,0 +1,6 @@
+{
+  "tool": "qmdc_get_tree",
+  "arguments": {
+    "path": "{{workspace}}"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "method": "textDocument/definition",
+  "uri": "workspace/readme.qmd.md",
+  "position": { "line": 31, "character": 8 },
+  "_comment": "Go to [[#architecture]] - deep nested path"
+}

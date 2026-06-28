@@ -1,0 +1,19 @@
+[
+  {
+    "__id": "config",
+    "__label": "Config",
+    "__kind": "__Object",
+    "data": {
+      "host": "localhost",
+      "port": 8080
+    },
+    "__syntax": {
+      "data": "yaml_object"
+    },
+    "__level": 2,
+    "__has_explicit_id": false,
+    "__labels": {
+      "data": "Data"
+    }
+  }
+]

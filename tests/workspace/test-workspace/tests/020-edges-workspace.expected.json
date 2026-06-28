@@ -1,0 +1,15 @@
+{
+  "columns": ["source_id", "target_id", "__workspace"],
+  "rows": [
+    ["api_gateway", "order_service", "ecommerce"],
+    ["api_gateway", "product_service", "ecommerce"],
+    ["api_gateway", "user_service", "ecommerce"],
+    ["db7", "tbl_orders", "ecommerce"],
+    ["db7", "tbl_products", "ecommerce"],
+    ["db7", "tbl_users", "ecommerce"],
+    ["doc_ry4ljv", "api_gateway", "ecommerce"],
+    ["doc_ry4ljv", "order_items", "ecommerce"],
+    ["doc_ry4ljv", "order_service", "ecommerce"],
+    ["doc_ry4ljv", "orders", "ecommerce"]
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "tool": "qmdc_query_sql",
+  "arguments": {
+    "sql": "SELECT __id, __kind FROM objects",
+    "path": "{{workspace}}"
+  }
+}

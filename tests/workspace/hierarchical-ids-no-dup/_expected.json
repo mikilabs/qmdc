@@ -1,0 +1,12 @@
+{
+  "workspace_id": "hierarchical_ids_no_dup",
+  "files": [
+    "readme.qmd.md",
+    "services.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["hierarchical_ids_no_dup"],
+    "__Object": ["auth_svc", "auth_svc.config", "payment_svc", "payment_svc.config"]
+  },
+  "errors": []
+}

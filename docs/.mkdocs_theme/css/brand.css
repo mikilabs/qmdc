@@ -1,0 +1,99 @@
+/* MiKi Labs brand theme for the QMDC docs site.
+ *
+ * Shipped via the qmdc-mkdocs `.mkdocs_theme/` overlay and wired up in
+ * mkdocs.yml (palette primary/accent: custom + extra_css: [css/brand.css]).
+ * Goal: match the mikilabs.io landing — light, warm background with soft
+ * orange "aurora", and orange used as a calm accent (not a loud fill). */
+
+:root {
+  --miki-orange: #FE4810;
+  --miki-orange-soft: #ED5A2A;   /* slightly calmer for body links */
+  --miki-orange-light: #ff6a3c;
+  --miki-orange-dark: #c8390d;
+  --miki-warm: #FFF3EE;          /* surface-warm from the landing */
+}
+
+/* Accent (links, hover, QMDC refs/sidebar — these consume --md-accent-fg-color) */
+[data-md-color-accent="custom"] {
+  --md-accent-fg-color: var(--miki-orange);
+  --md-accent-fg-color--transparent: rgba(254, 72, 16, 0.1);
+}
+
+/* Primary still drives small accents (active nav, search highlight, buttons). */
+[data-md-color-primary="custom"] {
+  --md-primary-fg-color: var(--miki-orange);
+  --md-primary-fg-color--light: var(--miki-orange-light);
+  --md-primary-fg-color--dark: var(--miki-orange-dark);
+}
+
+/* ── Light scheme: warm cheerful background + light header ─────────────── */
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: #fdf6f2;          /* warm white */
+  --md-primary-fg-color: var(--miki-orange);
+}
+
+/* Soft "aurora" behind the whole page (very subtle so text stays readable). */
+body[data-md-color-scheme="default"] {
+  background-color: #fdf6f2;
+  background-image:
+    radial-gradient(60% 55% at 8% -5%, rgba(254, 72, 16, 0.10), transparent 60%),
+    radial-gradient(50% 50% at 100% 6%, rgba(255, 160, 80, 0.12), transparent 60%),
+    radial-gradient(55% 55% at 50% 108%, rgba(254, 72, 16, 0.07), transparent 60%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* Keep content panels readable on the aurora without hiding it: header/footer
+   and the content column get a soft translucent warm wash, not a hard fill. */
+[data-md-color-scheme="default"] .md-header {
+  background-color: rgba(255, 255, 255, 0.85);
+  color: var(--md-default-fg-color);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 1px 0 rgba(254, 72, 16, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+[data-md-color-scheme="default"] .md-tabs {
+  background-color: transparent;
+  color: var(--md-default-fg-color);
+}
+
+/* The header logo/search adopt ink color on the light bar. */
+[data-md-color-scheme="default"] .md-header__title,
+[data-md-color-scheme="default"] .md-header__button {
+  color: var(--md-default-fg-color);
+}
+
+/* Body links: calm orange, brighten on hover. */
+.md-typeset a {
+  color: var(--miki-orange-soft);
+}
+.md-typeset a:hover {
+  color: var(--miki-orange);
+}
+
+/* ── Dark scheme: keep slate, lift the orange so it reads on dark ──────── */
+[data-md-color-scheme="slate"] {
+  --md-accent-fg-color: var(--miki-orange-light);
+}
+/* Calm the header here too: slate surface instead of a full orange bar. */
+[data-md-color-scheme="slate"] .md-header {
+  background-color: rgba(28, 31, 38, 0.85);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 1px 0 rgba(254, 72, 16, 0.25), 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+[data-md-color-scheme="slate"] .md-tabs {
+  background-color: transparent;
+}
+[data-md-color-scheme="slate"] .md-typeset a {
+  color: var(--miki-orange-light);
+}
+
+/* Subtle warm aurora for dark scheme as well (deeper, low-opacity). */
+body[data-md-color-scheme="slate"] {
+  background-image:
+    radial-gradient(60% 55% at 8% -5%, rgba(254, 72, 16, 0.14), transparent 60%),
+    radial-gradient(50% 50% at 100% 6%, rgba(255, 130, 60, 0.10), transparent 60%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}

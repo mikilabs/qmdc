@@ -1,0 +1,15 @@
+[
+  {
+    "__id": "parent",
+    "__label": "Parent",
+    "__kind": "__Object",
+    "__level": 2
+  },
+  {
+    "__id": "child.invalid",
+    "__kind": "__ParsingError",
+    "type": "invalid_id_character",
+    "reference": "[[child.invalid]]",
+    "line": 3
+  }
+]

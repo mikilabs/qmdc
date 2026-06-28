@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "limit": 2,
+  "offset": 0,
+  "truncated": true,
+  "remaining": 3,
+  "columns": ["__id"],
+  "items": [
+    { "__id": "item0" },
+    { "__id": "item1" }
+  ]
+}

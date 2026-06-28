@@ -1,0 +1,38 @@
+[
+  {
+    "__id": "first",
+    "__label": "First",
+    "__kind": "Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "First object description."
+      },
+      {
+        "after": "status",
+        "content": "---\n\nThis is text between two objects. It should be preserved somewhere.\n\n**Important note:** This paragraph is not part of any object."
+      }
+    ],
+    "status": "active",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "second",
+    "__label": "Second",
+    "__kind": "Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Second object description."
+      }
+    ],
+    "status": "inactive",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 2
+  }
+]

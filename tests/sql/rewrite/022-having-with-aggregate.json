@@ -1,0 +1,11 @@
+{
+  "input": "SELECT __kind, COUNT(*) as cnt FROM objects WHERE __kind NOT IN ('__Document', '__TextBlock') GROUP BY __kind HAVING COUNT(*) > 0",
+  "workspace": "ws1",
+  "expected": "SELECT __kind, COUNT(*) AS cnt FROM objects WHERE __kind NOT IN ('__Document', '__TextBlock') AND __workspace = 'ws1' GROUP BY __kind HAVING COUNT(*) > 0",
+  "expected_result": {
+    "columns": ["__kind", "cnt"],
+    "rows": [["Feature", 1]]
+  }
+}
+
+

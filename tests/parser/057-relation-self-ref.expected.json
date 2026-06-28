@@ -1,0 +1,38 @@
+[
+  {
+    "__id": "electronics",
+    "__label": "Category",
+    "__kind": "__Object",
+    "name": "Electronics",
+    "parent": null,
+    "__types": {
+      "name": "string",
+      "parent": "null"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "phones",
+    "__label": "Category",
+    "__kind": "__Object",
+    "name": "Phones",
+    "parent": "[[#electronics]]",
+    "__types": {
+      "name": "string",
+      "parent": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "smartphones",
+    "__label": "Category",
+    "__kind": "__Object",
+    "name": "Smartphones",
+    "parent": "[[#phones]]",
+    "__types": {
+      "name": "string",
+      "parent": "string"
+    },
+    "__level": 1
+  }
+]

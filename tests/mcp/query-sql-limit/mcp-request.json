@@ -1,0 +1,9 @@
+{
+  "tool": "qmdc_query_sql",
+  "arguments": {
+    "path": "{{workspace}}",
+    "sql": "SELECT __id FROM objects WHERE __kind = 'Thing' ORDER BY __id",
+    "limit": 2,
+    "offset": 0
+  }
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "__id": "company",
+    "teams": [
+      "[[#company.teams.frontend]]",
+      "[[#company.teams.backend]]"
+    ],
+    "__labels": {
+      "teams": "Teams"
+    }
+  },
+  {
+    "__id": "company.teams.frontend",
+    "__local_id": "frontend",
+    "__kind": "Team",
+    "lead": "Alice"
+  },
+  {
+    "__id": "company.teams.backend",
+    "__local_id": "backend",
+    "__kind": "Team",
+    "lead": "Bob"
+  }
+]

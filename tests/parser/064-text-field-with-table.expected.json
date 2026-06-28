@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "doc",
+    "__label": "Doc",
+    "__kind": "__Object",
+    "name": "Example",
+    "content": "Some intro text.\n\n| Column A | Column B |\n|----------|----------|\n| value 1  | value 2  |\n| value 3  | value 4  |\n\nAnd some text after the table.",
+    "__types": {
+      "name": "string",
+      "content": "string"
+    },
+    "__syntax": {
+      "content": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "content": "Content"
+    }
+  }
+]

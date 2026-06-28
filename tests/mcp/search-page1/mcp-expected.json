@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "total": 5,
+  "truncated": true,
+  "next_cursor": "envelope_ws::item1",
+  "items": [
+    { "id": "item1", "kind": "Thing" }
+  ]
+}

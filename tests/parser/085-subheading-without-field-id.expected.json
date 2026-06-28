@@ -1,0 +1,38 @@
+[
+  {
+    "__id": "ctx_builtin_types",
+    "__label": "Built-in types",
+    "__kind": "CompletionContext",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Autocompletion of built-in type hints for fields."
+      },
+      {
+        "after": "suggestions",
+        "content": "### Built-in types\n\n| Type | Description |\n|-----|----------|\n| `text` | Multiline text |\n| `object` | Nested object |\n| `array` | Array (with subheadings or a list) |\n| `yaml` | YAML block |"
+      },
+      {
+        "after": "suggestions",
+        "content": "### Example\n\n```markdown\n- description: [[description: |]]\n                              ↑ Ctrl+Space\n```"
+      }
+    ],
+    "capability": "[[#completion]]",
+    "trigger": "[[field: ",
+    "suggestions": [
+      "text",
+      "object",
+      "array",
+      "yaml"
+    ],
+    "__types": {
+      "capability": "string",
+      "trigger": "string",
+      "suggestions": "array"
+    },
+    "__syntax": {
+      "suggestions": "yaml_array"
+    },
+    "__level": 2
+  }
+]

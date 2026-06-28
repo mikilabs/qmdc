@@ -1,0 +1,4 @@
+{
+  "_comment": "Hover shows object with child references",
+  "contents": "**Parent**\n\n🔍 `workspace::parent`\n- name: Parent Object\n- child1: [[#child1]]\n- child2: [[#child2]]"
+}

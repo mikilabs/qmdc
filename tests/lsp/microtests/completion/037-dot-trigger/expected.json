@@ -1,0 +1,7 @@
+{
+  "_comment": "Typing [[#team. shows children of team (last segment as label)",
+  "items": [
+    { "label": "alice" },
+    { "label": "config" }
+  ]
+}

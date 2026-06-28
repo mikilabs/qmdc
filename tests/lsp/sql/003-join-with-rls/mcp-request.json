@@ -1,0 +1,7 @@
+{
+  "tool": "qmdc_query_sql",
+  "arguments": {
+    "sql": "SELECT o.__id, o.__kind, COUNT(e.target_id) as edge_count FROM objects o LEFT JOIN edges e ON o.__global_id = e.source_id GROUP BY o.__id, o.__kind ORDER BY o.__id",
+    "path": "{{workspace}}"
+  }
+}

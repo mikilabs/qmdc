@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#text_0]]",
+      "[[#text_1]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "# Doc",
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "text_1",
+    "__kind": "__TextBlock",
+    "content": "## Section\n\nSome text.\n\n- [[#ref1]] — first ref\n- [[#ref2]] — second ref\n\nMore text.",
+    "__container": "[[#doc_ry4ljv]]"
+  }
+]

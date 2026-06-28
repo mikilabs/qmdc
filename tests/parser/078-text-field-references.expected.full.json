@@ -1,0 +1,49 @@
+[
+  {
+    "__id": "ns",
+    "__label": "Namespace",
+    "__kind": "__Namespace",
+    "version": 1.0,
+    "contents": "- [[#ref1]] — first reference\n- [[#ref2]] — second reference",
+    "__types": {
+      "version": "number",
+      "contents": "string"
+    },
+    "__syntax": {
+      "contents": "multiline_text"
+    },
+    "__level": 1,
+    "__line": 1,
+    "__references": [
+      {
+        "target": "#ref1",
+        "type": "hash_local",
+        "line": 7,
+        "start_col": 2,
+        "end_col": 11,
+        "raw": "[[#ref1]]"
+      },
+      {
+        "target": "#ref2",
+        "type": "hash_local",
+        "line": 8,
+        "start_col": 2,
+        "end_col": 11,
+        "raw": "[[#ref2]]"
+      }
+    ],
+    "__positions": {
+      "version": {
+        "line": 3,
+        "col": 2
+      },
+      "contents": {
+        "line": 5,
+        "col": 12
+      }
+    },
+    "__labels": {
+      "contents": "Contents"
+    }
+  }
+]

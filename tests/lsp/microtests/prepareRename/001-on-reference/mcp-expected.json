@@ -1,0 +1,22 @@
+{
+  "old_id": "user",
+  "new_id": "customer",
+  "edits": [
+    {
+      "file": "input.qmd.md",
+      "line": 1,
+      "old_text": "[[user]]",
+      "new_text": "[[customer]]",
+      "kind": "definition"
+    },
+    {
+      "file": "input.qmd.md",
+      "line": 4,
+      "old_text": "[[#user]]",
+      "new_text": "[[#customer]]",
+      "kind": "reference"
+    }
+  ],
+  "edit_count": 2,
+  "success": true
+}

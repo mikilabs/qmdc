@@ -1,0 +1,14 @@
+[
+  {
+    "__id": "options1",
+    "__label": "Options",
+    "__kind": "Section",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "| Option | Default | Description |\n|--------|---------|-------------|\n| timeout | 30 | Request timeout |\n| retries | 3 | Max retries |"
+      }
+    ],
+    "__level": 2
+  }
+]

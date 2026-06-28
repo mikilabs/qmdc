@@ -1,0 +1,47 @@
+[
+  {
+    "__id": "items",
+    "__label": "Results",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "- severity: high\n- category: parser"
+      }
+    ],
+    "__syntax": {
+      "items": "markdown_list"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "clean1",
+    "__label": "Clean",
+    "__kind": "Task",
+    "priority": "low",
+    "__types": {
+      "priority": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "multiple_definitions",
+    "definitions": [
+      "[[items: array]]",
+      "[[finding1: Finding]]"
+    ],
+    "object": "[[#items]]",
+    "line": 1
+  },
+  {
+    "__id": "error_1",
+    "__kind": "__ParsingError",
+    "type": "dangling_field",
+    "field": "items",
+    "field_type": "array",
+    "object": "[[#items]]",
+    "line": 1
+  }
+]

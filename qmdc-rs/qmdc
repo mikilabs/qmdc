@@ -1,0 +1,9 @@
+#!/bin/bash
+BIN="./target/debug/qmdc"
+
+# Only build when explicitly requested (QMDC_BUILD=1) or when the binary is missing
+if [[ -n "$QMDC_BUILD" || ! -x "$BIN" ]]; then
+  cargo build --quiet 2>&1 || exit $?
+fi
+
+exec "$BIN" "$@"

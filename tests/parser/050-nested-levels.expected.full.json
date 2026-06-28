@@ -1,0 +1,53 @@
+[
+  {
+    "__id": "company",
+    "__label": "Company",
+    "__kind": "__Object",
+    "dept": "[[#company.dept]]",
+    "__level": 2,
+    "__line": 1,
+    "__has_explicit_id": false
+  },
+  {
+    "__id": "company.dept",
+    "__local_id": "dept",
+    "__label": "Department",
+    "__kind": "__Object",
+    "__parent": "[[#company]]",
+    "__parent_field": "dept",
+    "team": "[[#company.dept.team]]",
+    "__level": 3,
+    "__line": 3
+  },
+  {
+    "__id": "company.dept.team",
+    "__local_id": "team",
+    "__label": "Team",
+    "__kind": "__Object",
+    "__parent": "[[#company.dept]]",
+    "__parent_field": "team",
+    "proj": "[[#company.dept.team.proj]]",
+    "__level": 4,
+    "__line": 5
+  },
+  {
+    "__id": "company.dept.team.proj",
+    "__local_id": "proj",
+    "__label": "Project",
+    "__kind": "__Object",
+    "__parent": "[[#company.dept.team]]",
+    "__parent_field": "proj",
+    "name": "MyProject",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 5,
+    "__line": 7,
+    "__positions": {
+      "name": {
+        "line": 9,
+        "col": 2
+      }
+    }
+  }
+]

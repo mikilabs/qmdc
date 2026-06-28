@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "old_id": "user",
+  "new_id": "customer",
+  "edit_count": 3,
+  "truncated": false,
+  "edits": [
+    { "file": "orders.qmd.md", "line": 3, "old_text": "[[#user]]", "new_text": "[[#customer]]", "kind": "reference" },
+    { "file": "orders.qmd.md", "line": 5, "old_text": "[[#user]]", "new_text": "[[#customer]]", "kind": "reference" },
+    { "file": "readme.qmd.md", "line": 3, "old_text": "[[user]]", "new_text": "[[customer]]", "kind": "definition" }
+  ]
+}

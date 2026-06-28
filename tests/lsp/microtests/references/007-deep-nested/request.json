@@ -1,0 +1,6 @@
+{
+  "method": "textDocument/references",
+  "uri": "workspace/architecture/domain/readme.qmd.md",
+  "position": { "line": 4, "character": 10 },
+  "context": { "includeDeclaration": false }
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "rebuild1",
+    "__label": "Rebuild",
+    "__kind": "Algorithm",
+    "__comments": [
+      {
+        "after": "complexity",
+        "content": "**Rules:**\n\n1. comments: output raw string as-is\n2. heading type: check __syntax for format\n3. workspace: handle as regular objects"
+      }
+    ],
+    "complexity": "O(n)",
+    "__types": {
+      "complexity": "string"
+    },
+    "__level": 2
+  }
+]

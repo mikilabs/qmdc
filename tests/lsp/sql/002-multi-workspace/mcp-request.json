@@ -1,0 +1,7 @@
+{
+  "tool": "qmdc_query_sql",
+  "arguments": {
+    "sql": "DELETE FROM objects",
+    "path": "{{workspace}}"
+  }
+}

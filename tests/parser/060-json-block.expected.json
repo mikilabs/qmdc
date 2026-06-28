@@ -1,0 +1,19 @@
+[
+  {
+    "__id": "config",
+    "__label": "Config",
+    "__kind": "__Object",
+    "settings": {
+      "debug": true,
+      "maxRetries": 3
+    },
+    "__syntax": {
+      "settings": "json_object"
+    },
+    "__level": 2,
+    "__has_explicit_id": false,
+    "__labels": {
+      "settings": "Settings"
+    }
+  }
+]

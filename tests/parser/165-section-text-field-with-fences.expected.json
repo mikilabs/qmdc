@@ -1,0 +1,32 @@
+[
+  {
+    "__id": "spec1",
+    "__label": "Spec",
+    "__kind": "Section",
+    "source": "docs",
+    "def1": "Dynamic blocks are fenced code blocks with type `table`.",
+    "syntax1": "### Reference\n\nExample:\n\n```markdown\n```table\nquery: [[#example]]\n```\n```\n\n### Inline\n\n```markdown\n```table\nsql: SELECT __id FROM objects\n```\n```\n\n### Scope [[scope1: text]]\n\nBlocks support `scope` parameter:\n\n```table\nsql: SELECT __id FROM objects\nscope: workspace\n```\n\nWithout filter:\n\n```table\nsql: SELECT __id FROM objects\nscope: all\n```",
+    "renderers1": "| Type | Description |\n|------|-------------|\n| `table` | HTML table |\n| `diagram` | D2/Mermaid |\n\nUnknown type returns raw YAML.",
+    "contract1": "Fenced code blocks go into `__TextBlock.content`.\n\n- related: [[#spec1]]",
+    "__types": {
+      "source": "string",
+      "def1": "string",
+      "syntax1": "string",
+      "renderers1": "string",
+      "contract1": "string"
+    },
+    "__syntax": {
+      "def1": "multiline_text",
+      "syntax1": "multiline_text",
+      "renderers1": "multiline_text",
+      "contract1": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "def1": "Definition",
+      "syntax1": "Syntax",
+      "renderers1": "Renderers",
+      "contract1": "Contract"
+    }
+  }
+]

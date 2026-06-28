@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "bug1",
+    "__label": "Bug",
+    "__kind": "Bug",
+    "status": "confirmed",
+    "affects": [
+      "Explorer View",
+      "Navigation"
+    ],
+    "tags": [
+      "parser",
+      "lsp"
+    ],
+    "__types": {
+      "status": "string",
+      "affects": "array",
+      "tags": "array"
+    },
+    "__syntax": {
+      "affects": "yaml_array",
+      "tags": "yaml_array"
+    },
+    "__level": 2
+  }
+]

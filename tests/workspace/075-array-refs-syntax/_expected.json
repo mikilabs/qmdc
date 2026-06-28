@@ -1,0 +1,35 @@
+{
+  "workspace_id": "075_array_refs_syntax",
+  "files": [
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["075_array_refs_syntax"],
+    "Section": ["validated_examples"],
+    "Example": ["validated_examples.ex_basic_object", "validated_examples.ex_data_types", "validated_examples.ex_text_field"]
+  },
+  "test_info": {
+    "description": "Tests the array-of-references syntax via a subheading with type [string]",
+    "syntax": "### Examples [[examples: [string]]] followed by a list of - [[#ref]]",
+    "expected_behavior": {
+      "field": "examples",
+      "expected_value": [
+        "[[#ex_basic_object]]",
+        "[[#ex_data_types]]",
+        "[[#ex_text_field]]"
+      ],
+      "expected_syntax": "markdown_list",
+      "expected_types": {
+        "examples": "array"
+      }
+    },
+    "current_behavior": {
+      "field": "examples",
+      "actual_value": [],
+      "actual_syntax": "headers",
+      "issue": "The parser interprets this as an array of objects (headers) rather than an array of references (markdown_list)"
+    },
+    "status": "FAILING",
+    "note": "This test is expected to fail, showing that the parser does not handle the [[examples: [string]]] syntax with a list of references correctly. The parser needs to be fixed so it recognizes a list of references under a subheading with type [string] as an array of primitives (reference strings) rather than an array of objects."
+  }
+}

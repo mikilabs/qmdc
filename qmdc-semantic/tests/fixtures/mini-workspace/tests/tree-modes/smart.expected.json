@@ -1,0 +1,424 @@
+{
+  "id": "ecommerce",
+  "label": "E-Commerce Platform",
+  "file": "readme.qmd.md",
+  "line": 1,
+  "count": 37,
+  "objects": [
+    {
+      "id": "db7",
+      "kind": "__Namespace",
+      "label": "Database Schema",
+      "level": 1,
+      "file": "data.qmd.md",
+      "line": 1,
+      "parent": null,
+      "namespace": null,
+      "children": [
+        {
+          "id": "tbl_orders",
+          "kind": "Table",
+          "label": "Orders",
+          "level": 2,
+          "file": "data.qmd.md",
+          "line": 28,
+          "parent": "db7",
+          "namespace": null,
+          "children": [
+            {
+              "id": "col_orders_id",
+              "kind": "Column",
+              "label": "id",
+              "level": 3,
+              "file": "data.qmd.md",
+              "line": 33,
+              "parent": "tbl_orders",
+              "namespace": null,
+              "children": []
+            },
+            {
+              "id": "col_orders_total",
+              "kind": "Column",
+              "label": "total",
+              "level": 3,
+              "file": "data.qmd.md",
+              "line": 45,
+              "parent": "tbl_orders",
+              "namespace": null,
+              "children": []
+            },
+            {
+              "id": "col_orders_user_id",
+              "kind": "Column",
+              "label": "user_id",
+              "level": 3,
+              "file": "data.qmd.md",
+              "line": 39,
+              "parent": "tbl_orders",
+              "namespace": null,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "tbl_products",
+          "kind": "Table",
+          "label": "Products",
+          "level": 2,
+          "file": "data.qmd.md",
+          "line": 52,
+          "parent": "db7",
+          "namespace": null,
+          "children": [
+            {
+              "id": "col_products_id",
+              "kind": "Column",
+              "label": "id",
+              "level": 3,
+              "file": "data.qmd.md",
+              "line": 57,
+              "parent": "tbl_products",
+              "namespace": null,
+              "children": []
+            },
+            {
+              "id": "col_products_name",
+              "kind": "Column",
+              "label": "name",
+              "level": 3,
+              "file": "data.qmd.md",
+              "line": 63,
+              "parent": "tbl_products",
+              "namespace": null,
+              "children": []
+            },
+            {
+              "id": "col_products_price",
+              "kind": "Column",
+              "label": "price",
+              "level": 3,
+              "file": "data.qmd.md",
+              "line": 68,
+              "parent": "tbl_products",
+              "namespace": null,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "tbl_users",
+          "kind": "Table",
+          "label": "Users",
+          "level": 2,
+          "file": "data.qmd.md",
+          "line": 3,
+          "parent": "db7",
+          "namespace": null,
+          "children": [
+            {
+              "id": "col_users_email",
+              "kind": "Column",
+              "label": "email",
+              "level": 3,
+              "file": "data.qmd.md",
+              "line": 20,
+              "parent": "tbl_users",
+              "namespace": null,
+              "children": []
+            },
+            {
+              "id": "col_users_id",
+              "kind": "Column",
+              "label": "id",
+              "level": 3,
+              "file": "data.qmd.md",
+              "line": 8,
+              "parent": "tbl_users",
+              "namespace": null,
+              "children": []
+            },
+            {
+              "id": "col_users_name",
+              "kind": "Column",
+              "label": "name",
+              "level": 3,
+              "file": "data.qmd.md",
+              "line": 14,
+              "parent": "tbl_users",
+              "namespace": null,
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "queries",
+      "kind": "__Namespace",
+      "label": "Queries",
+      "level": 1,
+      "file": "queries.qmd.md",
+      "line": 1,
+      "parent": null,
+      "namespace": null,
+      "children": [
+        {
+          "id": "get_tables",
+          "kind": "Query",
+          "label": "All Tables",
+          "level": 2,
+          "file": "queries.qmd.md",
+          "line": 5,
+          "parent": "queries",
+          "namespace": null,
+          "children": []
+        },
+        {
+          "id": "get_fk",
+          "kind": "Query",
+          "label": "Foreign Keys",
+          "level": 2,
+          "file": "queries.qmd.md",
+          "line": 15,
+          "parent": "queries",
+          "namespace": null,
+          "children": []
+        },
+        {
+          "id": "schema_stats",
+          "kind": "Query",
+          "label": "Schema Stats",
+          "level": 2,
+          "file": "queries.qmd.md",
+          "line": 20,
+          "parent": "queries",
+          "namespace": null,
+          "children": []
+        },
+        {
+          "id": "get_columns",
+          "kind": "Query",
+          "label": "Table Columns",
+          "level": 2,
+          "file": "queries.qmd.md",
+          "line": 10,
+          "parent": "queries",
+          "namespace": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "schema",
+      "kind": "__Namespace",
+      "label": "Schema",
+      "level": 1,
+      "file": "schema.qmd.md",
+      "line": 1,
+      "parent": null,
+      "namespace": null,
+      "children": [
+        {
+          "id": "column",
+          "kind": "Kind",
+          "label": "Column",
+          "level": 2,
+          "file": "schema.qmd.md",
+          "line": 7,
+          "parent": "schema",
+          "namespace": null,
+          "children": []
+        },
+        {
+          "id": "table",
+          "kind": "Kind",
+          "label": "Table",
+          "level": 2,
+          "file": "schema.qmd.md",
+          "line": 3,
+          "parent": "schema",
+          "namespace": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "services",
+      "kind": "__Namespace",
+      "label": "Services",
+      "level": 1,
+      "file": "services/readme.qmd.md",
+      "line": 1,
+      "parent": null,
+      "namespace": null,
+      "children": [
+        {
+          "id": "api_gateway",
+          "kind": "Service",
+          "label": "API Gateway",
+          "level": 2,
+          "file": "services/api.qmd.md",
+          "line": 21,
+          "parent": null,
+          "namespace": "services",
+          "children": []
+        },
+        {
+          "id": "auth",
+          "kind": "Service",
+          "label": "Auth Service",
+          "level": 2,
+          "file": "services.qmd.md",
+          "line": 5,
+          "parent": "services",
+          "namespace": null,
+          "children": []
+        },
+        {
+          "id": "inventory",
+          "kind": "Service",
+          "label": "Inventory Service",
+          "level": 2,
+          "file": "services.qmd.md",
+          "line": 28,
+          "parent": "services",
+          "namespace": null,
+          "children": []
+        },
+        {
+          "id": "notify",
+          "kind": "Service",
+          "label": "Notification Service",
+          "level": 2,
+          "file": "services.qmd.md",
+          "line": 36,
+          "parent": "services",
+          "namespace": null,
+          "children": []
+        },
+        {
+          "id": "order-svc",
+          "kind": "Service",
+          "label": "Order Service",
+          "level": 2,
+          "file": "services.qmd.md",
+          "line": 20,
+          "parent": "services",
+          "namespace": null,
+          "children": []
+        },
+        {
+          "id": "order_service",
+          "kind": "Service",
+          "label": "Order Service",
+          "level": 2,
+          "file": "services/api.qmd.md",
+          "line": 9,
+          "parent": null,
+          "namespace": "services",
+          "children": []
+        },
+        {
+          "id": "payment",
+          "kind": "Service",
+          "label": "Payment Service",
+          "level": 2,
+          "file": "services.qmd.md",
+          "line": 44,
+          "parent": "services",
+          "namespace": null,
+          "children": []
+        },
+        {
+          "id": "product_service",
+          "kind": "Service",
+          "label": "Product Service",
+          "level": 2,
+          "file": "services/api.qmd.md",
+          "line": 15,
+          "parent": null,
+          "namespace": "services",
+          "children": []
+        },
+        {
+          "id": "user-svc",
+          "kind": "Service",
+          "label": "User Service",
+          "level": 2,
+          "file": "services.qmd.md",
+          "line": 12,
+          "parent": "services",
+          "namespace": null,
+          "children": []
+        },
+        {
+          "id": "user_service",
+          "kind": "Service",
+          "label": "User Service",
+          "level": 2,
+          "file": "services/api.qmd.md",
+          "line": 3,
+          "parent": null,
+          "namespace": "services",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "storage",
+      "kind": "__Namespace",
+      "label": "Storage",
+      "level": 1,
+      "file": "storage/readme.qmd.md",
+      "line": 1,
+      "parent": null,
+      "namespace": null,
+      "children": [
+        {
+          "id": "order_items",
+          "kind": "Table",
+          "label": "Order Items",
+          "level": 2,
+          "file": "storage/tables.qmd.md",
+          "line": 22,
+          "parent": null,
+          "namespace": "storage",
+          "children": []
+        },
+        {
+          "id": "orders",
+          "kind": "Table",
+          "label": "Orders Table",
+          "level": 2,
+          "file": "storage/tables.qmd.md",
+          "line": 9,
+          "parent": null,
+          "namespace": "storage",
+          "children": []
+        },
+        {
+          "id": "products",
+          "kind": "Table",
+          "label": "Products Table",
+          "level": 2,
+          "file": "storage/tables.qmd.md",
+          "line": 16,
+          "parent": null,
+          "namespace": "storage",
+          "children": []
+        },
+        {
+          "id": "users",
+          "kind": "Table",
+          "label": "Users Table",
+          "level": 2,
+          "file": "storage/tables.qmd.md",
+          "line": 3,
+          "parent": null,
+          "namespace": "storage",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

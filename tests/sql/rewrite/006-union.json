@@ -1,0 +1,9 @@
+{
+  "input": "SELECT __kind FROM objects WHERE __kind = 'Feature' UNION SELECT __kind FROM objects WHERE __kind = '__Workspace'",
+  "workspace": "ws1",
+  "expected": "SELECT __kind FROM objects WHERE __kind = 'Feature' AND __workspace = 'ws1' UNION SELECT __kind FROM objects WHERE __kind = '__Workspace' AND __workspace = 'ws1'",
+  "expected_result": {
+    "columns": ["__kind"],
+    "rows": [["Feature"]]
+  }
+}

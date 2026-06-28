@@ -1,0 +1,74 @@
+[
+  {
+    "__id": "root",
+    "__label": "Root",
+    "__kind": "__Object",
+    "level": 1,
+    "l2": "[[#root.l2]]",
+    "__types": {
+      "level": "number"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "root.l2",
+    "__local_id": "l2",
+    "__label": "L2",
+    "__kind": "__Object",
+    "__parent": "[[#root]]",
+    "__parent_field": "l2",
+    "l3": "[[#root.l2.l3]]",
+    "__level": 2
+  },
+  {
+    "__id": "root.l2.l3",
+    "__local_id": "l3",
+    "__label": "L3",
+    "__kind": "__Object",
+    "__parent": "[[#root.l2]]",
+    "__parent_field": "l3",
+    "value": "three",
+    "l4": "[[#root.l2.l3.l4]]",
+    "__types": {
+      "value": "string"
+    },
+    "__level": 3
+  },
+  {
+    "__id": "root.l2.l3.l4",
+    "__local_id": "l4",
+    "__label": "L4",
+    "__kind": "__Object",
+    "__parent": "[[#root.l2.l3]]",
+    "__parent_field": "l4",
+    "l5": "[[#root.l2.l3.l4.l5]]",
+    "__level": 4
+  },
+  {
+    "__id": "root.l2.l3.l4.l5",
+    "__local_id": "l5",
+    "__label": "L5",
+    "__kind": "__Object",
+    "__parent": "[[#root.l2.l3.l4]]",
+    "__parent_field": "l5",
+    "value": "five",
+    "l6": "[[#root.l2.l3.l4.l5.l6]]",
+    "__types": {
+      "value": "string"
+    },
+    "__level": 5
+  },
+  {
+    "__id": "root.l2.l3.l4.l5.l6",
+    "__local_id": "l6",
+    "__label": "L6",
+    "__kind": "__Object",
+    "__parent": "[[#root.l2.l3.l4.l5]]",
+    "__parent_field": "l6",
+    "value": "deepest",
+    "__types": {
+      "value": "string"
+    },
+    "__level": 6
+  }
+]

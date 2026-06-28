@@ -1,0 +1,90 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#text_0]]",
+      "[[#test_obj]]",
+      "[[#real_ref]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "# Document with example code blocks",
+    "__line": 1,
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "test_obj",
+    "__label": "Object",
+    "__kind": "__Object",
+    "__container": "[[#doc_ry4ljv]]",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Some text with a real reference: [[#real_ref]]"
+      }
+    ],
+    "description": "This is a text field with example code blocks:\n\n```json example\n{\n  \"id\": \"example\",\n  \"reference\": [[#fake_ref_in_example]]\n}\n```\n\nRegular code block (should parse references):\n\n```json\n{\n  \"id\": \"regular\",\n  \"reference\": [[#real_ref]]\n}\n```\n\nAnother example block:\n\n```markdown example\n## User [[user]]\n- name: Alice\n- profile: [[#user_profile]]\n```\n\nMore text with real reference: [[#real_ref]]",
+    "__types": {
+      "description": "string"
+    },
+    "__syntax": {
+      "description": "multiline_text"
+    },
+    "__level": 2,
+    "__line": 3,
+    "__references": [
+      {
+        "target": "#real_ref",
+        "type": "hash_local",
+        "line": 5,
+        "start_col": 33,
+        "end_col": 46,
+        "raw": "[[#real_ref]]"
+      },
+      {
+        "target": "#real_ref",
+        "type": "hash_local",
+        "line": 23,
+        "start_col": 15,
+        "end_col": 28,
+        "raw": "[[#real_ref]]"
+      },
+      {
+        "target": "#real_ref",
+        "type": "hash_local",
+        "line": 35,
+        "start_col": 31,
+        "end_col": 44,
+        "raw": "[[#real_ref]]"
+      }
+    ],
+    "__positions": {
+      "description": {
+        "line": 7,
+        "col": 16
+      }
+    },
+    "__labels": {
+      "description": "Description"
+    }
+  },
+  {
+    "__id": "real_ref",
+    "__label": "Real Reference",
+    "__kind": "__Object",
+    "__container": "[[#doc_ry4ljv]]",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "This is a real object."
+      }
+    ],
+    "__level": 2,
+    "__line": 37
+  }
+]
+
+

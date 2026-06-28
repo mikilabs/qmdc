@@ -1,0 +1,50 @@
+[
+  {
+    "__id": "users",
+    "__label": "Users",
+    "__kind": "__Object",
+    "members": [
+      "[[#users.members.members_0]]",
+      "[[#users.members.members_1]]"
+    ],
+    "__types": {
+      "members": "array"
+    },
+    "__syntax": {
+      "members": "table"
+    },
+    "__level": 2,
+    "__has_explicit_id": false,
+    "__labels": {
+      "members": "Members"
+    }
+  },
+  {
+    "__id": "users.members.members_0",
+    "__local_id": "members_0",
+    "__label": "Alice",
+    "__kind": "User",
+    "__parent": "[[#users]]",
+    "__parent_field": "members",
+    "name": "Alice",
+    "age": 30,
+    "__types": {
+      "name": "string",
+      "age": "number"
+    }
+  },
+  {
+    "__id": "users.members.members_1",
+    "__local_id": "members_1",
+    "__label": "Bob",
+    "__kind": "User",
+    "__parent": "[[#users]]",
+    "__parent_field": "members",
+    "name": "Bob",
+    "age": 25,
+    "__types": {
+      "name": "string",
+      "age": "number"
+    }
+  }
+]

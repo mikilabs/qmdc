@@ -1,0 +1,10 @@
+{
+  "columns": ["__id", "deliverables"],
+  "rows": [
+    [
+      "cap_test",
+      "```\nproject/\n├── src/\n│   └── main.py\n└── README.md\n```"
+    ]
+  ]
+}
+

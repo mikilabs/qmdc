@@ -1,0 +1,40 @@
+{#
+  Semantic hint popover partial.
+
+  Renders hint icons adjacent to object headings and popovers with
+  similar object suggestions (label, kind, score, link to target).
+
+  Template context:
+    qmdc_semantic_hints: dict of obj_id → list of {label, kind, file, score, href}
+    - score is a float 0-1, displayed as percentage (e.g. 0.85 → "85%")
+
+  Requirements: 7.2, 7.3, 7.4, 12.5
+#}
+{% if qmdc_semantic_hints %}
+<div class="qmdc-hints" data-pagefind-ignore>
+  {% for obj_id, entries in qmdc_semantic_hints.items() %}
+  {% if entries %}
+  <div class="qmdc-hint" data-hint-target="{{ obj_id }}">
+    <button class="qmdc-hint-icon" aria-label="Show similar objects for {{ obj_id }}" aria-expanded="false" data-hint-toggle="{{ obj_id }}">
+      💡
+    </button>
+    <div class="qmdc-hint-popover" id="hint-popover-{{ obj_id }}" role="tooltip" hidden>
+      <ul class="qmdc-hint-list">
+        {% for hint in entries %}
+        <li class="qmdc-hint-item">
+          <a href="{{ hint.href }}" class="qmdc-hint-link">
+            <span class="qmdc-hint-label">{{ hint.label }}</span>
+            {% if hint.kind %}
+            <span class="qmdc-hint-kind">{{ hint.kind }}</span>
+            {% endif %}
+            <span class="qmdc-hint-score">{{ (hint.score * 100) | int }}%</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}

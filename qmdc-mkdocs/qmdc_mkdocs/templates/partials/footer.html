@@ -1,0 +1,84 @@
+{#-
+  QMDC footer override (Material's partials/footer.html).
+
+  Difference from upstream: the "next" link is driven by the QMDC semantic `next`
+  edge (page.meta._next, injected by QmdcPlugin.on_page_context as `qmdc_next`)
+  when present, falling back to Material's nav-order page.next_page otherwise.
+  The "previous" link is unchanged (nav order, gated by the navigation.footer
+  feature). The nav bar shows whenever there's a prev/next to render OR a
+  semantic next link — so `qmdc_next` works even without navigation.footer.
+
+  `qmdc_next.href` is already a finished page-relative URL (computed by the
+  converter the same way as the graph-sidebar hrefs), so it is emitted raw — NOT
+  through the `url` filter, which would mangle a relative `../` path.
+-#}
+<footer class="md-footer">
+  {% set _nav_footer = "navigation.footer" in features %}
+  {% set _has_prev = _nav_footer and page.previous_page %}
+  {% set _has_next = qmdc_next or (_nav_footer and page.next_page) %}
+  {% if _has_prev or _has_next %}
+    {% if page.meta and page.meta.hide %}
+      {% set hidden = "hidden" if "footer" in page.meta.hide %}
+    {% endif %}
+    <nav class="md-footer__inner md-grid" aria-label="{{ lang.t('footer') }}" {{ hidden }}>
+      {% if _has_prev %}
+        {% set direction = lang.t("footer.previous") %}
+        <a href="{{ page.previous_page.url | url }}" class="md-footer__link md-footer__link--prev" aria-label="{{ direction }}: {{ page.previous_page.title | e }}">
+          <div class="md-footer__button md-icon">
+            {% set icon = config.theme.icon.previous or "material/arrow-left" %}
+            {% include ".icons/" ~ icon ~ ".svg" %}
+          </div>
+          <div class="md-footer__title">
+            <span class="md-footer__direction">
+              {{ direction }}
+            </span>
+            <div class="md-ellipsis">
+              {{ page.previous_page.title }}
+            </div>
+          </div>
+        </a>
+      {% endif %}
+      {% if qmdc_next %}
+        {% set direction = lang.t("footer.next") %}
+        <a href="{{ qmdc_next.href | e }}" class="md-footer__link md-footer__link--next" aria-label="{{ direction }}: {{ qmdc_next.label | e }}">
+          <div class="md-footer__title">
+            <span class="md-footer__direction">
+              {{ direction }}
+            </span>
+            <div class="md-ellipsis">
+              {{ qmdc_next.label }}
+            </div>
+          </div>
+          <div class="md-footer__button md-icon">
+            {% set icon = config.theme.icon.next or "material/arrow-right" %}
+            {% include ".icons/" ~ icon ~ ".svg" %}
+          </div>
+        </a>
+      {% elif _nav_footer and page.next_page %}
+        {% set direction = lang.t("footer.next") %}
+        <a href="{{ page.next_page.url | url }}" class="md-footer__link md-footer__link--next" aria-label="{{ direction }}: {{ page.next_page.title | e }}">
+          <div class="md-footer__title">
+            <span class="md-footer__direction">
+              {{ direction }}
+            </span>
+            <div class="md-ellipsis">
+              {{ page.next_page.title }}
+            </div>
+          </div>
+          <div class="md-footer__button md-icon">
+            {% set icon = config.theme.icon.next or "material/arrow-right" %}
+            {% include ".icons/" ~ icon ~ ".svg" %}
+          </div>
+        </a>
+      {% endif %}
+    </nav>
+  {% endif %}
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      {% include "partials/copyright.html" %}
+      {% if config.extra.social %}
+        {% include "partials/social.html" %}
+      {% endif %}
+    </div>
+  </div>
+</footer>

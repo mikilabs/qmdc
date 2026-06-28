@@ -1,0 +1,26 @@
+[
+    {
+        "__id": "module",
+        "__label": "Module",
+        "__kind": "__Object",
+        "config": {
+            "path": "src/module/",
+            "multiline_then_entry": "line one\nline two",
+            "after_multiline": "works",
+            "whitespace_value": "padded",
+            "colon_in_value": "host:8080:extra",
+            "empty_value": ""
+        },
+        "__types": {
+            "config": "map"
+        },
+        "__syntax": {
+            "config": "map"
+        },
+        "__level": 2,
+        "__has_explicit_id": false,
+        "__labels": {
+            "config": "Config"
+        }
+    }
+]

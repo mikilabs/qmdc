@@ -1,0 +1,7 @@
+{
+  "symbols": [
+    { "name": "AdminUsers (admin_users)", "kind": 5, "containerName": "Table" },
+    { "name": "Users (users)", "kind": 5, "containerName": "Table" }
+  ]
+}
+

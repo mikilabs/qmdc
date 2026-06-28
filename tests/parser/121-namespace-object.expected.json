@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "storage",
+    "__label": "Storage",
+    "__kind": "__Namespace",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Data storage layer."
+      }
+    ],
+    "tables": "[[#tables]]",
+    "__types": {
+      "tables": "string"
+    },
+    "__level": 1
+  }
+]

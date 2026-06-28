@@ -1,0 +1,14 @@
+{
+  "diagnostics": [
+    {
+      "range": {
+        "start": { "line": 2, "character": 7 },
+        "end": { "line": 2, "character": 19 }
+      },
+      "severity": 1,
+      "code": "QMDC001",
+      "message": "Object 'missing' not found"
+    }
+  ]
+}
+

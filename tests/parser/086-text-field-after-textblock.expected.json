@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "parent",
+    "__label": "Parent",
+    "__kind": "Section",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Description."
+      }
+    ],
+    "_placeholder": true,
+    "field1": "Text content.",
+    "__types": {
+      "_placeholder": "boolean",
+      "field1": "string"
+    },
+    "__syntax": {
+      "field1": "multiline_text"
+    },
+    "__level": 2,
+    "__labels": {
+      "field1": "Field One"
+    }
+  }
+]

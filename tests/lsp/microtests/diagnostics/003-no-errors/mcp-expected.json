@@ -1,0 +1,46 @@
+{
+  "kinds": [
+    {
+      "kind": "__Document",
+      "count": 1,
+      "fields": [
+        "content"
+      ]
+    },
+    {
+      "kind": "__Object",
+      "count": 2,
+      "fields": [
+        "name",
+        "user"
+      ]
+    },
+    {
+      "kind": "__TextBlock",
+      "count": 1,
+      "fields": [
+        "content"
+      ]
+    },
+    {
+      "kind": "__Workspace",
+      "count": 1,
+      "fields": [
+        "name"
+      ]
+    }
+  ],
+  "edge_types": [
+    {
+      "edge_type": "content",
+      "count": 1
+    },
+    {
+      "edge_type": "user",
+      "count": 1
+    }
+  ],
+  "total_objects": 5,
+  "total_edges": 2,
+  "success": true
+}

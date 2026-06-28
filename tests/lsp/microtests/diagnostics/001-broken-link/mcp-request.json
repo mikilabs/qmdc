@@ -1,0 +1,6 @@
+{
+  "tool": "qmdc_validate_references",
+  "arguments": {
+    "path": "{{workspace}}"
+  }
+}

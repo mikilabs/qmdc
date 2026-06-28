@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "result1",
+    "__label": "Result",
+    "__kind": "__Object",
+    "status": "done",
+    "summary": "Changes were made to the parser.\nFixed multiple edge cases.",
+    "files_changed": [
+      "src/parser.py",
+      "src/rebuild.py",
+      "tests/test_parser.py"
+    ],
+    "__types": {
+      "status": "string",
+      "summary": "string"
+    },
+    "__syntax": {
+      "summary": "multiline_text",
+      "files_changed": "markdown_list"
+    },
+    "__level": 2,
+    "__labels": {
+      "summary": "Summary"
+    }
+  }
+]

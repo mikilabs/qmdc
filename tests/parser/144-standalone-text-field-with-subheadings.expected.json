@@ -1,0 +1,81 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#text_0]]",
+      "[[#result1]]",
+      "[[#summary]]",
+      "[[#files_changed]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "# Doc Title",
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "result1",
+    "__label": "Result",
+    "__kind": "Result",
+    "__container": "[[#doc_ry4ljv]]",
+    "task": "[[#some_task]]",
+    "completed": "2024-12-26",
+    "__types": {
+      "task": "string",
+      "completed": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "summary",
+    "__label": "Summary",
+    "__kind": "__Object",
+    "__container": "[[#doc_ry4ljv]]",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Fixed multiple issues in the parser.\n\n### Fixed Problems:\n\n1. Code blocks in text fields now preserved\n2. Ordered lists no longer converted to bullet lists\n3. Links preserved in Rust parser\n\n### Improvements:\n\n- Added support for markdown_list\n- Nested objects now output inline"
+      }
+    ],
+    "__syntax": {
+      "summary": "multiline_text"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "files_changed",
+    "__label": "Files Changed",
+    "__kind": "__Object",
+    "__container": "[[#doc_ry4ljv]]",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "- src/parser.py\n- src/rebuild.py"
+      }
+    ],
+    "__syntax": {
+      "files_changed": "markdown_list"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "dangling_field",
+    "field": "summary",
+    "field_type": "text",
+    "object": "[[#summary]]",
+    "line": 8
+  },
+  {
+    "__id": "error_1",
+    "__kind": "__ParsingError",
+    "type": "dangling_field",
+    "field": "files_changed",
+    "field_type": "array",
+    "object": "[[#files_changed]]",
+    "line": 23
+  }
+]

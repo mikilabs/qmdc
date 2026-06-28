@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "task1",
+    "__label": "Task",
+    "__kind": "Feature",
+    "status": "planned",
+    "priority": "high",
+    "__types": {
+      "status": "string",
+      "priority": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "nested_subitems",
+    "field": "affected_files",
+    "object": "[[#task1]]",
+    "line": 4
+  }
+]

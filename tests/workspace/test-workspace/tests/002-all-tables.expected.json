@@ -1,0 +1,12 @@
+{
+  "columns": ["__id"],
+  "rows": [
+    ["order_items"],
+    ["orders"],
+    ["products"],
+    ["tbl_orders"],
+    ["tbl_products"],
+    ["tbl_users"],
+    ["users"]
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "items": [
+    { "label": "auth", "detail": "Service", "kind": 6 },
+    { "label": "orders", "detail": "Table", "kind": 6 },
+    { "label": "users", "detail": "Table", "kind": 6 }
+  ],
+  "_comment": "IDs from models.qmd.md file, alphabetically sorted"
+}

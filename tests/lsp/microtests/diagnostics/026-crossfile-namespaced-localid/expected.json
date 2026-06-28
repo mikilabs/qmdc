@@ -1,0 +1,4 @@
+{
+  "_comment": "Regression for the LSP-vs-validator drift: [[#res_guide]] is a same-namespace (mcp) cross-file reference to a Category-nested object (hierarchical id mcp_resources.res_guide, __local_id res_guide). It must resolve via the shared core resolver using the object's own namespace — no false QMDC001.",
+  "diagnostics": []
+}

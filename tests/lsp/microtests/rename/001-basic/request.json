@@ -1,0 +1,6 @@
+{
+  "method": "textDocument/rename",
+  "position": { "line": 3, "character": 7 },
+  "newName": "account"
+}
+

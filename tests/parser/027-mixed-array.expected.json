@@ -1,0 +1,21 @@
+[
+  {
+    "__id": "config",
+    "__label": "Config",
+    "__kind": "__Object",
+    "values": [
+      1,
+      true,
+      "test",
+      null
+    ],
+    "__types": {
+      "values": "array"
+    },
+    "__syntax": {
+      "values": "yaml_array"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

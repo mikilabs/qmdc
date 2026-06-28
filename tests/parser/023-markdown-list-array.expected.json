@@ -1,0 +1,17 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "tags": [
+      "admin",
+      "developer",
+      "active"
+    ],
+    "__syntax": {
+      "tags": "markdown_list"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

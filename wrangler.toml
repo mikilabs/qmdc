@@ -1,0 +1,23 @@
+# Cloudflare Workers deploy for the QMD.md documentation site.
+#
+# The site is 100% static (MkDocs output), so this is an assets-only Worker:
+# no `main` script — Cloudflare serves the files under `docs/_site` directly.
+# Build the assets first with `make site WS=./docs`, then `wrangler deploy`.
+
+name = "qmdc-docs"
+compatibility_date = "2025-01-01"
+
+# Custom domain — the `mikilabs.io` zone is on this Cloudflare account, so
+# Wrangler provisions and attaches the hostname on deploy. (Top-level key: must
+# come before the [assets] table, or TOML scopes it under [assets].)
+routes = [
+  { pattern = "qmdc.mikilabs.io", custom_domain = true },
+]
+
+[assets]
+directory = "./docs/_site"
+# MkDocs uses directory URLs (foo/index.html served at /foo/); the default
+# "auto-trailing-slash" handling resolves those. Unknown paths fall back to the
+# generated 404 page.
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"

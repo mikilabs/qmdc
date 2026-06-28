@@ -1,0 +1,7 @@
+{
+  "items": [
+    { "label": "current" }
+  ],
+  "_comment": "Self-reference IS allowed in completion (user decides)"
+}
+

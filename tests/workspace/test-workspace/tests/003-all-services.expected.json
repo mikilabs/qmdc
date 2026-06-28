@@ -1,0 +1,15 @@
+{
+  "columns": ["__id"],
+  "rows": [
+    ["api_gateway"],
+    ["auth"],
+    ["inventory"],
+    ["notify"],
+    ["order-svc"],
+    ["order_service"],
+    ["payment"],
+    ["product_service"],
+    ["user-svc"],
+    ["user_service"]
+  ]
+}

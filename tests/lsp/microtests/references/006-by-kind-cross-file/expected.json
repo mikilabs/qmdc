@@ -1,0 +1,8 @@
+{
+  "references": [
+    { "uri": "workspace/api.qmd.md", "range": { "start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 25} } },
+    { "uri": "workspace/storage.qmd.md", "range": { "start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 33} } },
+    { "uri": "workspace/users.qmd.md", "range": { "start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 29} } }
+  ],
+  "_comment": "3 __Namespace objects across 3 files (api, storage, users). Sorted alphabetically by uri."
+}

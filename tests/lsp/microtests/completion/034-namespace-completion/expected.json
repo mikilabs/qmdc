@@ -1,0 +1,8 @@
+{
+  "items": [
+    { "label": "orders" },
+    { "label": "users" }
+  ],
+  "_comment": "Basic completion of IDs after [[#"
+}
+

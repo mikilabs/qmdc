@@ -1,0 +1,12 @@
+{
+  "input": "SELECT json_extract(data, '$.category') as category, __id, __label, json_extract(data, '$.priority') as priority, json_extract(data, '$.status') as status FROM objects WHERE (__kind = 'Feature' OR __kind = 'Bug') AND json_extract(data, '$.status') IN ('planned', 'triage_review', 'in_progress', 'done_review') ORDER BY category, CASE json_extract(data, '$.priority') WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 END, __id",
+  "workspace": "ws1",
+  "expected": "SELECT json_extract(data, '$.category') AS category, __id, __label, json_extract(data, '$.priority') AS priority, json_extract(data, '$.status') AS status FROM objects WHERE (__kind = 'Feature' OR __kind = 'Bug') AND json_extract(data, '$.status') IN ('planned', 'triage_review', 'in_progress', 'done_review') AND __workspace = 'ws1' ORDER BY category ASC, CASE json_extract(data, '$.priority') WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 END ASC, __id ASC",
+  "expected_result": {
+    "columns": ["category", "__id", "__label", "priority", "status"],
+    "rows": [
+      [null, "task1", "Task", null, "planned"]
+    ]
+  }
+}
+

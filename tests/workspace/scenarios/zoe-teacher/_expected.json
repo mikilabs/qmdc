@@ -1,0 +1,32 @@
+{
+  "workspace_id": "zoe_teacher",
+  "files": [
+    "readme.qmd.md",
+    "scenario.qmd.md",
+    "stages/after_class_v1.qmd.md",
+    "stages/after_class_v2_supportive.qmd.md",
+    "stages/readme.qmd.md",
+    "stages/sketch_v1.qmd.md",
+    "stages/sketch_v2_advanced.qmd.md"
+  ],
+  "objects": {
+    "Scenario": [
+      "scenario_build"
+    ],
+    "Stage": [
+      "after_class_v1",
+      "after_class_v2_supportive",
+      "scenario_build.scenario_stages.stage_1",
+      "scenario_build.scenario_stages.stage_2",
+      "sketch_v1",
+      "sketch_v2_advanced"
+    ],
+    "__Namespace": [
+      "stages"
+    ],
+    "__Workspace": [
+      "zoe_teacher"
+    ]
+  },
+  "errors": []
+}

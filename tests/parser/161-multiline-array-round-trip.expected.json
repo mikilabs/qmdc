@@ -1,0 +1,24 @@
+[
+  {
+    "__id": "deploy1",
+    "__label": "Deploy",
+    "__kind": "Deploy",
+    "target": "production",
+    "services": [
+      "api-gateway",
+      "auth-service",
+      "user-service",
+      "billing-service"
+    ],
+    "rollback": true,
+    "__types": {
+      "target": "string",
+      "services": "array",
+      "rollback": "boolean"
+    },
+    "__syntax": {
+      "services": "yaml_multiline_array"
+    },
+    "__level": 2
+  }
+]

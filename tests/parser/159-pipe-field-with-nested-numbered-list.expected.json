@@ -1,0 +1,19 @@
+[
+  {
+    "__id": "bug1",
+    "__label": "Bug",
+    "__kind": "Bug",
+    "status": "open",
+    "steps": "1. First step\n2. Second step\n3. Third step",
+    "priority": "high",
+    "__types": {
+      "status": "string",
+      "steps": "string",
+      "priority": "string"
+    },
+    "__syntax": {
+      "steps": "yaml_multiline"
+    },
+    "__level": 2
+  }
+]

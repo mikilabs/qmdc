@@ -1,0 +1,22 @@
+{
+  "workspace_id": "local_id_ambiguous",
+  "files": [
+    "readme.qmd.md",
+    "servers.qmd.md",
+    "consumer.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["local_id_ambiguous"],
+    "__Object": ["server_a", "server_a.config", "server_b", "server_b.config", "dashboard"]
+  },
+  "errors": [
+    {
+      "type": "ambiguous_reference",
+      "object": "dashboard",
+      "reference": "[[#config]]",
+      "file": "consumer.qmd.md",
+      "line": 3,
+      "candidates": ["__Object:server_a.config", "__Object:server_b.config"]
+    }
+  ]
+}

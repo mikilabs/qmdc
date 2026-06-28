@@ -1,0 +1,27 @@
+[
+  {
+    "__id": "config",
+    "__label": "Config",
+    "__kind": "__Object",
+    "empty_map": {},
+    "metadata": {
+      "url": "https://example.com:8080/path",
+      "description": "",
+      "name": "simple"
+    },
+    "__types": {
+      "empty_map": "map",
+      "metadata": "map"
+    },
+    "__syntax": {
+      "empty_map": "map",
+      "metadata": "map"
+    },
+    "__level": 2,
+    "__has_explicit_id": false,
+    "__labels": {
+      "empty_map": "Empty Map",
+      "metadata": "Metadata"
+    }
+  }
+]

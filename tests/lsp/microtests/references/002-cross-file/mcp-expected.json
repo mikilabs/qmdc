@@ -1,0 +1,24 @@
+{
+  "references": [
+    {
+      "file": "api.qmd.md",
+      "line": 1,
+      "id": "api",
+      "kind": "__Object"
+    },
+    {
+      "file": "main.qmd.md",
+      "line": 1,
+      "id": "main",
+      "kind": "__Object"
+    },
+    {
+      "file": "models.qmd.md",
+      "line": 1,
+      "id": "users",
+      "kind": "__Object"
+    }
+  ],
+  "count": 3,
+  "success": true
+}

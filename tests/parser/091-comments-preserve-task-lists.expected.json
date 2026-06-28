@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "task",
+    "__label": "Task",
+    "__kind": "Task",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "A task with checklist."
+      },
+      {
+        "after": "priority",
+        "content": "**Acceptance Criteria:**\n\n- [x] Understood the task\n- [ ] Implemented solution\n- [ ] Added tests\n- [ ] Updated documentation"
+      }
+    ],
+    "priority": "high",
+    "__types": {
+      "priority": "string"
+    },
+    "__level": 2
+  }
+]

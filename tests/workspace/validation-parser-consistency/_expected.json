@@ -1,0 +1,77 @@
+{
+  "workspace_id": "parser_consistency",
+  "files": [
+    "readme.qmd.md",
+    "duplicate-id-line-test.qmd.md",
+    "duplicate-id-line-test-2.qmd.md",
+    "ts-line-bug-test.qmd.md",
+    "ts-line-bug-test-2.qmd.md",
+    "parsing-error-objects-test.qmd.md",
+    "broken-link-inline-code-test.qmd.md",
+    "nested-kind-in-comment-test.qmd.md"
+  ],
+  "objects": {
+    "__Document": [
+      "doc_ry4ljv",
+      "doc_ry4ljv",
+      "doc_ry4ljv",
+      "doc_ry4ljv",
+      "doc_ry4ljv",
+      "doc_ry4ljv"
+    ],
+    "__Object": [
+      "another_complex_with_dots",
+      "another_text_block",
+      "complex_object_with_underscores",
+      "complex_object_with_underscores",
+      "doc_refs",
+      "text_block",
+      "user_1",
+      "user_1",
+      "valid_ref"
+    ],
+    "Container": [
+      "parent_obj"
+    ],
+    "Step": [
+      "parent_obj.nested_step"
+    ],
+    "Item": [
+      "parent_obj.nested_item"
+    ],
+    "__TextBlock": [
+      "text_0",
+      "text_0",
+      "text_0",
+      "text_0",
+      "text_0",
+      "text_0"
+    ],
+    "__Workspace": [
+      "parser_consistency"
+    ]
+  },
+  "errors": [
+    {
+      "type": "duplicate_id",
+      "object": "user_1",
+      "file": "duplicate-id-line-test.qmd.md",
+      "line": 5,
+      "candidates": [
+        "duplicate-id-line-test-2.qmd.md:5",
+        "duplicate-id-line-test.qmd.md:5"
+      ]
+    },
+    {
+      "type": "duplicate_id",
+      "object": "complex_object_with_underscores",
+      "file": "ts-line-bug-test.qmd.md",
+      "line": 5,
+      "candidates": [
+        "ts-line-bug-test-2.qmd.md:5",
+        "ts-line-bug-test.qmd.md:5"
+      ]
+    }
+  ],
+  "_comment": "structured_in_textblock is NOT expected for nested-kind-in-comment-test.qmd.md — that is a parser bug (Problem 4 in QMD-38). Per QMD-10, a heading with a Kind inside a comment should create a nested object, not an error."
+}

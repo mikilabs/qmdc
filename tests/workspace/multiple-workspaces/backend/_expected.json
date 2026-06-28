@@ -1,0 +1,13 @@
+{
+  "workspace_id": "backend",
+  "files": [
+    "readme.qmd.md",
+    "endpoints.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["backend"],
+    "Endpoint": ["users_api", "orders_api"]
+  },
+  "errors": []
+}
+

@@ -1,0 +1,11 @@
+{
+  "_comment_MD033": "<div class=\"grid\"> is a Material-Markdown idiom for side-by-side layouts (docs/readme.md How-It-Works section); <details>/<summary> are used for collapsible install sections in READMEs. All other inline HTML stays disallowed.",
+  "_comment_disabled": "MD013 (line length), MD024 (duplicate headings) and MD060 (deprecated) are not bugs in our prose.",
+  "_comment_MD050": "MD050 (strong-style) disabled: QMD.md uses __-prefixed tokens everywhere (__init__, __Workspace, __Namespace, __id). markdownlint misparses these as underscore-strong, locking 'consistent' mode to underscore and flagging all legitimate **asterisk** strong as false positives.",
+
+  "MD013": false,
+  "MD024": false,
+  "MD050": false,
+  "MD060": false,
+  "MD033": { "allowed_elements": ["div", "details", "summary"] }
+}

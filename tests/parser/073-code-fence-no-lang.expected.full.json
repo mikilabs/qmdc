@@ -1,0 +1,24 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#text_0]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "# Code\n\n```\nsome code\n```",
+    "__line": 1,
+    "__container": "[[#doc_ry4ljv]]",
+    "__code_fences": [
+      {
+        "lang": "",
+        "offset_line": 2,
+        "length_lines": 3
+      }
+    ]
+  }
+]
+

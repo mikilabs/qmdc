@@ -1,0 +1,91 @@
+{#-
+  QMDC Graph Sidebar — replaces Material's default TOC (partials/toc.html).
+
+  Material includes this partial in two contexts:
+  1. Right sidebar (desktop) — inside .md-sidebar--secondary
+  2. Left nav drawer (mobile) — inside .md-nav
+
+  We render the full graph sidebar in both contexts. Material's CSS handles
+  the visibility (secondary sidebar hidden on mobile, nav drawer hidden on desktop).
+
+  Template context: qmdc_graph_sidebar dict injected by QmdcPlugin.on_page_context.
+-#}
+{% set sidebar = qmdc_graph_sidebar %}
+{% if sidebar %}
+<nav class="md-nav md-nav--secondary qmdc-sidebar" data-pagefind-ignore aria-label="Graph sidebar">
+
+  {# Breadcrumb #}
+  <div class="sb-breadcrumb">
+    <span class="sb-breadcrumb__item">{{ sidebar.workspace_label | e }}</span>
+    {% if sidebar.namespace_label %}
+    <span class="sb-breadcrumb__sep" aria-hidden="true">›</span>
+    <span class="sb-breadcrumb__item">{{ sidebar.namespace_label | e }}</span>
+    {% endif %}
+    <span class="sb-breadcrumb__sep" aria-hidden="true">›</span>
+    <span class="sb-breadcrumb__item sb-breadcrumb__item--current">{{ sidebar.file_label | e }}</span>
+  </div>
+
+  {# Page TOC #}
+  {% if sidebar.toc %}
+  <div class="sb-section sb-section--toc">
+    <div class="sb-section-title">On this page</div>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      {% for item in sidebar.toc %}
+      <li class="md-nav__item">
+        <a href="#{{ item.id | e }}" class="md-nav__link sb-toc-link">{{ item.label | e }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {# Links to #}
+  {% if sidebar.links_to %}
+  <div class="sb-section sb-section--links-to">
+    <div class="sb-section-title">Links to</div>
+    <ul class="sb-edge-list">
+      {% for edge in sidebar.links_to %}
+      <li class="sb-edge-item">
+        <a href="{{ edge.href | e }}">{{ edge.label | e }}</a>
+        <span class="sb-edge-kind">{{ edge.kind | e }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {# Linked from #}
+  {% if sidebar.linked_from %}
+  <div class="sb-section sb-section--linked-from">
+    <div class="sb-section-title">Linked from</div>
+    <ul class="sb-edge-list">
+      {% for edge in sidebar.linked_from %}
+      <li class="sb-edge-item">
+        <a href="{{ edge.href | e }}">{{ edge.label | e }}</a>
+        <span class="sb-edge-kind">{{ edge.kind | e }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {# Siblings (only show if there are other files besides current) #}
+  {% if sidebar.siblings and sidebar.siblings | length > 1 %}
+  <div class="sb-section sb-section--siblings">
+    <div class="sb-section-title">Siblings</div>
+    <ul class="sb-sib-list">
+      {% for sib in sidebar.siblings %}
+      <li class="sb-sib{% if sib.is_current %} sb-sib--current{% endif %}">
+        {% if sib.is_current %}
+        <span>{{ sib.label | e }}</span>
+        {% else %}
+        <a href="{{ sib.href | e }}">{{ sib.label | e }}</a>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+</nav>
+{% endif %}

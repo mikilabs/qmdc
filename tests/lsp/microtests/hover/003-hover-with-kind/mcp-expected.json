@@ -1,0 +1,15 @@
+{
+  "nodes": [
+    {
+      "id": "users",
+      "kind": "Table",
+      "namespace": "",
+      "label": "users_table",
+      "file": "input.qmd.md",
+      "line": 1
+    }
+  ],
+  "edges": [],
+  "length": 0,
+  "success": true
+}

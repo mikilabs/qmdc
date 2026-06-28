@@ -1,0 +1,19 @@
+[
+  {
+    "__id": "article",
+    "__label": "Article",
+    "__kind": "__Object",
+    "content": "First paragraph.\n\nSecond paragraph.",
+    "__types": {
+      "content": "string"
+    },
+    "__syntax": {
+      "content": "multiline_text"
+    },
+    "__level": 2,
+    "__has_explicit_id": false,
+    "__labels": {
+      "content": "Content"
+    }
+  }
+]

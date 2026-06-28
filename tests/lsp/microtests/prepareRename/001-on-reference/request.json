@@ -1,0 +1,5 @@
+{
+  "method": "textDocument/prepareRename",
+  "position": { "line": 3, "character": 7 }
+}
+

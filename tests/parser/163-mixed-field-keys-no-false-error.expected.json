@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "rule1",
+    "__label": "Rule",
+    "__kind": "Rule",
+    "__comments": [
+      {
+        "after": "description",
+        "content": "**Rationale:**\n\n- Nested lists break round-trip\n- Parser cannot distinguish arrays from sub-items\n- Keep format flat and simple"
+      }
+    ],
+    "severity": "error",
+    "description": "No nested sub-items allowed",
+    "__types": {
+      "severity": "string",
+      "description": "string"
+    },
+    "__level": 2
+  }
+]

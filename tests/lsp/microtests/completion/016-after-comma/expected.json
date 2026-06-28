@@ -1,0 +1,9 @@
+{
+  "items": [
+    { "label": "a" },
+    { "label": "b" },
+    { "label": "c" }
+  ],
+  "_comment": "Completion after comma in list"
+}
+

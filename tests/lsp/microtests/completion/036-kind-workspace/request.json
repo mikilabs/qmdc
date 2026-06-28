@@ -1,0 +1,6 @@
+{
+  "method": "textDocument/completion",
+  "position": { "line": 0, "character": 19 },
+  "uri": "main.qmd.md"
+}
+

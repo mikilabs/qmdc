@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "user_1",
+    "__label": "User",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "**kind**: Person"
+      }
+    ],
+    "name": "Alice",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 2
+  }
+]

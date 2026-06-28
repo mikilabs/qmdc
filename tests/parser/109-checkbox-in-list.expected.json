@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "task",
+    "__label": "Task",
+    "__kind": "Task",
+    "status": "in_progress",
+    "checklist": "Progress:\n\n- [x] Completed item\n- [ ] Pending item\n- [x] Another completed\n- [ ] Another pending",
+    "__types": {
+      "status": "string",
+      "checklist": "string"
+    },
+    "__syntax": {
+      "checklist": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "checklist": "Checklist"
+    }
+  }
+]

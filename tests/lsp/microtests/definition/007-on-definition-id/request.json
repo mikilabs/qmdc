@@ -1,0 +1,6 @@
+{
+  "method": "textDocument/definition",
+  "position": { "line": 0, "character": 12 },
+  "_comment": "Cursor on 'users' in definition [[users:__Namespace]] - should return this definition location"
+}
+

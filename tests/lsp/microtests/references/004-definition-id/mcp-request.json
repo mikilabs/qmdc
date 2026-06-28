@@ -1,0 +1,9 @@
+{
+  "tool": "qmdc_traverse_graph",
+  "arguments": {
+    "start_id": "users.order",
+    "direction": "outgoing",
+    "depth": 2,
+    "path": "{{workspace}}"
+  }
+}

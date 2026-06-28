@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "task1",
+    "__label": "Task",
+    "__kind": "Task",
+    "__comments": [
+      {
+        "after": "items",
+        "content": "1. This numbered comment follows the bullet array.\n2. It should be preserved as a comment, not swallowed by rebuild."
+      }
+    ],
+    "category": "implementation",
+    "items": [
+      "alpha",
+      "beta",
+      "gamma"
+    ],
+    "__types": {
+      "category": "string"
+    },
+    "__syntax": {
+      "items": "markdown_list"
+    },
+    "__level": 2
+  }
+]

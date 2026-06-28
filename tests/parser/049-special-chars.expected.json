@@ -1,0 +1,15 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "email": "test@example.com",
+    "url": "https://example.com/path?param=value",
+    "__types": {
+      "email": "string",
+      "url": "string"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

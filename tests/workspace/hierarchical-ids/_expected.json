@@ -1,0 +1,13 @@
+{
+  "workspace_id": "hierarchical_ids_test",
+  "files": [
+    "readme.qmd.md",
+    "services.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["hierarchical_ids_test"],
+    "__Object": ["auth_svc", "auth_svc.config", "payment_svc", "payment_svc.config"],
+    "Endpoint": ["auth_svc.endpoints.login", "auth_svc.endpoints.logout", "payment_svc.endpoints.charge"]
+  },
+  "errors": []
+}

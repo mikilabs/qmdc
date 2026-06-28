@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "truncated": false,
+  "nodes": [
+    { "id": "orders", "global_id": "001-id-completion::orders", "kind": "__Object", "label": "Orders", "level": 1, "file": "input.qmd.md", "line": 5 },
+    { "id": "users", "global_id": "001-id-completion::users", "kind": "__Object", "label": "Users", "level": 1, "file": "input.qmd.md", "line": 1 },
+    { "id": "001-id-completion", "global_id": "::001-id-completion", "kind": "__Workspace" }
+  ]
+}

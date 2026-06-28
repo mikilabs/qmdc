@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "truncated": false,
+  "columns": ["key", "c"],
+  "items": [
+    { "key": "qmd1_status", "c": 2 },
+    { "key": "qmd2_status", "c": 1 }
+  ]
+}

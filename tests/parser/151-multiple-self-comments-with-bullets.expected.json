@@ -1,0 +1,75 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#text_0]]",
+      "[[#parser_diff]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "# Doc",
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "parser_diff",
+    "__label": "Parser Diff",
+    "__kind": "Finding",
+    "__container": "[[#doc_ry4ljv]]",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "**Problem:**\nDifferent parsers find different error counts:"
+      },
+      {
+        "after": "TypeScript",
+        "content": "**Root Cause:**\nThis is related to bug QMD-10: text fields create extra objects."
+      },
+      {
+        "after": "TypeScript",
+        "content": "**Verification:**\nFor workspace docs:"
+      },
+      {
+        "after": "TypeScript",
+        "content": "- Rust: 11 objects with text\n- Python: 56 objects with text\n- TypeScript: 56 objects with text"
+      },
+      {
+        "after": "TypeScript",
+        "content": "These extra objects cause additional validation errors."
+      },
+      {
+        "after": "TypeScript",
+        "content": "**Validate command check:**\nFor workspace microtests/errors:"
+      },
+      {
+        "after": "TypeScript",
+        "content": "- Rust: parse=6, validate=6\n- Python: parse=6, validate=6\n- TypeScript: parse=6, validate=6"
+      },
+      {
+        "after": "TypeScript",
+        "content": "The validate command correctly returns the same as parse."
+      },
+      {
+        "after": "TypeScript",
+        "content": "**Solution:**\nThis is a separate task. The validate command works correctly."
+      }
+    ],
+    "Rust": "0 errors for docs",
+    "Python": "45 errors for docs",
+    "TypeScript": "44 errors for docs",
+    "category": "known_issue",
+    "related_to": "[[#task1]]",
+    "solution": "Validate command works correctly",
+    "__types": {
+      "Rust": "string",
+      "Python": "string",
+      "TypeScript": "string",
+      "category": "string",
+      "related_to": "string",
+      "solution": "string"
+    },
+    "__level": 2
+  }
+]

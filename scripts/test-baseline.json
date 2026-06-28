@@ -1,0 +1,12 @@
+{
+  "enforce_parity": ["parser", "sql", "workspace", "cli"],
+  "require_component": ["mkdocs", "semantic", "vscode"],
+  "require_present": {
+    "parser": ["py", "ts", "rs"],
+    "workspace": ["py", "ts", "rs"],
+    "sql": ["py", "ts", "rs"],
+    "cli": ["py", "ts", "rs"],
+    "lsp": ["rs"],
+    "mcp": ["rs"]
+  }
+}

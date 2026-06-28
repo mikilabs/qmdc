@@ -1,0 +1,4 @@
+{
+  "_comment": "Dot-ID [[nonexistent.operations]] with missing parent — broken_parent detection not implemented in LSP (only in workspace validator)",
+  "diagnostics": []
+}

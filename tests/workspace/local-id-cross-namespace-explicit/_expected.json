@@ -1,0 +1,15 @@
+{
+  "workspace_id": "local_id_cross_ns_explicit",
+  "files": [
+    "consumer.qmd.md",
+    "readme.qmd.md",
+    "services/api.qmd.md",
+    "services/readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["local_id_cross_ns_explicit"],
+    "__Namespace": ["services"],
+    "__Object": ["gateway", "gateway.config", "root_consumer"]
+  },
+  "errors": []
+}

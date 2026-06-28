@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "config1",
+    "__label": "Config",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "timeout",
+        "content": "### Usage Examples\n\nBasic config:\n\n```yaml\ntimeout: 30\nport: 8080\n```\n\nAdvanced config with table:\n\n| Param | Default |\n|-------|---------|\n| timeout | 30 |\n| retries | 3 |\n\n- debug: false"
+      }
+    ],
+    "timeout": 30,
+    "__types": {
+      "timeout": "number"
+    },
+    "__level": 2
+  }
+]

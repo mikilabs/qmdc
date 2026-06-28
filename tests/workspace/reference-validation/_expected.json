@@ -1,0 +1,16 @@
+{
+  "workspace_id": "ref_test",
+  "files": [
+    "documentation.qmd.md",
+    "objects.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["ref_test"],
+    "Algorithm": ["algorithm_doc"],
+    "User": ["user"],
+    "Config": ["config"]
+  },
+  "errors": []
+}
+

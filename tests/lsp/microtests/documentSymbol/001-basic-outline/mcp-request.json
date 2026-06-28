@@ -1,0 +1,7 @@
+{
+  "tool": "qmdc_outline_file",
+  "arguments": {
+    "file": "input.qmd.md",
+    "path": "{{workspace}}"
+  }
+}

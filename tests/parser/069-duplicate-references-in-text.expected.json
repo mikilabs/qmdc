@@ -1,0 +1,24 @@
+[
+  {
+    "__id": "doc",
+    "__label": "Doc",
+    "__kind": "__Object",
+    "structure": "- [[#ext]] — first mention\n- [[#ext]] — second mention\n\n[[#ext]]\n\nversion: [[#ext]]",
+    "__types": {
+      "structure": "string"
+    },
+    "__syntax": {
+      "structure": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "structure": "Structure"
+    }
+  },
+  {
+    "__id": "ext",
+    "__label": "Ext",
+    "__kind": "__Object",
+    "__level": 1
+  }
+]

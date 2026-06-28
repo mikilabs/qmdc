@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "test_obj",
+    "__label": "Some heading",
+    "__kind": "Thing",
+    "desc": "```markdown example\nHere is an example:\n\n```table\n[[#should_not_be_parsed]]\n```\n\nMore example text with [[#also_not_parsed]]\n```",
+    "__types": {
+      "desc": "string"
+    },
+    "__syntax": {
+      "desc": "multiline_text"
+    },
+    "__level": 2,
+    "__labels": {
+      "desc": "Description"
+    }
+  }
+]

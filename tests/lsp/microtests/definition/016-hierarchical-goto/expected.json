@@ -1,0 +1,8 @@
+{
+  "_comment": "Go-to-definition on [[#team.members.alice]] navigates to Alice's heading",
+  "uri": "input.qmd.md",
+  "range": {
+    "start": { "line": 10, "character": 0 },
+    "end": { "line": 10, "character": 19 }
+  }
+}

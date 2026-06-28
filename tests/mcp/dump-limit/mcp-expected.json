@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "total": 6,
+  "truncated": true,
+  "next_cursor": "envelope_ws::item0",
+  "object_count": 6,
+  "files_truncated": false,
+  "objects": [
+    { "__id": "envelope_ws", "__kind": "__Workspace" },
+    { "__id": "item0", "__kind": "Thing" }
+  ]
+}

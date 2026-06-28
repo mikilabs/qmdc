@@ -1,0 +1,11 @@
+{
+  "input": "SELECT o.__id, COUNT(t.__id) as edge_count FROM objects o LEFT JOIN edges e ON o.__global_id = e.source_id LEFT JOIN objects t ON e.target_id = t.__global_id AND t.__id LIKE 'task%' WHERE o.__kind NOT IN ('__Document', '__TextBlock') GROUP BY o.__id",
+  "workspace": "ws1",
+  "expected": "SELECT o.__id, COUNT(t.__id) AS edge_count FROM objects o LEFT JOIN edges e ON o.__global_id = e.source_id AND e.__workspace = 'ws1' LEFT JOIN objects t ON e.target_id = t.__global_id AND t.__id LIKE 'task%' AND t.__workspace = 'ws1' WHERE o.__kind NOT IN ('__Document', '__TextBlock') AND o.__workspace = 'ws1' GROUP BY o.__id",
+  "expected_result": {
+    "columns": ["__id", "edge_count"],
+    "rows": [["task1", 0]]
+  }
+}
+
+

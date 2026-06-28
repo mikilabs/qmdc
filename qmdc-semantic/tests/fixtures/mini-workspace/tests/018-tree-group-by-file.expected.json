@@ -1,0 +1,32 @@
+{
+  "columns": [
+    "__file",
+    "object_count"
+  ],
+  "rows": [
+    [
+      "data.qmd.md",
+      12
+    ],
+    [
+      "queries.qmd.md",
+      4
+    ],
+    [
+      "schema.qmd.md",
+      2
+    ],
+    [
+      "services.qmd.md",
+      6
+    ],
+    [
+      "services/api.qmd.md",
+      4
+    ],
+    [
+      "storage/tables.qmd.md",
+      4
+    ]
+  ]
+}

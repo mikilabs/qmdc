@@ -1,0 +1,106 @@
+[
+  {
+    "__id": "exp001",
+    "__label": "Experiment",
+    "__kind": "Experiment",
+    "char_configs": [
+      "[[#library:simple_zoe]]"
+    ],
+    "models": [
+      "[[#library:model1]]",
+      "[[#library:model2]]"
+    ],
+    "__types": {
+      "char_configs": "array",
+      "models": "array"
+    },
+    "__syntax": {
+      "char_configs": "yaml_array",
+      "models": "yaml_array"
+    },
+    "__level": 2,
+    "__line": 1,
+    "__references": [
+      {
+        "target": "#library:simple_zoe",
+        "type": "namespace",
+        "line": 3,
+        "start_col": 17,
+        "end_col": 40,
+        "raw": "[[#library:simple_zoe]]"
+      },
+      {
+        "target": "#library:model1",
+        "type": "namespace",
+        "line": 4,
+        "start_col": 11,
+        "end_col": 30,
+        "raw": "[[#library:model1]]"
+      },
+      {
+        "target": "#library:model2",
+        "type": "namespace",
+        "line": 4,
+        "start_col": 32,
+        "end_col": 51,
+        "raw": "[[#library:model2]]"
+      }
+    ],
+    "__positions": {
+      "char_configs": {
+        "line": 3,
+        "col": 2
+      },
+      "models": {
+        "line": 4,
+        "col": 2
+      }
+    }
+  },
+  {
+    "__id": "library",
+    "__label": "Library",
+    "__kind": "__Namespace",
+    "__level": 2,
+    "__line": 6
+  },
+  {
+    "__id": "simple_zoe",
+    "__label": "Simple Zoe",
+    "__kind": "CharacterConfig",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Zoe character configuration."
+      }
+    ],
+    "__level": 2,
+    "__line": 8
+  },
+  {
+    "__id": "model1",
+    "__label": "Model1",
+    "__kind": "Model",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "First model."
+      }
+    ],
+    "__level": 2,
+    "__line": 12
+  },
+  {
+    "__id": "model2",
+    "__label": "Model2",
+    "__kind": "Model",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Second model."
+      }
+    ],
+    "__level": 2,
+    "__line": 16
+  }
+]

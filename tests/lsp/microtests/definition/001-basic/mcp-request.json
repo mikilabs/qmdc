@@ -1,0 +1,7 @@
+{
+  "tool": "qmdc_locate_object",
+  "arguments": {
+    "ref": "users",
+    "path": "{{workspace}}"
+  }
+}

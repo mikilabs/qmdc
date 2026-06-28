@@ -1,0 +1,30 @@
+[
+  {
+    "__id": "bug1",
+    "__label": "Bug",
+    "__kind": "Bug",
+    "__comments": [
+      {
+        "after": "category",
+        "content": "**Context:** The parser has issues."
+      },
+      {
+        "after": "status",
+        "content": "### Root Cause\n\nMissing check in field scanner."
+      },
+      {
+        "after": "status",
+        "content": "### Impact\n\nAffects 10 files."
+      }
+    ],
+    "severity": "high",
+    "category": "parser",
+    "status": "open",
+    "__types": {
+      "severity": "string",
+      "category": "string",
+      "status": "string"
+    },
+    "__level": 2
+  }
+]

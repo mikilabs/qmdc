@@ -1,0 +1,13 @@
+[
+  {
+    "__id": "config",
+    "__label": "Config",
+    "__kind": "__Object",
+    "message": "Hello, World!",
+    "__types": {
+      "message": "string"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

@@ -1,0 +1,25 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "name": "Alice",
+    "age": 30,
+    "tags": [
+      "admin",
+      "user"
+    ],
+    "active": true,
+    "__types": {
+      "name": "string",
+      "age": "number",
+      "tags": "array",
+      "active": "boolean"
+    },
+    "__syntax": {
+      "tags": "yaml_array"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

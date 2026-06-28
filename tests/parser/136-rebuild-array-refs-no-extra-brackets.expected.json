@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "feature1",
+    "__label": "Feature",
+    "__kind": "Feature",
+    "status": "planned",
+    "affects": [
+      "[[#parsers:rust_parser]]",
+      "[[#parsers:python_parser]]"
+    ],
+    "related": [
+      "[[#task1]]",
+      "[[#task2]]"
+    ],
+    "__types": {
+      "status": "string",
+      "affects": "array",
+      "related": "array"
+    },
+    "__syntax": {
+      "affects": "comma_refs",
+      "related": "yaml_array"
+    },
+    "__level": 2
+  }
+]

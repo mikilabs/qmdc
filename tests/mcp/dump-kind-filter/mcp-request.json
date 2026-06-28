@@ -1,0 +1,8 @@
+{
+  "tool": "qmdc_dump_index",
+  "arguments": {
+    "path": "{{workspace}}",
+    "kind": "Thing",
+    "limit": 100
+  }
+}

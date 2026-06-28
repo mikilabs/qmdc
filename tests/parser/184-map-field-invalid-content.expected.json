@@ -1,0 +1,59 @@
+[
+  {
+    "__id": "svc1",
+    "__label": "Service",
+    "__kind": "__Object",
+    "field": {
+      "host": "localhost",
+      "port": "8080"
+    },
+    "__types": {
+      "field": "map"
+    },
+    "__syntax": {
+      "field": "map"
+    },
+    "__level": 1,
+    "__labels": {
+      "field": "env"
+    }
+  },
+  {
+    "__id": "other1",
+    "__label": "Other",
+    "__kind": "__Object",
+    "__level": 1
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "invalid_map_content",
+    "field": "field",
+    "object": "[[#svc1]]",
+    "line": 5
+  },
+  {
+    "__id": "error_1",
+    "__kind": "__ParsingError",
+    "type": "invalid_map_content",
+    "field": "field",
+    "object": "[[#svc1]]",
+    "line": 10
+  },
+  {
+    "__id": "error_2",
+    "__kind": "__ParsingError",
+    "type": "invalid_map_content",
+    "field": "field",
+    "object": "[[#svc1]]",
+    "line": 12
+  },
+  {
+    "__id": "error_3",
+    "__kind": "__ParsingError",
+    "type": "invalid_map_content",
+    "field": "field",
+    "object": "[[#svc1]]",
+    "line": 14
+  }
+]

@@ -1,0 +1,27 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#bug1]]",
+      "[[#text_0]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "## Reproduction Steps\n\n1. Open QMD Explorer View\n2. Expand Architecture\n3. Click on any Algorithm (e.g. \"Parsing Algorithm\")\n   - **Result:** navigates to algorithm heading line\n4. Expand Architecture again\n5. Click on any CliCapability (e.g. \"Parse Capability\")\n   - **Result:** navigates to first line of file",
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "bug1",
+    "__label": "Bug",
+    "__kind": "Bug",
+    "__container": "[[#doc_ry4ljv]]",
+    "status": "confirmed",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 2
+  }
+]

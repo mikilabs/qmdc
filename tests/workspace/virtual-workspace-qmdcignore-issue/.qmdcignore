@@ -1,0 +1,5 @@
+# Ignore test files
+**/test_*.qmd.md
+**/spec_*.qmd.md
+**/example_*.qmd.md
+

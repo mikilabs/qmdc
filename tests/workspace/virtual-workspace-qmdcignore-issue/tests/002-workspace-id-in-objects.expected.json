@@ -1,0 +1,8 @@
+{
+  "columns": ["__id", "__kind", "__workspace"],
+  "rows": [
+    ["order", "Entity", "virtual-workspace-qmdcignore-issue"],
+    ["user", "Entity", "virtual-workspace-qmdcignore-issue"]
+  ]
+}
+

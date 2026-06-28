@@ -1,0 +1,4 @@
+{
+  "contents": "**Locate Object** `McpTool`\n\n🔍 `docs:mcp:tool_locate_object`\n- status: implemented",
+  "_comment": "Hovering a reference to an object defined in the SAME open file must show the real global id (docs:mcp:tool_locate_object), not the single-file 'workspace::id' placeholder. The document-first lookup returns the live-buffer parse, which has no __workspace/__namespace; the LSP must backfill both from the workspace index."
+}

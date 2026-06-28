@@ -1,0 +1,19 @@
+[
+  {
+    "__id": "order-svc",
+    "__label": "Order Service",
+    "__kind": "Service",
+    "depends": [
+      "[[#auth]]",
+      "[[#user-svc]]",
+      "[[#inventory]]"
+    ],
+    "__types": {
+      "depends": "array"
+    },
+    "__syntax": {
+      "depends": "comma_refs"
+    },
+    "__level": 1
+  }
+]

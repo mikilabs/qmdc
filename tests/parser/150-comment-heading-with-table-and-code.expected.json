@@ -1,0 +1,51 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#text_0]]",
+      "[[#analysis1]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "# Doc",
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "analysis1",
+    "__label": "Analysis",
+    "__kind": "Finding",
+    "__container": "[[#doc_ry4ljv]]",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Found several issues."
+      },
+      {
+        "after": "related_to",
+        "content": "### Current Behavior\n\nWhen running the parser:\n- Python shows real line numbers\n- TypeScript always shows line 1\n\nExample output:\n```\nduplicate_id|file.qmd.md:3|obj1  # Python\nduplicate_id|file.qmd.md:1|obj1  # TypeScript\n```"
+      },
+      {
+        "after": "related_to",
+        "content": "### Root Cause\n\nThe function tries to find the line by regex pattern:\n\n```typescript\nfunction getLineNumber(content: string): number {\n  return 1; // Default\n}\n```"
+      },
+      {
+        "after": "related_to",
+        "content": "### Solution\n\n1. Use obj.__line directly\n2. Only use getLineNumber() as fallback\n3. Improve regex patterns"
+      },
+      {
+        "after": "related_to",
+        "content": "### Affected Files\n\n- `src/workspace.ts` (lines 228-250)\n- `src/parser.ts` (lines 100-120)"
+      }
+    ],
+    "category": "parser",
+    "related_to": "[[#task1]]",
+    "__types": {
+      "category": "string",
+      "related_to": "string"
+    },
+    "__level": 2
+  }
+]

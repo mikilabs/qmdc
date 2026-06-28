@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "finding3",
+    "__label": "Finding",
+    "__kind": "Finding",
+    "category": "testing",
+    "solution": "Step 1: Run the parser on input\nStep 2: Compare output with expected\nStep 3: Verify round-trip",
+    "test_plan": "**Existing tests:** microtests cover basic parsing\n\n**New tests needed:**\n1. SQL test for code block in text field\n2. Round-trip test for yaml multiline",
+    "severity": "high",
+    "__types": {
+      "category": "string",
+      "solution": "string",
+      "test_plan": "string",
+      "severity": "string"
+    },
+    "__syntax": {
+      "solution": "yaml_multiline",
+      "test_plan": "yaml_multiline"
+    },
+    "__level": 2
+  }
+]

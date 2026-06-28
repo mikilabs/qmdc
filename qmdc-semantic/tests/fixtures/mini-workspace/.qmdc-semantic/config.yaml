@@ -1,0 +1,4 @@
+embedding:
+  provider: ollama
+  model: qwen3-embedding
+  base_url: http://localhost:11434

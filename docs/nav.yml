@@ -1,0 +1,84 @@
+- Readme: index.md
+- Architecture:
+  - Readme: architecture/index.md
+  - Algorithms: architecture/algorithms.md
+  - Components: architecture/components.md
+- VS Code Extension:
+  - Readme: extension/index.md
+  - Commands: extension/commands.md
+- QMD.md Format Specification:
+  - Readme: format/index.md
+  - Array: format/arrays.md
+  - Comment: format/comments.md
+  - Dynamic Block: format/dynamic-blocks.md
+  - Field: format/fields.md
+  - Heading: format/headings.md
+  - Object: format/objects.md
+  - Reference: format/references.md
+  - Data Type: format/types.md
+  - Validation Errors: format/validation-errors.md
+  - Workspace: format/workspaces.md
+  - YAML Block: format/yaml-blocks.md
+- Guides:
+  - Readme: guides/index.md
+  - Qmdc Guide: guides/qmdc-guide.md
+  - Query Your Markdown Graph: guides/query-graph.md
+  - Build a Small Workspace: guides/small-workspace.md
+  - Validate a Document: guides/validate-document.md
+  - Use QMDC with VS Code: guides/vscode.md
+- Learn:
+  - Readme: learn/index.md
+  - Human Text, Machine Structure: learn/human-machine-readable.md
+  - Markdown to Graph: learn/markdown-to-graph.md
+  - QMD.md vs Quarto's QMD: learn/qmd-md-vs-quarto.md
+  - QMDC for Agents: learn/qmdc-for-agents.md
+  - Why QMDC: learn/why-qmdc.md
+- LSP Server:
+  - Readme: lsp/index.md
+  - LSP Commands: lsp/commands.md
+  - Completion: lsp/completion.md
+  - Diagnostics: lsp/diagnostics.md
+  - Formatting: lsp/formatting.md
+  - Information: lsp/information.md
+  - Navigation: lsp/navigation.md
+  - Refactoring: lsp/refactoring.md
+  - Visual Features: lsp/visual.md
+- MCP Server:
+  - Readme: mcp/index.md
+  - Discovery: mcp/discovery.md
+  - Graph: mcp/graph.md
+  - Query: mcp/query.md
+  - Refactoring: mcp/refactoring.md
+  - Resources: mcp/resources.md
+  - Server: mcp/server.md
+- Parsers:
+  - Readme: parsers/index.md
+  - Commands: parsers/commands.md
+  - Python Parser: parsers/python-parser.md
+  - Rust Parser: parsers/rust-parser.md
+  - TypeScript Parser: parsers/typescript-parser.md
+- Releasing:
+  - Readme: releasing/index.md
+  - Recording Demos: releasing/demos.md
+- Semantic Layer:
+  - Readme: semantic/index.md
+  - Algorithms: semantic/algorithms.md
+  - Semantic CLI Commands: semantic/commands.md
+  - Semantic Configuration: semantic/configuration.md
+  - Semantic Storage Schema: semantic/storage.md
+  - Semantic Testing: semantic/testing.md
+- "Static Site Generator \u2014 Documentation Website Builder":
+  - Readme: ssg/index.md
+- Testing:
+  - Readme: testing/index.md
+  - CLI Tests: testing/cli-tests.md
+  - LSP Microtests: testing/lsp-microtests.md
+  - LSP SQL Integration Tests: testing/lsp-sql-tests.md
+  - Parser Microtests: testing/parser-microtests.md
+  - SQL Rewrite Tests: testing/sql-rewrite-tests.md
+  - SQL Workspace Tests: testing/sql-tests.md
+  - Workspace Tests: testing/workspace-tests.md
+- Tutorials:
+  - Readme: tutorials/index.md
+  - Write Your First QMD.md File: tutorials/first-file.md
+  - Quickstart: tutorials/quickstart.md

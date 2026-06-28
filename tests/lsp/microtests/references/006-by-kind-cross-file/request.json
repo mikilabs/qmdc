@@ -1,0 +1,8 @@
+{
+  "method": "textDocument/references",
+  "uri": "users.qmd.md",
+  "position": { "line": 0, "character": 18 },
+  "context": { "includeDeclaration": true },
+  "_comment": "Cursor on '__Namespace' in users.qmd.md - should find all __Namespace objects across files"
+}
+

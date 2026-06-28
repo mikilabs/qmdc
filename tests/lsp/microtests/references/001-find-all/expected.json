@@ -1,0 +1,8 @@
+{
+  "references": [
+    { "uri": "input.qmd.md", "range": { "start": {"line": 3, "character": 10}, "end": {"line": 3, "character": 20} } },
+    { "uri": "input.qmd.md", "range": { "start": {"line": 5, "character": 7}, "end": {"line": 5, "character": 17} } },
+    { "uri": "input.qmd.md", "range": { "start": {"line": 7, "character": 8}, "end": {"line": 7, "character": 18} } }
+  ],
+  "_comment": "3 references, excluding definition"
+}

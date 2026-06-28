@@ -1,0 +1,5 @@
+{
+  "input": "SELECT * FROM (SELECT * FROM objects) sub",
+  "workspace": "ws1",
+  "expected": "SELECT * FROM (SELECT * FROM objects WHERE __workspace = 'ws1') sub"
+}

@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "__id": "ws1",
+      "__kind": "__Workspace"
+    },
+    {
+      "__id": "doc_ry4ljv",
+      "__kind": "__Document"
+    },
+    {
+      "__id": "text_0",
+      "__kind": "__TextBlock"
+    },
+    {
+      "__id": "task1",
+      "__kind": "Feature"
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "truncated": false,
+  "columns": [
+    "__id",
+    "__kind"
+  ],
+  "success": true
+}

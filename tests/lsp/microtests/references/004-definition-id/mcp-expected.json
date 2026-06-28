@@ -1,0 +1,38 @@
+{
+  "items": [
+    {
+      "id": "users.order",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "users.order",
+      "file": "input.qmd.md",
+      "line": 7
+    },
+    {
+      "id": "users",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "users",
+      "file": "input.qmd.md",
+      "line": 1
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "truncated": false,
+  "edges": [
+    {
+      "source": "users.order",
+      "target": "users",
+      "edge_type": "user",
+      "source_field": "user"
+    },
+    {
+      "source": "users",
+      "target": "users.order",
+      "edge_type": "order",
+      "source_field": "order"
+    }
+  ],
+  "success": true
+}

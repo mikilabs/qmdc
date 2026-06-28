@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "myproject",
+    "__label": "My Project",
+    "__kind": "__Workspace",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Project description."
+      }
+    ],
+    "format": "[[#format]]",
+    "architecture": "[[#architecture]]",
+    "__types": {
+      "format": "string",
+      "architecture": "string"
+    },
+    "__level": 1
+  }
+]

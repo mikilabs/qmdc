@@ -1,0 +1,15 @@
+[
+  {
+    "__id": "config",
+    "__label": "Config",
+    "__kind": "__Object",
+    "tags": [
+      "production"
+    ],
+    "__syntax": {
+      "tags": "markdown_list"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

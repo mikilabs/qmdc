@@ -1,0 +1,35 @@
+[
+  {
+    "__id": "test",
+    "__label": "Test",
+    "__kind": "__Object",
+    "input": "```qmd\n# User [[user:|]]\n```",
+    "cursor": "line 1, col 14",
+    "expected": [],
+    "__types": {
+      "input": "string",
+      "cursor": "string",
+      "expected": "array"
+    },
+    "__syntax": {
+      "input": "yaml_multiline",
+      "expected": "yaml_array"
+    },
+    "__level": 1,
+    "__line": 1,
+    "__positions": {
+      "input": {
+        "line": 3,
+        "col": 2
+      },
+      "cursor": {
+        "line": 7,
+        "col": 2
+      },
+      "expected": {
+        "line": 8,
+        "col": 2
+      }
+    }
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "references": [
+    { "uri": "input.qmd.md", "range": { "start": {"line": 4, "character": 10}, "end": {"line": 4, "character": 20} } },
+    { "uri": "input.qmd.md", "range": { "start": {"line": 8, "character": 8}, "end": {"line": 8, "character": 18} } },
+    { "uri": "input.qmd.md", "range": { "start": {"line": 10, "character": 8}, "end": {"line": 10, "character": 18} } }
+  ],
+  "_comment": "3 references to [[#users]], cursor was on ID in definition"
+}
+

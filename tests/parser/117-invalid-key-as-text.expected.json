@@ -1,0 +1,27 @@
+[
+  {
+    "__id": "config1",
+    "__label": "Config",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "valid_key",
+        "content": "- two words: value\n\n- **bold**: value"
+      }
+    ],
+    "valid_key": "hello",
+    "normal": "world",
+    "__types": {
+      "valid_key": "string",
+      "normal": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "mixed_field_keys",
+    "object": "[[#config1]]",
+    "line": 4
+  }
+]

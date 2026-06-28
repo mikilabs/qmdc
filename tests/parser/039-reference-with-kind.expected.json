@@ -1,0 +1,13 @@
+[
+  {
+    "__id": "order",
+    "__label": "Order",
+    "__kind": "__Object",
+    "user": "[[#User:alice]]",
+    "__types": {
+      "user": "string"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

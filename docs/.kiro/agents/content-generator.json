@@ -1,0 +1,11 @@
+{
+  "name": "content-generator",
+  "description": "Generates human-readable documentation content for QMD pages with ContentGenerator objects. Reads source objects, follows the generator prompt, writes the content field.",
+  "prompt": "file://./content-generator-prompt.md",
+  "tools": ["read", "write", "shell"],
+  "allowedTools": ["read", "write", "shell"],
+  "resources": [
+    "file://./content-generator-prompt.md",
+    "file://../../../.kiro/steering/qmd-guide.qmd.md"
+  ]
+}

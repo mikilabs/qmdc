@@ -1,0 +1,8 @@
+{
+  "uri": "workspace/docs/business/stakeholders.qmd.md",
+  "range": {
+    "start": { "line": 2, "character": 0 },
+    "end": { "line": 2, "character": 33 }
+  },
+  "_comment": "Go to definition of [[#researcher]] should point to stakeholders.qmd.md, not docs/docs/business/stakeholders.qmd.md"
+}

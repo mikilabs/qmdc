@@ -1,0 +1,9 @@
+{
+  "columns": ["__id", "__local_id"],
+  "rows": [
+    ["config", null],
+    ["consumer", null],
+    ["service", null],
+    ["service.config", "config"]
+  ]
+}

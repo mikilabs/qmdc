@@ -1,0 +1,86 @@
+[
+  {
+    "__id": "result1",
+    "__label": "Result",
+    "__kind": "__Object",
+    "task": "[[#some_task]]",
+    "completed": "2024-12-26",
+    "__types": {
+      "task": "string",
+      "completed": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "summary",
+    "__label": "Summary",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Changes were made to the parser.\nFixed multiple edge cases."
+      }
+    ],
+    "__syntax": {
+      "summary": "multiline_text"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "files_changed",
+    "__label": "Files Changed",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "- src/parser.py\n- src/rebuild.py\n- tests/test_parser.py"
+      }
+    ],
+    "__syntax": {
+      "files_changed": "markdown_list"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "notes",
+    "__label": "Notes",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "All existing tests pass.\nNo breaking changes."
+      }
+    ],
+    "__syntax": {
+      "notes": "multiline_text"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "dangling_field",
+    "field": "summary",
+    "field_type": "text",
+    "object": "[[#summary]]",
+    "line": 6
+  },
+  {
+    "__id": "error_1",
+    "__kind": "__ParsingError",
+    "type": "dangling_field",
+    "field": "files_changed",
+    "field_type": "array",
+    "object": "[[#files_changed]]",
+    "line": 11
+  },
+  {
+    "__id": "error_2",
+    "__kind": "__ParsingError",
+    "type": "dangling_field",
+    "field": "notes",
+    "field_type": "text",
+    "object": "[[#notes]]",
+    "line": 17
+  }
+]

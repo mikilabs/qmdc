@@ -1,0 +1,12 @@
+[
+  {
+    "__id": "test",
+    "__label": "Test",
+    "__kind": "__Object",
+    "__level": 2,
+    "name": "Alice",
+    "__types": {
+      "name": "string"
+    }
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "workspace_id": null,
+  "files": [
+    "readme.qmd.md",
+    "wrong-file.qmd.md"
+  ],
+  "objects": {
+    "Object": ["obj1"],
+    "Service": ["svc_a"],
+    "__Document": ["doc_ry4ljv"],
+    "__TextBlock": ["text_0"]
+  },
+  "errors": [
+    {
+      "type": "workspace_in_wrong_file",
+      "object": "wrong_ws",
+      "file": "wrong-file.qmd.md",
+      "line": 1
+    }
+  ]
+}

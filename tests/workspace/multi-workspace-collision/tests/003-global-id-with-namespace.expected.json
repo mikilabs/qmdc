@@ -1,0 +1,12 @@
+{
+  "columns": ["__id", "__workspace", "__namespace", "__global_id"],
+  "rows": [
+    ["task_workflow", "ws1", "ns1", "ws1:ns1:task_workflow"]
+  ]
+}
+
+
+
+
+
+

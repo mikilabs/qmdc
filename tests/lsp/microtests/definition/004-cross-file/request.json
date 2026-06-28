@@ -1,0 +1,6 @@
+{
+  "method": "textDocument/definition",
+  "uri": "workspace/main.qmd.md",
+  "position": { "line": 2, "character": 10 }
+}
+

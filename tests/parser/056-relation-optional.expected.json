@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "alice",
+    "__label": "User",
+    "__kind": "__Object",
+    "name": "Alice",
+    "manager": "[[#bob]]",
+    "__types": {
+      "name": "string",
+      "manager": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "bob",
+    "__label": "User",
+    "__kind": "__Object",
+    "name": "Bob",
+    "manager": null,
+    "__types": {
+      "name": "string",
+      "manager": "null"
+    },
+    "__level": 1
+  }
+]

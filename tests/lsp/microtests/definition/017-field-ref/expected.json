@@ -1,0 +1,8 @@
+{
+  "_comment": "Go-to-definition on [[#quickstart.content]] navigates to the Content heading-syntax text field",
+  "uri": "workspace/doc.qmd.md",
+  "range": {
+    "start": { "line": 4, "character": 0 },
+    "end": { "line": 4, "character": 29 }
+  }
+}

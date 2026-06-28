@@ -1,0 +1,19 @@
+[
+  {
+    "__id": "storage",
+    "__label": "Storage",
+    "__kind": "Module",
+    "tables": [
+      "[[#table_chunks]]",
+      "[[#table_edges]]",
+      "[[#table_meta]]"
+    ],
+    "__types": {
+      "tables": "array"
+    },
+    "__syntax": {
+      "tables": "comma_refs"
+    },
+    "__level": 2
+  }
+]

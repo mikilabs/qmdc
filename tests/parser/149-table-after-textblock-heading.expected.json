@@ -1,0 +1,42 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#text_0]]",
+      "[[#text_1]]",
+      "[[#bug_status]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "# Report",
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "text_1",
+    "__kind": "__TextBlock",
+    "content": "## Progress\n\n| Metric | Before | After |\n|--------|--------|-------|\n| Rust OK | 161 | 179 |\n| Python OK | 146 | 157 |\n| TS OK | 145 | 166 |",
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "bug_status",
+    "__label": "Bug Status",
+    "__kind": "Finding",
+    "__container": "[[#doc_ry4ljv]]",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Summary of current bugs."
+      }
+    ],
+    "category": "parser",
+    "severity": "high",
+    "__types": {
+      "category": "string",
+      "severity": "string"
+    },
+    "__level": 2
+  }
+]

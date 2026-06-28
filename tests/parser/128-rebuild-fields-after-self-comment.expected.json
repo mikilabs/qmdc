@@ -1,0 +1,39 @@
+[
+  {
+    "__id": "algos",
+    "__label": "Algorithms",
+    "__kind": "Section",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Algorithm implementations."
+      }
+    ],
+    "algo_chunking": "[[#algos.algo_chunking]]",
+    "algo_search": "[[#algo_search]]",
+    "__types": {
+      "algo_chunking": "string",
+      "algo_search": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "algos.algo_chunking",
+    "__local_id": "algo_chunking",
+    "__label": "Chunking",
+    "__kind": "Algorithm",
+    "__parent": "[[#algos]]",
+    "__parent_field": "algo_chunking",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Hierarchical chunking algorithm."
+      }
+    ],
+    "source_file": "chunking.py",
+    "__types": {
+      "source_file": "string"
+    },
+    "__level": 2
+  }
+]

@@ -1,0 +1,4 @@
+{
+  "_comment": "Hover on [[#guide.content]] shows the field card: parent label, field name, type, and value",
+  "contents": "**Guide** `.content` on `NarrativeDoc`\n\nType: `multiline_text`\n\nThis is the guide content."
+}

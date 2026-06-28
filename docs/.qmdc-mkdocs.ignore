@@ -1,0 +1,5 @@
+# Files/folders to exclude from the documentation site
+# Gitignore-style patterns
+
+# Exclude tracking namespace entirely
+tracking/**

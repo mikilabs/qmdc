@@ -1,0 +1,323 @@
+{
+  "id": "ecommerce",
+  "label": "E-Commerce Platform",
+  "file": "readme.qmd.md",
+  "line": 1,
+  "count": 32,
+  "kindGroups": [],
+  "namespaces": [
+    {
+      "id": "db7",
+      "label": "Database Schema",
+      "file": "data.qmd.md",
+      "line": 1,
+      "kindGroups": [
+        {
+          "kind": "Table",
+          "label": "Table",
+          "count": 3,
+          "objects": [
+            {
+              "id": "tbl_orders",
+              "kind": "Table",
+              "label": "Orders",
+              "level": 2,
+              "file": "data.qmd.md",
+              "line": 28,
+              "workspace": "ecommerce",
+              "children": []
+            },
+            {
+              "id": "tbl_products",
+              "kind": "Table",
+              "label": "Products",
+              "level": 2,
+              "file": "data.qmd.md",
+              "line": 52,
+              "workspace": "ecommerce",
+              "children": []
+            },
+            {
+              "id": "tbl_users",
+              "kind": "Table",
+              "label": "Users",
+              "level": 2,
+              "file": "data.qmd.md",
+              "line": 3,
+              "workspace": "ecommerce",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "queries",
+      "label": "Queries",
+      "file": "queries.qmd.md",
+      "line": 1,
+      "kindGroups": [
+        {
+          "kind": "Query",
+          "label": "Query",
+          "count": 4,
+          "objects": [
+            {
+              "id": "get_tables",
+              "kind": "Query",
+              "label": "All Tables",
+              "level": 2,
+              "file": "queries.qmd.md",
+              "line": 5,
+              "workspace": "ecommerce",
+              "children": []
+            },
+            {
+              "id": "get_fk",
+              "kind": "Query",
+              "label": "Foreign Keys",
+              "level": 2,
+              "file": "queries.qmd.md",
+              "line": 15,
+              "workspace": "ecommerce",
+              "children": []
+            },
+            {
+              "id": "schema_stats",
+              "kind": "Query",
+              "label": "Schema Stats",
+              "level": 2,
+              "file": "queries.qmd.md",
+              "line": 20,
+              "workspace": "ecommerce",
+              "children": []
+            },
+            {
+              "id": "get_columns",
+              "kind": "Query",
+              "label": "Table Columns",
+              "level": 2,
+              "file": "queries.qmd.md",
+              "line": 10,
+              "workspace": "ecommerce",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "schema",
+      "label": "Schema",
+      "file": "schema.qmd.md",
+      "line": 1,
+      "kindGroups": [
+        {
+          "kind": "Kind",
+          "label": "Kind",
+          "count": 2,
+          "objects": [
+            {
+              "id": "column",
+              "kind": "Kind",
+              "label": "Column",
+              "level": 2,
+              "file": "schema.qmd.md",
+              "line": 7,
+              "workspace": "ecommerce",
+              "children": []
+            },
+            {
+              "id": "table",
+              "kind": "Kind",
+              "label": "Table",
+              "level": 2,
+              "file": "schema.qmd.md",
+              "line": 3,
+              "workspace": "ecommerce",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "services",
+      "label": "Services",
+      "file": "services/readme.qmd.md",
+      "line": 1,
+      "kindGroups": [
+        {
+          "kind": "Service",
+          "label": "Service",
+          "count": 10,
+          "objects": [
+            {
+              "id": "api_gateway",
+              "kind": "Service",
+              "label": "API Gateway",
+              "level": 2,
+              "file": "services/api.qmd.md",
+              "line": 21,
+              "workspace": "ecommerce",
+              "namespace": "services",
+              "children": []
+            },
+            {
+              "id": "auth",
+              "kind": "Service",
+              "label": "Auth Service",
+              "level": 2,
+              "file": "services.qmd.md",
+              "line": 5,
+              "workspace": "ecommerce",
+              "children": []
+            },
+            {
+              "id": "inventory",
+              "kind": "Service",
+              "label": "Inventory Service",
+              "level": 2,
+              "file": "services.qmd.md",
+              "line": 28,
+              "workspace": "ecommerce",
+              "children": []
+            },
+            {
+              "id": "notify",
+              "kind": "Service",
+              "label": "Notification Service",
+              "level": 2,
+              "file": "services.qmd.md",
+              "line": 36,
+              "workspace": "ecommerce",
+              "children": []
+            },
+            {
+              "id": "order-svc",
+              "kind": "Service",
+              "label": "Order Service",
+              "level": 2,
+              "file": "services.qmd.md",
+              "line": 20,
+              "workspace": "ecommerce",
+              "children": []
+            },
+            {
+              "id": "order_service",
+              "kind": "Service",
+              "label": "Order Service",
+              "level": 2,
+              "file": "services/api.qmd.md",
+              "line": 9,
+              "workspace": "ecommerce",
+              "namespace": "services",
+              "children": []
+            },
+            {
+              "id": "payment",
+              "kind": "Service",
+              "label": "Payment Service",
+              "level": 2,
+              "file": "services.qmd.md",
+              "line": 44,
+              "workspace": "ecommerce",
+              "children": []
+            },
+            {
+              "id": "product_service",
+              "kind": "Service",
+              "label": "Product Service",
+              "level": 2,
+              "file": "services/api.qmd.md",
+              "line": 15,
+              "workspace": "ecommerce",
+              "namespace": "services",
+              "children": []
+            },
+            {
+              "id": "user-svc",
+              "kind": "Service",
+              "label": "User Service",
+              "level": 2,
+              "file": "services.qmd.md",
+              "line": 12,
+              "workspace": "ecommerce",
+              "children": []
+            },
+            {
+              "id": "user_service",
+              "kind": "Service",
+              "label": "User Service",
+              "level": 2,
+              "file": "services/api.qmd.md",
+              "line": 3,
+              "workspace": "ecommerce",
+              "namespace": "services",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "storage",
+      "label": "Storage",
+      "file": "storage/readme.qmd.md",
+      "line": 1,
+      "kindGroups": [
+        {
+          "kind": "Table",
+          "label": "Table",
+          "count": 4,
+          "objects": [
+            {
+              "id": "order_items",
+              "kind": "Table",
+              "label": "Order Items",
+              "level": 2,
+              "file": "storage/tables.qmd.md",
+              "line": 22,
+              "workspace": "ecommerce",
+              "namespace": "storage",
+              "children": []
+            },
+            {
+              "id": "orders",
+              "kind": "Table",
+              "label": "Orders Table",
+              "level": 2,
+              "file": "storage/tables.qmd.md",
+              "line": 9,
+              "workspace": "ecommerce",
+              "namespace": "storage",
+              "children": []
+            },
+            {
+              "id": "products",
+              "kind": "Table",
+              "label": "Products Table",
+              "level": 2,
+              "file": "storage/tables.qmd.md",
+              "line": 16,
+              "workspace": "ecommerce",
+              "namespace": "storage",
+              "children": []
+            },
+            {
+              "id": "users",
+              "kind": "Table",
+              "label": "Users Table",
+              "level": 2,
+              "file": "storage/tables.qmd.md",
+              "line": 3,
+              "workspace": "ecommerce",
+              "namespace": "storage",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

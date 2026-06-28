@@ -1,0 +1,34 @@
+[
+  {
+    "__id": "task1",
+    "__label": "Task",
+    "__kind": "Task",
+    "__comments": [
+      {
+        "after": "steps",
+        "content": "1. First step\n2. Second step\n3. Third step"
+      },
+      {
+        "after": "steps",
+        "content": "This trailing paragraph should be preserved after the ordered array."
+      }
+    ],
+    "category": "implementation",
+    "steps": [],
+    "__types": {
+      "category": "string"
+    },
+    "__syntax": {
+      "steps": "markdown_list"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "ordered_list_in_array",
+    "field": "steps",
+    "object": "[[#task1]]",
+    "line": 7
+  }
+]

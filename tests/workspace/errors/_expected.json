@@ -1,0 +1,94 @@
+{
+  "workspace_id": "error_cases",
+  "files": [
+    "ambiguous_refs.qmd.md",
+    "broken_links.qmd.md",
+    "ns_alpha/objects.qmd.md",
+    "ns_alpha/readme.qmd.md",
+    "ns_beta/objects.qmd.md",
+    "ns_beta/readme.qmd.md",
+    "ns_gamma/file1.qmd.md",
+    "ns_gamma/file2.qmd.md",
+    "ns_gamma/readme.qmd.md",
+    "readme.qmd.md",
+    "structured_in_textblock.qmd.md"
+  ],
+  "objects": {
+    "Config": [
+      "gamma_file1.config",
+      "gamma_file2.config"
+    ],
+    "Section": [
+      "structured_in_textblock_test.valid_object"
+    ],
+    "Service": [
+      "ambiguous_refs_test.consumer",
+      "ambiguous_refs_test.correct_consumer",
+      "broken_links_test.service_a",
+      "broken_links_test.service_b"
+    ],
+    "Table": [
+      "alpha_objects.users",
+      "beta_objects.users"
+    ],
+    "__Namespace": [
+      "alpha",
+      "beta",
+      "gamma"
+    ],
+    "__Object": [
+      "alpha_objects",
+      "ambiguous_refs_test",
+      "beta_objects",
+      "broken_links_test",
+      "gamma_file1",
+      "gamma_file2",
+      "structured_in_textblock_test"
+    ],
+    "__Workspace": [
+      "error_cases"
+    ]
+  },
+  "errors": [
+    {
+      "type": "broken_link",
+      "object": "ambiguous_refs_test.consumer",
+      "reference": "[[#users]]",
+      "file": "ambiguous_refs.qmd.md",
+      "line": 10
+    },
+    {
+      "type": "broken_link",
+      "object": "broken_links_test.service_a",
+      "reference": "[[#nonexistent_db]]",
+      "file": "broken_links.qmd.md",
+      "line": 8
+    },
+    {
+      "type": "broken_link",
+      "object": "broken_links_test.service_a",
+      "reference": "[[#missing_config]]",
+      "file": "broken_links.qmd.md",
+      "line": 9
+    },
+    {
+      "type": "broken_link",
+      "object": "broken_links_test.service_b",
+      "reference": "[[#other_namespace:missing]]",
+      "file": "broken_links.qmd.md",
+      "line": 16
+    },
+    {
+      "type": "structured_in_textblock",
+      "reference": "[[invalid_field: text]]",
+      "file": "structured_in_textblock.qmd.md",
+      "line": 17
+    },
+    {
+      "type": "structured_in_textblock",
+      "reference": "[[another_invalid]]",
+      "file": "structured_in_textblock.qmd.md",
+      "line": 25
+    }
+  ]
+}

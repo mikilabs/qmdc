@@ -1,0 +1,16 @@
+{
+  "columns": [
+    "source_id",
+    "source_field",
+    "target_id",
+    "target_field"
+  ],
+  "rows": [
+    [
+      "payment_svc",
+      "auth_timeout",
+      "auth_svc.config",
+      "timeout"
+    ]
+  ]
+}

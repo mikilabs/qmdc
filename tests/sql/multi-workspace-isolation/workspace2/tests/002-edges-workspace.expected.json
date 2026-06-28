@@ -1,0 +1,9 @@
+{
+  "columns": ["source_id", "target_id", "__workspace"],
+  "rows": [
+    ["doc_ry4ljv", "task2", "ws2"],
+    ["doc_ry4ljv", "task3", "ws2"],
+    ["doc_ry4ljv", "text_0", "ws2"]
+  ]
+}
+

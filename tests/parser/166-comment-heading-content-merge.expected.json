@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "solution1",
+    "__label": "Solution",
+    "__kind": "Finding",
+    "__comments": [
+      {
+        "after": "category",
+        "content": "### Part 1: Subheading without `[[id]]` inside object\n\n**Change:** becomes comment in `__comments`.\n\n**Affects:** all three parsers."
+      },
+      {
+        "after": "category",
+        "content": "### Part 2: Subheading with `[[id]]` without type\n\n**Change:** creates text field.\n\n**Reason:** Rust created separate `__Object`."
+      }
+    ],
+    "category": "implementation",
+    "__types": {
+      "category": "string"
+    },
+    "__level": 2
+  }
+]

@@ -1,0 +1,4 @@
+{
+  "_comment": "[[#config]] resolves via __local_id (child of team with __id team.config) — no false QMDC001 errors",
+  "diagnostics": []
+}

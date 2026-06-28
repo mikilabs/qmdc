@@ -1,0 +1,38 @@
+[
+  {
+    "__id": "result1",
+    "__label": "Result",
+    "__kind": "Result",
+    "related_to": "[[#task1]]",
+    "issues1": "[[#result1.issues1]]",
+    "__types": {
+      "related_to": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "result1.issues1",
+    "__local_id": "issues1",
+    "__label": "Known Issues",
+    "__kind": "Finding",
+    "__parent": "[[#result1]]",
+    "__parent_field": "issues1",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "- **ID-like queries** — FTS doesn't search ID tokens\n- **Cross-language** — multilingual embedding works, but FTS is single-language"
+      }
+    ],
+    "__level": 3
+  },
+  {
+    "__id": "next1",
+    "__label": "Next Steps",
+    "__kind": "Task",
+    "category": "planning",
+    "__types": {
+      "category": "string"
+    },
+    "__level": 2
+  }
+]

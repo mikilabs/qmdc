@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "doc",
+    "__label": "Doc",
+    "__kind": "Document",
+    "__comments": [
+      {
+        "after": "status",
+        "content": "### Section\n\nFirst part.\n\n---\n\nSecond part after rule."
+      }
+    ],
+    "status": "active",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 1
+  }
+]

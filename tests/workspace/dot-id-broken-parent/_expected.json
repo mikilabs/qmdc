@@ -1,0 +1,19 @@
+{
+  "workspace_id": "dot_id_broken_parent_test",
+  "files": [
+    "orphan.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["dot_id_broken_parent_test"],
+    "__Object": ["nonexistent.operations"]
+  },
+  "errors": [
+    {
+      "type": "broken_parent",
+      "object": "nonexistent.operations",
+      "file": "orphan.qmd.md",
+      "line": 1
+    }
+  ]
+}

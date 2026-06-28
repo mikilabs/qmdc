@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "table_objects",
+    "__label": "Table `objects`",
+    "__kind": "Table",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Description of the objects table."
+      }
+    ],
+    "columns": 5,
+    "__types": {
+      "columns": "number"
+    },
+    "__level": 2
+  }
+]

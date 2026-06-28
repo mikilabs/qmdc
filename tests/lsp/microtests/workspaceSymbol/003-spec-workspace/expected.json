@@ -1,0 +1,9 @@
+{
+  "symbols": [
+    { "name": "Task (Task)", "kind": 5, "containerName": "Entity" },
+    { "name": "Task Processing (task_processing)", "kind": 19, "containerName": "Flow" },
+    { "name": "Tasks (tasks)", "kind": 5, "containerName": "Table" },
+    { "name": "Tasks API (tasks_api)", "kind": 19, "containerName": "Endpoint" }
+  ],
+  "_comment": "Search for 'Task' in complex nested workspace - matches Entity, Flow, Table, Endpoint"
+}

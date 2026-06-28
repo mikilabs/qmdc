@@ -1,0 +1,12 @@
+{
+  "input": "WITH feature_stats AS (SELECT __workspace, COUNT(*) as cnt FROM objects WHERE __kind = 'Feature' GROUP BY __workspace) SELECT __workspace, cnt FROM feature_stats ORDER BY __workspace",
+  "workspace": "ws2",
+  "expected": "WITH feature_stats AS (SELECT __workspace, COUNT(*) AS cnt FROM objects WHERE __kind = 'Feature' AND __workspace = 'ws2' GROUP BY __workspace) SELECT __workspace, cnt FROM feature_stats ORDER BY __workspace ASC",
+  "expected_result": {
+    "columns": ["__workspace", "cnt"],
+    "rows": [
+      ["ws2", 2]
+    ]
+  }
+}
+

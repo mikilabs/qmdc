@@ -1,0 +1,8 @@
+{
+  "uri": "workspace/models.qmd.md",
+  "range": {
+    "start": { "line": 0, "character": 0 },
+    "end": { "line": 0, "character": 17 }
+  },
+  "_comment": "Points to first line of users definition (# Users [[users]])"
+}

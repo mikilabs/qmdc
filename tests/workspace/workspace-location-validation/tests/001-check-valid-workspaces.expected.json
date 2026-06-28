@@ -1,0 +1,7 @@
+{
+  "columns": ["__id", "__kind", "__label", "__file"],
+  "rows": [
+    ["root_ws", "__Workspace", "Root Workspace", "ws-root/readme.qmd.md"],
+    ["subdir_ws", "__Workspace", "Subdir Workspace", "ws-subdir/readme.qmd.md"]
+  ]
+}

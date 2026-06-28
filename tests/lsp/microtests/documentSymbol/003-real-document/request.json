@@ -1,0 +1,8 @@
+{
+  "method": "textDocument/documentSymbol",
+  "params": {
+    "textDocument": {
+      "uri": "file:///test/input.qmd.md"
+    }
+  }
+}

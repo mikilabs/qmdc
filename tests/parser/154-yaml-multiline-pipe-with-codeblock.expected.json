@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "finding2",
+    "__label": "Finding",
+    "__kind": "Finding",
+    "affected_files": [
+      "package.json"
+    ],
+    "solution": "Add the following to `contributes.menus`:\n\n```json\n\"editor/title\": [\n  {\n    \"command\": \"qmd.openPreview\",\n    \"group\": \"navigation\"\n  }\n]\n```\n\nThis enables the preview button.",
+    "severity": "medium",
+    "__types": {
+      "affected_files": "array",
+      "solution": "string",
+      "severity": "string"
+    },
+    "__syntax": {
+      "affected_files": "yaml_array",
+      "solution": "yaml_multiline"
+    },
+    "__level": 2
+  }
+]

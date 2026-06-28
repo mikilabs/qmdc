@@ -1,0 +1,27 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "name": "Alice",
+    "address": "[[#user.address]]",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  },
+  {
+    "__id": "user.address",
+    "__local_id": "address",
+    "__label": "Address",
+    "__kind": "__Object",
+    "__parent": "[[#user]]",
+    "__parent_field": "address",
+    "city": "London",
+    "__types": {
+      "city": "string"
+    },
+    "__level": 3
+  }
+]

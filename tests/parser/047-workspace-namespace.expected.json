@@ -1,0 +1,19 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "**workspace**: myapp\n**namespace**: auth"
+      }
+    ],
+    "name": "Alice",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

@@ -1,0 +1,21 @@
+[
+  {
+    "__id": "result",
+    "__label": "Result",
+    "__kind": "TaskResult",
+    "files_changed": [
+      "qmd-parser-rs/src/parser.rs",
+      "qmd-parser-py/qmd/parser.py",
+      "qmd-parser-ts/src/parser.ts"
+    ],
+    "status": "done",
+    "__types": {
+      "files_changed": "array",
+      "status": "string"
+    },
+    "__syntax": {
+      "files_changed": "yaml_multiline_array"
+    },
+    "__level": 1
+  }
+]

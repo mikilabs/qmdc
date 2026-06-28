@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "feature",
+    "__label": "Feature",
+    "__kind": "Feature",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "This uses `inline-code` for highlighting."
+      },
+      {
+        "after": "status",
+        "content": "The `parser.rs` file contains the main logic."
+      },
+      {
+        "after": "status",
+        "content": "List with inline code:\n\n- `textDocument/completion` — autocomplete\n- `textDocument/hover` — hover info"
+      }
+    ],
+    "status": "active",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 2
+  }
+]

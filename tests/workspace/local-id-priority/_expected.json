@@ -1,0 +1,12 @@
+{
+  "workspace_id": "local_id_priority_test",
+  "files": [
+    "objects.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["local_id_priority_test"],
+    "__Object": ["config", "service", "service.config", "consumer"]
+  },
+  "errors": []
+}

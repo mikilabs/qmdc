@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "blocks1",
+    "__label": "Blocks",
+    "__kind": "__Object",
+    "blocks_syntax": "Dynamic blocks use fenced code blocks:\n\n````markdown\n## Report [[report]]\n\n```table\nquery: SELECT * FROM objects\n```\n````\n\nThe scope parameter controls visibility.",
+    "__types": {
+      "blocks_syntax": "string"
+    },
+    "__syntax": {
+      "blocks_syntax": "multiline_text"
+    },
+    "__level": 2,
+    "__labels": {
+      "blocks_syntax": "Syntax"
+    }
+  }
+]

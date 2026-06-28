@@ -1,0 +1,23 @@
+[
+  {
+    "__id": "module",
+    "__label": "Module",
+    "__kind": "__Object",
+    "config": {
+      "path": "src/module/",
+      "description": "This is a long\nmultiline description",
+      "language": "Python"
+    },
+    "__types": {
+      "config": "map"
+    },
+    "__syntax": {
+      "config": "map"
+    },
+    "__level": 2,
+    "__has_explicit_id": false,
+    "__labels": {
+      "config": "Config"
+    }
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "config",
+    "__label": "Config",
+    "__kind": "__Object",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "__types": {
+      "ports": "array"
+    },
+    "__syntax": {
+      "ports": "yaml_array"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

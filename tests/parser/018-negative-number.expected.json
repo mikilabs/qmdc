@@ -1,0 +1,13 @@
+[
+  {
+    "__id": "transaction",
+    "__label": "Transaction",
+    "__kind": "__Object",
+    "amount": -500,
+    "__types": {
+      "amount": "number"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

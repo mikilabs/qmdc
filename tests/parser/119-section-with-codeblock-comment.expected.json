@@ -1,0 +1,14 @@
+[
+  {
+    "__id": "example1",
+    "__label": "Example",
+    "__kind": "Section",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "```\nOperator: Do QMD-18\nAgent: Triage complete.\nOperator: Approve QMD-18\nAgent: Done.\n```"
+      }
+    ],
+    "__level": 2
+  }
+]

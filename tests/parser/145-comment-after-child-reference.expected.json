@@ -1,0 +1,38 @@
+[
+  {
+    "__id": "tracking",
+    "__label": "Tracking",
+    "__kind": "Section",
+    "__comments": [
+      {
+        "after": "roadmap",
+        "content": "### What we do now\n\nWorking on round-trip fidelity.\n\n- status: active"
+      }
+    ],
+    "version": 1,
+    "roadmap": "[[#tracking.roadmap]]",
+    "__types": {
+      "version": "number"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "tracking.roadmap",
+    "__local_id": "roadmap",
+    "__label": "Roadmap",
+    "__kind": "__Object",
+    "__parent": "[[#tracking]]",
+    "__parent_field": "roadmap",
+    "__comments": [
+      {
+        "after": "priority",
+        "content": "Current focus areas:\n\n1. Parser improvements\n2. LSP features\n3. Documentation"
+      }
+    ],
+    "priority": "high",
+    "__types": {
+      "priority": "string"
+    },
+    "__level": 3
+  }
+]

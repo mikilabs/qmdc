@@ -1,0 +1,17 @@
+# Build output
+out/
+bin/
+*.vsix
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+
+# IDE
+.vscode-test/
+
+# Playwright
+test-results/
+

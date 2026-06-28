@@ -1,0 +1,73 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#text_0]]",
+      "[[#text_1]]",
+      "[[#user]]",
+      "[[#config]]",
+      "[[#text_2]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "# My Document\n\nIntroduction text...",
+    "__line": 1,
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "text_1",
+    "__kind": "__TextBlock",
+    "content": "## Why This Exists\n\nSome explanation...",
+    "__line": 5,
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "text_2",
+    "__kind": "__TextBlock",
+    "content": "## Conclusion\n\nThanks for reading.",
+    "__line": 18,
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "__container": "[[#doc_ry4ljv]]",
+    "name": "Alice",
+    "age": 30,
+    "__types": {
+      "name": "string",
+      "age": "number"
+    },
+    "__level": 2,
+    "__line": 9,
+    "__has_explicit_id": false,
+    "__positions": {
+      "name": {
+        "line": 11,
+        "col": 2
+      },
+      "age": {
+        "line": 12,
+        "col": 2
+      }
+    }
+  },
+  {
+    "__id": "config",
+    "__label": "Config",
+    "__kind": "__Object",
+    "__container": "[[#doc_ry4ljv]]",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Config description..."
+      }
+    ],
+    "__level": 2,
+    "__line": 14
+  }
+]

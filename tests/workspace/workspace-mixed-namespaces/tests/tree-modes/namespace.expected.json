@@ -1,0 +1,80 @@
+{
+  "id": "mixed_ws",
+  "label": "Mixed Workspace",
+  "file": "readme.qmd.md",
+  "line": 1,
+  "count": 4,
+  "kindGroups": [
+    {
+      "kind": "Feature",
+      "label": "Feature",
+      "count": 1,
+      "objects": [
+        {
+          "id": "top_feature",
+          "kind": "Feature",
+          "label": "Top Level Feature",
+          "level": 2,
+          "file": "readme.qmd.md",
+          "line": 9,
+          "children": [],
+          "workspace": "mixed_ws"
+        }
+      ]
+    },
+    {
+      "kind": "Section",
+      "label": "Section",
+      "count": 1,
+      "objects": [
+        {
+          "id": "top_section",
+          "kind": "Section",
+          "label": "Top Level Section",
+          "level": 2,
+          "file": "readme.qmd.md",
+          "line": 5,
+          "children": [],
+          "workspace": "mixed_ws"
+        }
+      ]
+    }
+  ],
+  "namespaces": [
+    {
+      "id": "data_ns",
+      "label": "Data Namespace",
+      "file": "data.qmd.md",
+      "line": 1,
+      "kindGroups": [
+        {
+          "kind": "Table",
+          "label": "Table",
+          "count": 2,
+          "objects": [
+            {
+              "id": "orders_table",
+              "kind": "Table",
+              "label": "Table",
+              "level": 2,
+              "file": "data.qmd.md",
+              "line": 9,
+              "workspace": "mixed_ws",
+              "children": []
+            },
+            {
+              "id": "users_table",
+              "kind": "Table",
+              "label": "Table",
+              "level": 2,
+              "file": "data.qmd.md",
+              "line": 5,
+              "workspace": "mixed_ws",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

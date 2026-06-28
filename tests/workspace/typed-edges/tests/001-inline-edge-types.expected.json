@@ -1,0 +1,12 @@
+{
+  "columns": ["source_id", "source_field", "target_id", "edge_type"],
+  "rows": [
+    ["order_svc", "database", "orders_db", "database"],
+    ["order_svc", "depends", "auth", "depends"],
+    ["order_svc", "depends", "user_svc", "depends"],
+    ["payment_svc", "depends", "auth", "depends"],
+    ["payment_svc", "depends", "order_svc", "depends"],
+    ["payment_svc", "notifies", "user_svc", "notifies"],
+    ["user_svc", "depends", "auth", "depends"]
+  ]
+}

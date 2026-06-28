@@ -1,0 +1,14 @@
+{
+  "_comment": "[[#users]] resolves cross-file via workspace index. [[#nonexistent]] is broken.",
+  "diagnostics": [
+    {
+      "message": "Object 'nonexistent' not found",
+      "range": {
+        "start": { "line": 3, "character": 20 },
+        "end": { "line": 3, "character": 36 }
+      },
+      "severity": 1,
+      "code": "QMDC001"
+    }
+  ]
+}

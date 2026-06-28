@@ -1,0 +1,8 @@
+{
+  "uri": "workspace/architecture/readme.qmd.md",
+  "range": {
+    "start": { "line": 0, "character": 0 },
+    "end": { "line": 0, "character": 43 }
+  },
+  "_comment": "Points to # Architecture [[architecture:__Namespace]]"
+}

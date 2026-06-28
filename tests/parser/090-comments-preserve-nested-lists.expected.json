@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "feature",
+    "__label": "Feature",
+    "__kind": "Feature",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "A feature with nested list documentation."
+      },
+      {
+        "after": "status",
+        "content": "**Supported options:**\n\n- Option A\n  - Sub-option A1\n  - Sub-option A2\n- Option B\n  - Sub-option B1"
+      }
+    ],
+    "status": "planned",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 2
+  }
+]

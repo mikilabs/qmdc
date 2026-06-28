@@ -1,0 +1,35 @@
+[
+  {
+    "__id": "data",
+    "__label": "Data",
+    "__kind": "__Object",
+    "items": [
+      "[[#data.items.items_0]]"
+    ],
+    "__types": {
+      "items": "array"
+    },
+    "__syntax": {
+      "items": "table"
+    },
+    "__level": 2,
+    "__has_explicit_id": false,
+    "__labels": {
+      "items": "Items"
+    }
+  },
+  {
+    "__id": "data.items.items_0",
+    "__local_id": "items_0",
+    "__label": "Apple",
+    "__kind": "Item",
+    "__parent": "[[#data]]",
+    "__parent_field": "items",
+    "name": "Apple",
+    "qty": 5,
+    "__types": {
+      "name": "string",
+      "qty": "number"
+    }
+  }
+]

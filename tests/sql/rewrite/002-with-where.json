@@ -1,0 +1,9 @@
+{
+  "input": "SELECT COUNT(*) as cnt FROM objects WHERE __kind = 'Feature'",
+  "workspace": "ws1",
+  "expected": "SELECT COUNT(*) AS cnt FROM objects WHERE __kind = 'Feature' AND __workspace = 'ws1'",
+  "expected_result": {
+    "columns": ["cnt"],
+    "rows": [[1]]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "columns": ["edge_type", "count"],
+  "rows": [
+    ["about", 4],
+    ["database", 3],
+    ["depends", 8],
+    ["invalid_preamble_notes", 1],
+    ["no_preamble_notes", 1],
+    ["notifies", 1],
+    ["related", 2],
+    ["user_ref", 1]
+  ]
+}

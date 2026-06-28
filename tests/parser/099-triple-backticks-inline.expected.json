@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "syntax",
+    "__label": "Syntax",
+    "__kind": "Feature",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Supported elements:\n\n- Code blocks (``` ... ```)\n- Inline code (`code`)"
+      }
+    ],
+    "status": "implemented",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 2
+  }
+]

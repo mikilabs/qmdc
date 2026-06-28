@@ -1,0 +1,14 @@
+{
+  "_comment": "[[#users]] resolves cross-file in workspace. [[#no_such_object]] is broken.",
+  "diagnostics": [
+    {
+      "message": "Object 'no_such_object' not found",
+      "range": {
+        "start": { "line": 3, "character": 10 },
+        "end": { "line": 3, "character": 29 }
+      },
+      "severity": 1,
+      "code": "QMDC001"
+    }
+  ]
+}

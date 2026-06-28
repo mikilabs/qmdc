@@ -1,0 +1,73 @@
+[project]
+name = "qmdc"
+version = "1.0.3"
+description = "QMDC parser — convert QMD.md to a queryable object graph (JSON) and back"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "AGPL-3.0-or-later"
+authors = [
+    {name = "mikilabs"}
+]
+keywords = ["qmdc", "query-markdown", "knowledge-graph", "parser", "markdown"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Processing :: Markup :: Markdown",
+    "Topic :: Software Development :: Libraries",
+]
+
+dependencies = [
+    "markdown-it-py>=3.0.0",
+    "click>=8.1.7",
+    "pyyaml>=6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/mikilabs/qmdc"
+Repository = "https://github.com/mikilabs/qmdc"
+Issues = "https://github.com/mikilabs/qmdc/issues"
+
+[project.scripts]
+qmdc = "qmdc._launcher:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["qmdc*"]
+
+[tool.setuptools.package-data]
+qmdc = ["bin/*/qmdc", "bin/*/qmdc.exe"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.0",
+    "ruff>=0.14.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+

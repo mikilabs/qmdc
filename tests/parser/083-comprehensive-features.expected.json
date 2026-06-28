@@ -1,0 +1,180 @@
+[
+  {
+    "__id": "feature_comprehensive",
+    "__label": "Feature",
+    "__kind": "Feature",
+    "id": "FEAT-001",
+    "status": "in_progress",
+    "priority": "high",
+    "tags": [
+      "parser",
+      "testing",
+      "comprehensive"
+    ],
+    "description": "This is a comprehensive test covering all QMD features including:\n\nText formatting with **bold** and *italic* text, `inline code` and [links](https://example.com), lists and tables.\n\nCode blocks in text fields:\n\n```\nfunction example() {\n  return \"code block in text field\";\n}\n```\n\nAdditional paragraphs with various markdown features.",
+    "implementation": "Architecture overview with high-level system design:\n\n```\nsystem/\n├── frontend/\n│   └── app.tsx\n├── backend/\n│   └── api.py\n└── database/\n    └── schema.sql\n```\n\nImplementation steps:\n\n1. Parse input\n2. Process data\n3. Generate output",
+    "requirements": [
+      "Requirement 1",
+      "Requirement 2",
+      "Requirement 3"
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "author": "Test Suite",
+      "tags": [
+        "comprehensive",
+        "parser"
+      ]
+    },
+    "configuration": {
+      "enabled": true,
+      "timeout": 5000,
+      "retries": 3
+    },
+    "team": "[[#feature_comprehensive.team]]",
+    "related": [
+      "[[#feature_comprehensive.related.feature_a]]",
+      "[[#feature_comprehensive.related.feature_b]]"
+    ],
+    "alice": "[[#feature_comprehensive.alice]]",
+    "bob": "[[#feature_comprehensive.bob]]",
+    "charlie": "[[#feature_comprehensive.charlie]]",
+    "metrics": [
+      "Performance: 95%",
+      "Coverage: 87%",
+      "Quality: 92%"
+    ],
+    "notes": "Important notes:\n\n- This is a comprehensive test\n- It covers all major features\n- Including code blocks in text fields\n\nAdditional information in table format:\n\n| Metric | Value |\n|--------|-------|\n| Lines | 100+ |\n| Tests | 50+ |\n| Coverage | 90%+ |\n\nMore notes here.",
+    "__types": {
+      "id": "string",
+      "status": "string",
+      "priority": "string",
+      "tags": "array",
+      "description": "string",
+      "implementation": "string",
+      "notes": "string"
+    },
+    "__syntax": {
+      "tags": "yaml_array",
+      "description": "multiline_text",
+      "implementation": "multiline_text",
+      "requirements": "markdown_list",
+      "metadata": "yaml_object",
+      "configuration": "json_object",
+      "related": "headers",
+      "metrics": "markdown_list",
+      "notes": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "description": "Description",
+      "implementation": "Implementation",
+      "metadata": "Metadata",
+      "configuration": "Configuration",
+      "related": "Related Features",
+      "notes": "Notes"
+    }
+  },
+  {
+    "__id": "feature_comprehensive.team",
+    "__local_id": "team",
+    "__label": "Team",
+    "__kind": "Team",
+    "__parent": "[[#feature_comprehensive]]",
+    "__parent_field": "team",
+    "name": "Test Team",
+    "lead": "[[#alice]]",
+    "members": [
+      "[[#bob]]",
+      "[[#charlie]]"
+    ],
+    "__types": {
+      "name": "string",
+      "lead": "string",
+      "members": "array"
+    },
+    "__syntax": {
+      "members": "comma_refs"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "feature_comprehensive.related.feature_a",
+    "__local_id": "feature_a",
+    "__label": "Feature A",
+    "__kind": "Feature",
+    "__parent": "[[#feature_comprehensive]]",
+    "__parent_field": "related",
+    "id": "FEAT-A",
+    "status": "planned",
+    "__types": {
+      "id": "string",
+      "status": "string"
+    }
+  },
+  {
+    "__id": "feature_comprehensive.related.feature_b",
+    "__local_id": "feature_b",
+    "__label": "Feature B",
+    "__kind": "Feature",
+    "__parent": "[[#feature_comprehensive]]",
+    "__parent_field": "related",
+    "id": "FEAT-B",
+    "status": "done",
+    "__types": {
+      "id": "string",
+      "status": "string"
+    }
+  },
+  {
+    "__id": "feature_comprehensive.alice",
+    "__local_id": "alice",
+    "__label": "User",
+    "__kind": "User",
+    "__parent": "[[#feature_comprehensive]]",
+    "__parent_field": "alice",
+    "name": "Alice",
+    "email": "alice@example.com",
+    "role": "Developer",
+    "__types": {
+      "name": "string",
+      "email": "string",
+      "role": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "feature_comprehensive.bob",
+    "__local_id": "bob",
+    "__label": "User",
+    "__kind": "User",
+    "__parent": "[[#feature_comprehensive]]",
+    "__parent_field": "bob",
+    "name": "Bob",
+    "email": "bob@example.com",
+    "role": "Tester",
+    "__types": {
+      "name": "string",
+      "email": "string",
+      "role": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "feature_comprehensive.charlie",
+    "__local_id": "charlie",
+    "__label": "User",
+    "__kind": "User",
+    "__parent": "[[#feature_comprehensive]]",
+    "__parent_field": "charlie",
+    "name": "Charlie",
+    "email": "charlie@example.com",
+    "role": "Manager",
+    "__types": {
+      "name": "string",
+      "email": "string",
+      "role": "string"
+    },
+    "__level": 2
+  }
+]

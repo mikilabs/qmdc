@@ -1,0 +1,10 @@
+{
+  "items": [
+    { "label": "cart" },
+    { "label": "orders" },
+    { "label": "products" },
+    { "label": "users" }
+  ],
+  "_comment": "Property value completion (alphabetical)"
+}
+

@@ -1,0 +1,44 @@
+[
+  {
+    "__id": "task1",
+    "__label": "Task",
+    "__kind": "Task",
+    "__comments": [
+      {
+        "after": "open_questions",
+        "content": "1. **Backward compat:** Support old field `objects`?\n   - **Answer:** Replace immediately, internal API\n\n2. **Empty groups:** Include empty array `kindGroups: []`?\n   - **Answer:** Yes, for consistency\n\n3. **Sorting:** Keep current sorting logic?\n   - **Answer:** Yes, already works correctly"
+      },
+      {
+        "after": "steps",
+        "content": "1. Change code in `get_tree`:\n   - Group objects by `kind`\n   - Create `kindGroups`\n   - Replace `objects` with `kindGroups`\n\n2. Update expected files:\n   - `workspace-mixed/namespace.expected.json`\n   - `workspace-no-ns/namespace.expected.json`\n\n3. Run tests:\n   - `make test`\n   - Check structure matches"
+      }
+    ],
+    "category": "implementation",
+    "open_questions": [],
+    "steps": [],
+    "__types": {
+      "category": "string"
+    },
+    "__syntax": {
+      "open_questions": "markdown_list",
+      "steps": "markdown_list"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "ordered_list_in_array",
+    "field": "open_questions",
+    "object": "[[#task1]]",
+    "line": 7
+  },
+  {
+    "__id": "error_1",
+    "__kind": "__ParsingError",
+    "type": "ordered_list_in_array",
+    "field": "steps",
+    "object": "[[#task1]]",
+    "line": 18
+  }
+]

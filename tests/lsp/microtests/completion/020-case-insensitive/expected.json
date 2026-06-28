@@ -1,0 +1,8 @@
+{
+  "items": [
+    { "label": "super-user" },
+    { "label": "users" }
+  ],
+  "_comment": "Case-insensitive: 'Us' matches super-user and users (both contain 'us')"
+}
+

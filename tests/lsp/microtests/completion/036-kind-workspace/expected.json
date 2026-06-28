@@ -1,0 +1,11 @@
+{
+  "items": [
+    { "label": "Configuration", "kind": 7 },
+    { "label": "Person", "kind": 7 },
+    { "label": "Service", "kind": 7 },
+    { "label": "Table", "kind": 7 },
+    { "label": "__Object", "kind": 7 }
+  ],
+  "_comment": "Should show ALL Kinds from workspace, not just current file"
+}
+

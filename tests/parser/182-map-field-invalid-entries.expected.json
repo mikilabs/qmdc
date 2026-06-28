@@ -1,0 +1,29 @@
+[
+  {
+    "__id": "svc1",
+    "__label": "Service",
+    "__kind": "__Object",
+    "field": {
+      "host": "localhost",
+      "path": "/api"
+    },
+    "__types": {
+      "field": "map"
+    },
+    "__syntax": {
+      "field": "map"
+    },
+    "__level": 1,
+    "__labels": {
+      "field": "env"
+    }
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "invalid_map_entry",
+    "field": "field",
+    "object": "[[#svc1]]",
+    "line": 6
+  }
+]

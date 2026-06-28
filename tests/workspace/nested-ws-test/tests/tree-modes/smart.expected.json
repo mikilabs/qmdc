@@ -1,0 +1,65 @@
+{
+  "id": "test_ws",
+  "label": "Test Workspace",
+  "file": "docs/readme.qmd.md",
+  "line": 1,
+  "count": 5,
+  "objects": [
+    {
+      "id": "__requirements",
+      "kind": "__Namespace",
+      "label": "Requirements",
+      "level": 2,
+      "file": "docs/readme.qmd.md",
+      "line": 5,
+      "parent": "test_ws",
+      "namespace": null,
+      "children": [
+        {
+          "id": "goal_a",
+          "kind": "Goal",
+          "label": "Goal A",
+          "level": 2,
+          "file": "docs/features/goals.qmd.md",
+          "line": 3,
+          "parent": null,
+          "namespace": "__requirements",
+          "children": []
+        },
+        {
+          "id": "goal_b",
+          "kind": "Goal",
+          "label": "Goal B",
+          "level": 2,
+          "file": "docs/features/goals.qmd.md",
+          "line": 7,
+          "parent": null,
+          "namespace": "__requirements",
+          "children": []
+        },
+        {
+          "id": "req_a",
+          "kind": "Requirement",
+          "label": "Req A",
+          "level": 2,
+          "file": "docs/features/requirements.qmd.md",
+          "line": 3,
+          "parent": null,
+          "namespace": "__requirements",
+          "children": []
+        },
+        {
+          "id": "req_b",
+          "kind": "Requirement",
+          "label": "Req B",
+          "level": 2,
+          "file": "docs/features/requirements.qmd.md",
+          "line": 7,
+          "parent": null,
+          "namespace": "__requirements",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

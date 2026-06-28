@@ -1,0 +1,33 @@
+*.pyc
+qmdc-ts/node_modules/*
+qmdc-py/**/*.egg-info/*
+qmdc-mkdocs/**/*.egg-info/*
+qmdc-semantic/**/*.egg-info/*
+qmdc-rs/target/*
+qmdc-ts/dist/*
+qmdc-vscode/node_modules/*
+qmdc-vscode/out/*
+qmdc-vscode/bin/*
+qmdc-vscode/*.vsix
+# Release build artifacts (publish scripts)
+qmdc-py/qmdc/bin/*
+qmdc-py/dist/*
+qmdc-py/build/*
+qmdc-semantic/dist/*
+qmdc-mkdocs/dist/*
+qmdc-ts/build/*
+dist-release/*
+test-reports/*
+tmp/
+.env
+.env.publish
+!.env.publish.example
+.playwright-mcp/*
+**/_site/*
+
+# Semantic artifacts are committed (precomputed before release): embeddings.db via
+# Git LFS (*.db rule in .gitattributes), hints.json plain. Do NOT ignore them, or a
+# re-index (`make semantic-refresh`) cannot be staged. See QMD-61.
+
+docs/tracking/active/QMD-61/artifacts/tantivy-eval/target/*
+docs/tracking/active/QMD-61/artifacts/tantivy-eval/index/*

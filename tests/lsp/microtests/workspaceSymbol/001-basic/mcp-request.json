@@ -1,0 +1,7 @@
+{
+  "tool": "qmdc_search_objects",
+  "arguments": {
+    "query": "order",
+    "path": "{{workspace}}"
+  }
+}

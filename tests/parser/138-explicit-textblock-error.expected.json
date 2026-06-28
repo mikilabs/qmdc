@@ -1,0 +1,9 @@
+[
+  {
+    "__id": "content1",
+    "__kind": "__ParsingError",
+    "type": "explicit_system_type",
+    "reference": "[[content1: __TextBlock]]",
+    "line": 1
+  }
+]

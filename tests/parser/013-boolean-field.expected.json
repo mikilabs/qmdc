@@ -1,0 +1,15 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "active": true,
+    "deleted": false,
+    "__types": {
+      "active": "boolean",
+      "deleted": "boolean"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

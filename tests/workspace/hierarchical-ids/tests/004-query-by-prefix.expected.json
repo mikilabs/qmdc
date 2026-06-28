@@ -1,0 +1,8 @@
+{
+  "columns": ["__id", "__kind"],
+  "rows": [
+    ["auth_svc.config", "__Object"],
+    ["auth_svc.endpoints.login", "Endpoint"],
+    ["auth_svc.endpoints.logout", "Endpoint"]
+  ]
+}

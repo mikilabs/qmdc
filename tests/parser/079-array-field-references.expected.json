@@ -1,0 +1,54 @@
+[
+  {
+    "__id": "doc",
+    "__label": "Doc",
+    "__kind": "__Workspace",
+    "parent": "[[#parent]]",
+    "item1": "[[#item1]]",
+    "item2": "[[#item2]]",
+    "__level": 1
+  },
+  {
+    "__id": "parent",
+    "__label": "Parent",
+    "__kind": "__Object",
+    "__parent": "[[#doc]]",
+    "__parent_field": "parent",
+    "status": "active",
+    "items": [
+      "[[#item1]]",
+      "[[#item2]]"
+    ],
+    "__types": {
+      "status": "string"
+    },
+    "__syntax": {
+      "items": "markdown_list"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "item1",
+    "__label": "Item1",
+    "__kind": "__Object",
+    "__parent": "[[#doc]]",
+    "__parent_field": "item1",
+    "name": "First",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "item2",
+    "__label": "Item2",
+    "__kind": "__Object",
+    "__parent": "[[#doc]]",
+    "__parent_field": "item2",
+    "name": "Second",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 2
+  }
+]

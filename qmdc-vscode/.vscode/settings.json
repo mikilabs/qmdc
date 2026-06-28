@@ -1,0 +1,26 @@
+{
+  "editor.tokenColorCustomizations": {
+    "textMateRules": [
+      {
+        "scope": [
+          "punctuation.definition.tag.begin.qmd.md",
+          "punctuation.definition.tag.end.qmd.md"
+        ],
+        "settings": {
+          "foreground": "#6a737d55"
+        }
+      },
+      {
+        "scope": [
+          "entity.name.tag.qmd.md",
+          "entity.name.type.qmd.md",
+          "keyword.operator.auto-id.qmd.md"
+        ],
+        "settings": {
+          "foreground": "#6a737d88",
+          "fontStyle": "italic"
+        }
+      }
+    ]
+  }
+}

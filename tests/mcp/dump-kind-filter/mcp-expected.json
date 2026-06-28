@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "truncated": false,
+  "object_count": 3,
+  "objects": [
+    { "__kind": "Thing" },
+    { "__kind": "Thing" },
+    { "__kind": "Thing" }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "workspace_id": "frontend",
+  "files": [
+    "readme.qmd.md",
+    "components.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["frontend"],
+    "Component": ["Button", "Input"]
+  },
+  "errors": []
+}
+

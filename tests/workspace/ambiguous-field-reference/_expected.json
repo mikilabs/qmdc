@@ -1,0 +1,23 @@
+{
+  "workspace_id": "ambiguous_field_ref_test",
+  "files": [
+    "readme.qmd.md",
+    "parent.qmd.md",
+    "child.qmd.md",
+    "consumer.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["ambiguous_field_ref_test"],
+    "__Object": ["team", "team.score", "report"]
+  },
+  "errors": [
+    {
+      "type": "ambiguous_field_reference",
+      "object": "report",
+      "reference": "[[#team.score]]",
+      "file": "consumer.qmd.md",
+      "line": 3,
+      "candidates": ["object with __id 'team.score'", "field 'score' on object 'team' (value: 100)"]
+    }
+  ]
+}

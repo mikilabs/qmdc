@@ -1,0 +1,25 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Basic info."
+      },
+      {
+        "after": "name",
+        "content": "Contact details."
+      }
+    ],
+    "name": "Alice",
+    "email": "alice@example.com",
+    "__types": {
+      "name": "string",
+      "email": "string"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

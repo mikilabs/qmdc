@@ -1,0 +1,6 @@
+{
+  "tool": "qmdc_dump_index",
+  "arguments": {
+    "path": "{{workspace}}"
+  }
+}

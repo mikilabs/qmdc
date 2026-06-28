@@ -1,0 +1,9 @@
+{
+  "tool": "qmdc_search_objects",
+  "arguments": {
+    "path": "{{workspace}}",
+    "query": "item",
+    "limit": 1,
+    "cursor": "envelope_ws::item0"
+  }
+}

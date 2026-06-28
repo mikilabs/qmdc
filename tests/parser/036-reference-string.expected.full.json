@@ -1,0 +1,30 @@
+[
+  {
+    "__id": "order",
+    "__label": "Order",
+    "__kind": "__Object",
+    "user": "[[#user_123]]",
+    "__types": {
+      "user": "string"
+    },
+    "__level": 2,
+    "__line": 1,
+    "__has_explicit_id": false,
+    "__references": [
+      {
+        "target": "#user_123",
+        "type": "hash_local",
+        "line": 3,
+        "start_col": 8,
+        "end_col": 21,
+        "raw": "[[#user_123]]"
+      }
+    ],
+    "__positions": {
+      "user": {
+        "line": 3,
+        "col": 2
+      }
+    }
+  }
+]

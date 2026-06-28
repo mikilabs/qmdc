@@ -1,0 +1,27 @@
+[
+  {
+    "__id": "sources",
+    "__label": "Sources",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "INDEX",
+        "content": "- Test data: `path/to/*.qmd.md`"
+      }
+    ],
+    "README": "`path/to/README.md`",
+    "INDEX": "`path/to/INDEX.md`",
+    "__types": {
+      "README": "string",
+      "INDEX": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "mixed_field_keys",
+    "object": "[[#sources]]",
+    "line": 5
+  }
+]

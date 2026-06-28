@@ -1,0 +1,14 @@
+{
+  "_comment": "[[#parent]] resolves by __id, [[#child1]] resolves by __local_id, [[#no_such_child]] is broken",
+  "diagnostics": [
+    {
+      "message": "Object 'no_such_child' not found",
+      "range": {
+        "start": { "line": 9, "character": 11 },
+        "end": { "line": 9, "character": 29 }
+      },
+      "severity": 1,
+      "code": "QMDC001"
+    }
+  ]
+}

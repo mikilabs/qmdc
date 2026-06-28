@@ -1,0 +1,9 @@
+{
+  "command": "qmdc.runSqlQuery",
+  "arguments": [
+    "SELECT COUNT(*) as cnt FROM objects WHERE __kind = 'Feature'",
+    "workspace/data.qmd.md",
+    "workspace"
+  ]
+}
+

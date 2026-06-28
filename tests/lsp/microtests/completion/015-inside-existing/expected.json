@@ -1,0 +1,8 @@
+{
+  "items": [
+    { "label": "orders" },
+    { "label": "products" }
+  ],
+  "_comment": "Cursor inside [[or|ders]] - 'or' matches orders (contains) and products (fuzzy)"
+}
+

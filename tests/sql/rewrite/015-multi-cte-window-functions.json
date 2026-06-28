@@ -1,0 +1,14 @@
+{
+  "input": "WITH kind_stats AS (SELECT __kind, COUNT(*) as cnt FROM objects GROUP BY __kind), ranked AS (SELECT __kind, cnt, ROW_NUMBER() OVER (ORDER BY cnt DESC) as rank FROM kind_stats) SELECT __kind, cnt, rank FROM ranked WHERE rank <= 3 ORDER BY rank",
+  "workspace": "ws2",
+  "expected": "WITH kind_stats AS (SELECT __kind, COUNT(*) AS cnt FROM objects WHERE __workspace = 'ws2' GROUP BY __kind), ranked AS (SELECT __kind, cnt, ROW_NUMBER() OVER (ORDER BY cnt DESC) AS rank FROM kind_stats) SELECT __kind, cnt, rank FROM ranked WHERE rank <= 3 ORDER BY rank ASC",
+  "expected_result": {
+    "columns": ["__kind", "cnt", "rank"],
+    "rows": [
+      ["Feature", 2, 1],
+      ["__Document", 1, 2],
+      ["__TextBlock", 1, 3]
+    ]
+  }
+}
+

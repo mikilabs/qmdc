@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "total": 3,
+  "truncated": true,
+  "next_cursor": "refs_ws::ref0",
+  "count": 3,
+  "references": [
+    { "id": "ref0", "kind": "Thing" }
+  ]
+}

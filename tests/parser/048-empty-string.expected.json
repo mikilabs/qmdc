@@ -1,0 +1,13 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "name": "",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

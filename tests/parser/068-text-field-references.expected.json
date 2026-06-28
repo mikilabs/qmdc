@@ -1,0 +1,30 @@
+[
+  {
+    "__id": "test",
+    "__label": "Test",
+    "__kind": "__Object",
+    "content": "- [[#ref1]] first ref\n- [[#ref2]] second ref",
+    "__types": {
+      "content": "string"
+    },
+    "__syntax": {
+      "content": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "content": "Content"
+    }
+  },
+  {
+    "__id": "ref1",
+    "__label": "Ref1",
+    "__kind": "__Object",
+    "__level": 1
+  },
+  {
+    "__id": "ref2",
+    "__label": "Ref2",
+    "__kind": "__Object",
+    "__level": 1
+  }
+]

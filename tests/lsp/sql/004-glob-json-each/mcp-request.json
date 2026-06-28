@@ -1,0 +1,7 @@
+{
+  "tool": "qmdc_query_sql",
+  "arguments": {
+    "sql": "SELECT key, COUNT(*) c FROM objects, json_each(objects.data) WHERE key GLOB 'qmd[0-9]*' GROUP BY key ORDER BY key",
+    "path": "{{workspace}}"
+  }
+}

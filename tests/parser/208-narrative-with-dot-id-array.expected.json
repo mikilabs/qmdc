@@ -1,0 +1,50 @@
+[
+  {
+    "__id": "aaa_service_ops",
+    "__label": "AAA Service Operations",
+    "__kind": "NarrativeDoc",
+    "about": "[[#aaa_service]]",
+    "aaa_service.operations": [
+      "[[#aaa_service.operations.op_token_exchange]]",
+      "[[#aaa_service.operations.op_billing_check]]"
+    ],
+    "__types": {
+      "about": "string"
+    },
+    "__syntax": {
+      "aaa_service.operations": "headers"
+    },
+    "__level": 1,
+    "__labels": {
+      "aaa_service.operations": "Operations"
+    }
+  },
+  {
+    "__id": "aaa_service.operations.op_token_exchange",
+    "__local_id": "op_token_exchange",
+    "__label": "Token Exchange",
+    "__kind": "Operation",
+    "__parent": "[[#aaa_service_ops]]",
+    "__parent_field": "aaa_service.operations",
+    "type": "rest",
+    "path": "POST /auth/token",
+    "__types": {
+      "type": "string",
+      "path": "string"
+    }
+  },
+  {
+    "__id": "aaa_service.operations.op_billing_check",
+    "__local_id": "op_billing_check",
+    "__label": "Billing Check",
+    "__kind": "Operation",
+    "__parent": "[[#aaa_service_ops]]",
+    "__parent_field": "aaa_service.operations",
+    "type": "rest",
+    "path": "GET /billing/check",
+    "__types": {
+      "type": "string",
+      "path": "string"
+    }
+  }
+]

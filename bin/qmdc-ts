@@ -1,0 +1,22 @@
+#!/bin/bash
+# QMDC TypeScript Parser CLI wrapper
+# Usage: qmdc-ts <command> [args...]
+
+set -e
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [ "${SOURCE#/}" = "$SOURCE" ] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+PARSER_DIR="$SCRIPT_DIR/../qmdc-ts"
+
+# Run via tsx directly from source
+exec npx tsx "$PARSER_DIR/qmdc.ts" "$@"
+
+
+
+
+

@@ -1,0 +1,14 @@
+[
+  {
+    "__id": "alice",
+    "__label": "User",
+    "__kind": "__Object",
+    "__level": 2
+  },
+  {
+    "__id": "laptop",
+    "__label": "Product",
+    "__kind": "__Object",
+    "__level": 2
+  }
+]

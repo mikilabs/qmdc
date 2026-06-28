@@ -1,0 +1,6 @@
+{
+  "method": "textDocument/rename",
+  "uri": "workspace/orders.qmd.md",
+  "position": { "line": 2, "character": 10 },
+  "newName": "customer"
+}

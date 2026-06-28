@@ -1,0 +1,13 @@
+[
+  {
+    "__id": "product",
+    "__label": "Product",
+    "__kind": "__Object",
+    "price": 99.99,
+    "__types": {
+      "price": "number"
+    },
+    "__level": 2,
+    "__has_explicit_id": false
+  }
+]

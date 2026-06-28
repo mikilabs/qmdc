@@ -1,0 +1,9 @@
+{
+  "items": [
+    { "label": "cart" },
+    { "label": "orders" },
+    { "label": "users" }
+  ],
+  "_comment": "Nested property completion (alphabetical)"
+}
+

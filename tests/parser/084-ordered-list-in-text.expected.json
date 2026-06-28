@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "task",
+    "__label": "Task",
+    "__kind": "Task",
+    "steps": "Follow these steps:\n\n1. First step\n2. Second step\n3. Third step\n\nDone.",
+    "__types": {
+      "steps": "string"
+    },
+    "__syntax": {
+      "steps": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "steps": "Steps"
+    }
+  }
+]

@@ -1,0 +1,23 @@
+{
+  "_comment": "[[#users]] resolves cross-file. [[#missing_object]] and [[#another_missing]] are broken.",
+  "diagnostics": [
+    {
+      "message": "Object 'missing_object' not found",
+      "range": {
+        "start": { "line": 3, "character": 11 },
+        "end": { "line": 3, "character": 30 }
+      },
+      "severity": 1,
+      "code": "QMDC001"
+    },
+    {
+      "message": "Object 'another_missing' not found",
+      "range": {
+        "start": { "line": 4, "character": 11 },
+        "end": { "line": 4, "character": 31 }
+      },
+      "severity": 1,
+      "code": "QMDC001"
+    }
+  ]
+}

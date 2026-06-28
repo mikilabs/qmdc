@@ -1,0 +1,6 @@
+{
+  "uri": "input.qmd.md",
+  "range": { "start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 29} },
+  "_comment": "Returns same line - VS Code will show peek references for Kind"
+}
+

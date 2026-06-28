@@ -1,0 +1,6 @@
+{
+  "_comment": "Prefix team.a filters to alice (not config)",
+  "items": [
+    { "label": "alice" }
+  ]
+}

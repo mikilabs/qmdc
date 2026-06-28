@@ -1,0 +1,23 @@
+{
+  "_comment": "IDs are case-sensitive: [[#users]] resolves, [[#Users]] and [[#USERS]] do not",
+  "diagnostics": [
+    {
+      "message": "Object 'Users' not found",
+      "range": {
+        "start": { "line": 7, "character": 9 },
+        "end": { "line": 7, "character": 19 }
+      },
+      "severity": 1,
+      "code": "QMDC001"
+    },
+    {
+      "message": "Object 'USERS' not found",
+      "range": {
+        "start": { "line": 8, "character": 11 },
+        "end": { "line": 8, "character": 21 }
+      },
+      "severity": 1,
+      "code": "QMDC001"
+    }
+  ]
+}

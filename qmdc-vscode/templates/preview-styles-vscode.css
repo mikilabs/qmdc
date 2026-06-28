@@ -1,0 +1,87 @@
+/*
+ * VS Code theme-aware overrides for the QMDC preview.
+ * These CSS variables are injected by VS Code into every webview automatically.
+ * They adapt to whatever theme the user has active (dark, light, high-contrast).
+ *
+ * This file is loaded AFTER preview-styles.css, overriding the hardcoded colors
+ * with theme-native values. The site build does NOT use this file.
+ */
+
+:root {
+  /* Core backgrounds */
+  --bg-color: var(--vscode-editor-background);
+  --bg-secondary: var(--vscode-editorWidget-background, var(--vscode-sideBar-background, var(--vscode-editor-background)));
+  --code-bg: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background, var(--vscode-editor-background)));
+
+  /* Text */
+  --text-color: var(--vscode-editor-foreground);
+  --text-muted: var(--vscode-descriptionForeground, var(--vscode-editorLineNumber-foreground));
+
+  /* Accent / links */
+  --link-color: var(--vscode-textLink-foreground);
+  --heading-color: var(--vscode-textLink-foreground);
+  --accent-color: var(--vscode-button-background, var(--vscode-textLink-foreground));
+  --accent-glow: transparent;
+
+  /* Borders */
+  --table-border: var(--vscode-editorWidget-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.2)));
+  --card-border: var(--vscode-editorWidget-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.15)));
+
+  /* Table */
+  --table-header-bg: var(--vscode-editorGroupHeader-tabsBackground, var(--vscode-sideBar-background));
+  --table-row-hover: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.1));
+  --table-row-alt: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.04));
+
+  /* Errors */
+  --error-color: var(--vscode-errorForeground, var(--vscode-editorError-foreground, #f85149));
+
+  /* Shadows — subtle in VS Code context */
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+  /* Translucent accent shades — use VS Code's own hover/highlight colors */
+  --accent-bg-subtle: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.04));
+  --accent-bg-faint: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.05));
+  --accent-bg-hover: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.08));
+  --accent-bg-light: var(--vscode-list-inactiveSelectionBackground, rgba(128, 128, 128, 0.1));
+  --accent-bg-active: var(--vscode-list-activeSelectionBackground, rgba(128, 128, 128, 0.12));
+  --accent-bg-medium: var(--vscode-list-activeSelectionBackground, rgba(128, 128, 128, 0.15));
+  --accent-bg-strong: var(--vscode-editor-selectionBackground, rgba(128, 128, 128, 0.2));
+  --accent-bg-mark: var(--vscode-editor-findMatchHighlightBackground, rgba(128, 128, 128, 0.25));
+}
+
+/* Override body font to match VS Code editor */
+body {
+  font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: var(--vscode-font-size, 14px);
+}
+
+/* Code blocks match editor font */
+code, pre {
+  font-family: var(--vscode-editor-font-family, 'Roboto Mono', Monaco, courier, monospace);
+  font-size: var(--vscode-editor-font-size, 13px);
+}
+
+/* Search input matches VS Code input styling */
+.qmdc-search-input {
+  background: var(--vscode-input-background, var(--bg-secondary));
+  border-color: var(--vscode-input-border, var(--table-border));
+  color: var(--vscode-input-foreground, var(--text-color));
+}
+.qmdc-search-input:focus {
+  border-color: var(--vscode-focusBorder, var(--link-color));
+  outline: 1px solid var(--vscode-focusBorder, transparent);
+  outline-offset: -1px;
+}
+.qmdc-search-input::placeholder {
+  color: var(--vscode-input-placeholderForeground, var(--text-muted));
+}
+
+/* Cards and tables need visible contrast against the editor background.
+   Use editorHoverWidget or a slight tint when the theme doesn't differentiate. */
+.qmdc-index-card,
+table,
+.qmdc-hint-panel,
+.qmdc-search-results {
+  background: var(--vscode-editorHoverWidget-background, var(--bg-secondary));
+  border-color: var(--vscode-editorHoverWidget-border, var(--card-border));
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#text_0]]",
+      "[[#text_1]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "# Doc",
+    "__line": 1,
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "text_1",
+    "__kind": "__TextBlock",
+    "content": "## Section\n\nSome text.\n\n- [[#ref1]] — first ref\n- [[#ref2]] — second ref\n\nMore text.",
+    "__line": 3,
+    "__container": "[[#doc_ry4ljv]]",
+    "__references": [
+      {
+        "target": "#ref1",
+        "type": "hash_local",
+        "line": 7,
+        "start_col": 2,
+        "end_col": 11,
+        "raw": "[[#ref1]]"
+      },
+      {
+        "target": "#ref2",
+        "type": "hash_local",
+        "line": 8,
+        "start_col": 2,
+        "end_col": 11,
+        "raw": "[[#ref2]]"
+      }
+    ]
+  }
+]

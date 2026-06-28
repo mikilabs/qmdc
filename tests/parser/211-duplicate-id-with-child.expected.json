@@ -1,0 +1,44 @@
+[
+  {
+    "__id": "item",
+    "__label": "First",
+    "__kind": "__Object",
+    "name": "First",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "item",
+    "__label": "Second",
+    "__kind": "__Object",
+    "name": "Second",
+    "child": "[[#item.child]]",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "item.child",
+    "__local_id": "child",
+    "__label": "Child",
+    "__kind": "__Object",
+    "__parent": "[[#item]]",
+    "__parent_field": "child",
+    "role": "helper",
+    "__types": {
+      "role": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "__error_dup_item",
+    "__kind": "__ParsingError",
+    "type": "duplicate_id",
+    "message": "Duplicate ID 'item' (first defined on line 1)",
+    "object": "[[#item]]",
+    "line": 5
+  }
+]

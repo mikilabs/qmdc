@@ -1,0 +1,9 @@
+{
+  "columns": ["source_id", "source_field", "target_id", "edge_type"],
+  "rows": [
+    ["orders_db", "orders_db_overview", "orders_db", "about"],
+    ["orders_tbl", "database", "orders_db", "database"],
+    ["orders_tbl", "user_ref", "users_tbl", "user_ref"],
+    ["users_tbl", "database", "orders_db", "database"]
+  ]
+}

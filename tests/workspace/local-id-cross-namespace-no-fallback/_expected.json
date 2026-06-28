@@ -1,0 +1,23 @@
+{
+  "workspace_id": "local_id_cross_ns_no_fallback",
+  "files": [
+    "consumer.qmd.md",
+    "readme.qmd.md",
+    "services/api.qmd.md",
+    "services/readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["local_id_cross_ns_no_fallback"],
+    "__Namespace": ["services"],
+    "__Object": ["gateway", "gateway.config", "root_consumer"]
+  },
+  "errors": [
+    {
+      "type": "broken_link",
+      "object": "root_consumer",
+      "reference": "[[#config]]",
+      "file": "consumer.qmd.md",
+      "line": 4
+    }
+  ]
+}

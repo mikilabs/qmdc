@@ -1,0 +1,37 @@
+[
+  {
+    "__id": "user",
+    "__label": "User",
+    "__kind": "__Object",
+    "address": "[[#user.address]]",
+    "prefs": "[[#user.prefs]]",
+    "__level": 2,
+    "__has_explicit_id": false
+  },
+  {
+    "__id": "user.address",
+    "__local_id": "address",
+    "__label": "Address",
+    "__kind": "__Object",
+    "__parent": "[[#user]]",
+    "__parent_field": "address",
+    "city": "London",
+    "__types": {
+      "city": "string"
+    },
+    "__level": 3
+  },
+  {
+    "__id": "user.prefs",
+    "__local_id": "prefs",
+    "__label": "Preferences",
+    "__kind": "__Object",
+    "__parent": "[[#user]]",
+    "__parent_field": "prefs",
+    "theme": "dark",
+    "__types": {
+      "theme": "string"
+    },
+    "__level": 3
+  }
+]

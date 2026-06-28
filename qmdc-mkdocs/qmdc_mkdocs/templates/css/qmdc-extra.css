@@ -1,0 +1,520 @@
+/* ==========================================================================
+   QMDC Extra Styles for MkDocs Material
+   Uses ONLY Material CSS custom properties (design tokens) for colors/fonts/spacing.
+   No hardcoded #hex or rgb() values.
+   ========================================================================== */
+
+/* ── QMDC ID / Kind / Ref inline elements ── */
+
+.qmdc-id {
+  /* Invisible but keeps the id attribute targetable for anchor navigation */
+  font-size: 0;
+  line-height: 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.qmdc-kind {
+  font-size: 0.55em;
+  font-weight: 400;
+  color: var(--md-default-fg-color--light);
+  vertical-align: middle;
+  margin-left: 0.5em;
+  opacity: 0.6;
+}
+
+.qmdc-ref {
+  color: var(--md-accent-fg-color);
+  background: color-mix(in srgb, var(--md-accent-fg-color) 10%, transparent);
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.qmdc-ref:hover {
+  background: color-mix(in srgb, var(--md-accent-fg-color) 20%, transparent);
+  text-decoration: none;
+}
+
+/* ── Broken link and SQL error ── */
+
+/* Dead link: a reference that resolves to a real object whose page is excluded
+   from the site (or a genuinely broken ref). Reads like a link but is inert —
+   it carries no href, so it navigates nowhere. Deliberately muted: a faded,
+   desaturated red so it's noticeable on inspection without competing with real
+   (blue) links. Material has no solid "error" text token, so blend a red
+   literal toward the muted foreground. */
+.broken-link {
+  color: color-mix(in srgb, #e5534b 55%, var(--md-default-fg-color--light));
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-decoration-color: color-mix(in srgb, #e5534b 30%, transparent);
+  text-underline-offset: 0.15em;
+  cursor: not-allowed;
+}
+
+.sql-error {
+  color: var(--md-default-fg-color);
+  background: color-mix(in srgb, var(--md-default-fg-color--light) 10%, var(--md-default-bg-color));
+  padding: 1em 1.2em;
+  border-radius: 0.4rem;
+  border-left: 4px solid var(--md-default-fg-color--light);
+  margin: 1em 0;
+  font-size: 0.85em;
+}
+
+.sql-error code {
+  background: color-mix(in srgb, var(--md-code-bg-color) 80%, transparent);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+
+/* ── Graph Sidebar layout ── */
+
+.qmdc-sidebar {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--md-default-fg-color--light);
+  padding: 0;
+}
+
+/* Remove our own overflow — Material's .md-sidebar__scrollwrap handles scrolling */
+.md-sidebar--secondary .qmdc-sidebar {
+  max-height: none;
+  overflow: visible;
+}
+
+/* Reset list styles inside sidebar */
+.qmdc-sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Override Material's .md-nav__list padding inside our sidebar */
+.qmdc-sidebar ul.md-nav__list {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+
+/* Desktop: sidebar replaces Material's TOC area (right side) */
+@media screen and (min-width: 900px) {
+  .qmdc-sidebar {
+    padding: 0;
+  }
+
+  .sb-toggle {
+    display: none;
+  }
+
+  .sb-close {
+    display: none;
+  }
+}
+
+/* Mobile: off-canvas panel */
+@media screen and (max-width: 899px) {
+  .qmdc-sidebar {
+    position: fixed;
+    top: 0;
+    right: -300px;
+    width: 280px;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--md-default-bg-color);
+    border-left: 1px solid var(--md-default-fg-color--lightest);
+    padding: 2.5rem 1rem 1rem;
+    z-index: 250;
+    transition: right 0.25s ease;
+    box-shadow: none;
+  }
+
+  .qmdc-sidebar.sb-open {
+    right: 0;
+    box-shadow: var(--md-shadow-z2);
+  }
+
+  .sb-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: var(--md-primary-fg-color);
+    color: var(--md-primary-bg-color);
+    border: none;
+    cursor: pointer;
+    z-index: 200;
+    box-shadow: var(--md-shadow-z2);
+    font-size: 1.1em;
+    transition: transform 0.15s ease;
+  }
+
+  .sb-toggle:hover {
+    transform: scale(1.1);
+  }
+
+  .sb-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: none;
+    border: none;
+    color: var(--md-default-fg-color--light);
+    font-size: 1.2em;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+  }
+
+  .sb-close:hover {
+    color: var(--md-default-fg-color);
+    background: color-mix(in srgb, var(--md-default-fg-color) 8%, transparent);
+  }
+
+  /* Overlay backdrop when sidebar is open */
+  .sb-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: color-mix(in srgb, var(--md-default-bg-color) 60%, transparent);
+    z-index: 240;
+  }
+
+  .sb-overlay.sb-open {
+    display: block;
+  }
+}
+
+/* ── Breadcrumb ── */
+
+.sb-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2em;
+  padding: 0.3em 0;
+  margin-bottom: 0.4em;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  font-size: 0.85em;
+}
+
+.sb-crumb {
+  color: var(--md-default-fg-color--light);
+  text-decoration: none;
+}
+
+a.sb-crumb:hover {
+  color: var(--md-accent-fg-color);
+}
+
+.sb-crumb--file {
+  color: var(--md-default-fg-color);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--md-accent-fg-color) 15%, transparent);
+  border-left: 2px solid var(--md-accent-fg-color);
+  padding: 0.1em 0.5em 0.1em calc(0.5em - 2px);
+  border-radius: 0 4px 4px 0;
+}
+
+.sb-crumb-sep {
+  color: var(--md-default-fg-color--lightest);
+  font-size: 0.8em;
+}
+
+/* ── Sidebar sections ── */
+
+.sb-section {
+  margin-bottom: 0.6em;
+}
+
+.sb-section-title {
+  font-size: 0.65em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--md-default-fg-color--light);
+  margin-bottom: 0.2em;
+  padding: 0;
+  margin-top: 0.6em;
+}
+
+/* ── TOC links (page headings) ── */
+
+.sb-toc-link {
+  display: block;
+  padding: 0.1em 0.2em;
+  color: var(--md-default-fg-color--light);
+  text-decoration: none;
+  transition: color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 4px;
+}
+
+.sb-toc-link:hover {
+  color: var(--md-accent-fg-color);
+}
+
+.sb-toc-link.sb-toc-active {
+  color: var(--md-default-fg-color);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--md-accent-fg-color) 12%, transparent);
+  border-left: 2px solid var(--md-accent-fg-color);
+  padding-left: calc(0.2em - 2px);
+  border-radius: 0 4px 4px 0;
+}
+
+.sb-toc-indent {
+  padding-left: 1em;
+  font-size: 0.95em;
+}
+
+.sb-toc-indent.sb-toc-active {
+  padding-left: calc(1em + 0.2em - 2px);
+}
+
+/* ── Edge items (links-to / linked-from) ── */
+
+.sb-edge-group {
+  margin-bottom: 0.2em;
+}
+
+.sb-edge-verb {
+  display: block;
+  font-size: 0.8em;
+  color: var(--md-accent-fg-color);
+  font-weight: 500;
+  margin-bottom: 0.15em;
+  padding: 0 0.2em;
+}
+
+.sb-edge-item {
+  display: block;
+  text-decoration: none;
+  padding: 0.1em 0.2em;
+  color: var(--md-default-fg-color--light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+a.sb-edge-item:hover {
+  color: var(--md-accent-fg-color);
+  background: color-mix(in srgb, var(--md-accent-fg-color) 8%, transparent);
+}
+
+.sb-edge-kind {
+  font-size: 0.8em;
+  opacity: 0.5;
+}
+
+/* ── Siblings ── */
+
+.sb-sib {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.1em 0.2em;
+  margin: 0;
+  border-radius: 4px;
+  color: var(--md-default-fg-color--light);
+  text-decoration: none;
+  gap: 0.3em;
+  transition: color 0.15s, background 0.15s;
+}
+
+a.sb-sib:hover {
+  background: color-mix(in srgb, var(--md-accent-fg-color) 8%, transparent);
+  color: var(--md-accent-fg-color);
+}
+
+.sb-sib--current {
+  color: var(--md-default-fg-color);
+  font-weight: 500;
+  border-left: 2px solid var(--md-default-fg-color--lightest);
+  padding-left: calc(0.4em - 2px);
+}
+
+.sb-sib-kinds {
+  font-size: 0.8em;
+  color: var(--md-default-fg-color--light);
+  opacity: 0.6;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Semantic hint icon + popover ── */
+
+.qmdc-hint-wrapper {
+  display: inline;
+  position: relative;
+  margin-left: 0.4em;
+}
+
+.qmdc-hint-icon {
+  cursor: pointer;
+  font-size: 0.5em;
+  opacity: 0.6;
+  vertical-align: middle;
+  background: none;
+  border: none;
+  padding: 0.2em;
+  color: var(--md-accent-fg-color);
+  transition: opacity 0.15s;
+}
+
+.qmdc-hint-icon:hover {
+  opacity: 1;
+}
+
+.qmdc-hint-popover {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  background: var(--md-default-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.4rem;
+  padding: 0.4em 0.6em;
+  min-width: 200px;
+  max-width: 320px;
+  box-shadow: var(--md-shadow-z2);
+  font-size: 0.75rem;
+  font-weight: normal;
+  color: var(--md-default-fg-color--light);
+  line-height: 1.4;
+}
+
+.qmdc-hint-popover.active,
+.qmdc-hint-popover[hidden="false"] {
+  display: block;
+}
+
+.qmdc-hint-popover:not([hidden]) {
+  display: block;
+}
+
+.qmdc-hint-title {
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--md-default-fg-color--light);
+  margin-bottom: 0.4em;
+  font-weight: 600;
+}
+
+.qmdc-hint-item {
+  display: block;
+  padding: 0.2em 0.3em;
+  border-radius: 4px;
+  color: var(--md-default-fg-color--light);
+  text-decoration: none;
+  font-size: 0.85em;
+  font-weight: normal;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qmdc-hint-item:hover {
+  color: var(--md-accent-fg-color);
+  background: color-mix(in srgb, var(--md-accent-fg-color) 8%, transparent);
+}
+
+.qmdc-hint-score {
+  font-size: 0.8em;
+  opacity: 0.5;
+  white-space: nowrap;
+}
+
+.qmdc-hint-kind {
+  font-size: 0.85em;
+  opacity: 0.5;
+}
+
+/* ── Screenshots / embedded media ──
+   Cap the on-page size of embedded screenshots so they don't dominate the column;
+   the glightbox plugin makes them click-to-enlarge to full size. Scoped to
+   glightbox-wrapped images (a.glightbox), which the plugin applies to content images
+   only — emoji are skipped by glightbox and Mermaid renders as inline <svg>, so neither
+   is affected. Sizing lives here (SSG-injected CSS) rather than as `{ width=… }` attributes
+   in the source Markdown, keeping the .qmd.md files portable. */
+.md-typeset a.glightbox img {
+  max-width: min(100%, 32rem);
+  max-height: 26rem;
+  width: auto;
+  height: auto;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.2rem;
+  cursor: zoom-in;
+}
+
+/* ── Object properties card (leading metadata bullets) ── */
+
+.md-typeset .qmdc-props {
+  margin: 0 0 1.5em;
+  padding: 0.2rem 0.9rem;
+  border: 0.05rem solid var(--md-default-fg-color--lightest);
+  border-radius: 0.2rem;
+  background: var(--md-code-bg-color);
+}
+
+.md-typeset .qmdc-props ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.md-typeset .qmdc-props li {
+  display: grid;
+  grid-template-columns: minmax(5rem, max-content) 1fr;
+  gap: 0.2rem 1.2rem;
+  align-items: baseline;
+  margin: 0;
+  padding: 0.45rem 0;
+  border-bottom: 0.05rem solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset .qmdc-props li::before {
+  display: none;  /* drop Material's list marker */
+}
+
+.md-typeset .qmdc-props li:last-child {
+  border-bottom: none;
+}
+
+.qmdc-prop__key {
+  color: var(--md-default-fg-color--light);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.qmdc-prop__val {
+  color: var(--md-default-fg-color);
+}
+
+/* Stack key over value on narrow viewports */
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .qmdc-props li {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+}

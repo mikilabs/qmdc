@@ -1,0 +1,11 @@
+{
+  "input": "WITH filtered AS (SELECT __id FROM objects WHERE __kind = 'Feature') SELECT * FROM filtered",
+  "workspace": "ws1",
+  "expected": "WITH filtered AS (SELECT __id FROM objects WHERE __kind = 'Feature' AND __workspace = 'ws1') SELECT * FROM filtered",
+  "expected_result": {
+    "columns": ["__id"],
+    "rows": [["task1"]]
+  }
+}
+
+

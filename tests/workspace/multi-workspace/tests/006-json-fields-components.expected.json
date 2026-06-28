@@ -1,0 +1,9 @@
+{
+  "columns": ["__id", "color", "size"],
+  "rows": [
+    ["IconButton", "transparent", "small"],
+    ["PrimaryButton", "blue", "medium"],
+    ["SecondaryButton", "gray", "medium"]
+  ]
+}
+

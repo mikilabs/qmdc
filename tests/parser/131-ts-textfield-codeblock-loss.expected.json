@@ -1,0 +1,24 @@
+[
+  {
+    "__id": "blocks1",
+    "__label": "Blocks",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "blocks_syntax",
+        "content": "### Renderers\n\n| Type | Description |\n|------|-------------|\n| table | HTML table |\n| chart | Data visualization |\n\n- related: [[#workspace]]"
+      }
+    ],
+    "blocks_syntax": "Blocks support a scope parameter.\n\nWith workspace filter:\n```table\nsql: SELECT __id FROM objects\nscope: workspace\n```\n\nWithout filter:\n```table\nsql: SELECT __id FROM objects\nscope: all\n```",
+    "__types": {
+      "blocks_syntax": "string"
+    },
+    "__syntax": {
+      "blocks_syntax": "multiline_text"
+    },
+    "__level": 2,
+    "__labels": {
+      "blocks_syntax": "Syntax"
+    }
+  }
+]

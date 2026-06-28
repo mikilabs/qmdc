@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "doc",
+    "__label": "Doc",
+    "__kind": "Document",
+    "status": "active",
+    "content": "First section.\n\n---\n\nSecond section after rule.\n\n---\n\nThird section.",
+    "__types": {
+      "status": "string",
+      "content": "string"
+    },
+    "__syntax": {
+      "content": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "content": "Content"
+    }
+  }
+]

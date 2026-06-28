@@ -1,0 +1,14 @@
+{
+  "_comment": "[[#Table:unknown]] — Kind-qualified reference to non-existent object",
+  "diagnostics": [
+    {
+      "message": "Object 'unknown' not found",
+      "range": {
+        "start": { "line": 3, "character": 5 },
+        "end": { "line": 3, "character": 23 }
+      },
+      "severity": 1,
+      "code": "QMDC001"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-rust",
+      "type": "shell",
+      "command": "cd ${workspaceFolder}/../qmdc-rs && cargo build && echo '✅ Rust LSP built successfully'",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "build-all",
+      "dependsOn": ["build-rust", "npm: compile"],
+      "dependsOrder": "sequence",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "type": "npm",
+      "script": "compile",
+      "problemMatcher": "$tsc",
+      "label": "npm: compile",
+      "group": "build"
+    },
+    {
+      "type": "npm",
+      "script": "watch",
+      "problemMatcher": "$tsc-watch",
+      "isBackground": true,
+      "label": "npm: watch",
+      "group": "build"
+    }
+  ]
+}

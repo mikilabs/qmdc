@@ -1,0 +1,9 @@
+{
+  "items": [
+    { "label": "a1" },
+    { "label": "a2" },
+    { "label": "a3" }
+  ],
+  "_comment": "Only 'a*' IDs, sorted"
+}
+

@@ -1,0 +1,5 @@
+{
+  "method": "textDocument/definition",
+  "uri": "workspace/docs/business/requirements.qmd.md",
+  "position": { "line": 4, "character": 15 }
+}

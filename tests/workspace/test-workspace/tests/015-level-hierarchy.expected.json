@@ -1,0 +1,18 @@
+{
+  "columns": ["__id", "__kind", "__level"],
+  "rows": [
+    ["db7", "__Namespace", 1],
+    ["tbl_orders", "Table", 2],
+    ["tbl_products", "Table", 2],
+    ["tbl_users", "Table", 2],
+    ["tbl_orders.col_orders_id", "Column", 3],
+    ["tbl_orders.col_orders_total", "Column", 3],
+    ["tbl_orders.col_orders_user_id", "Column", 3],
+    ["tbl_products.col_products_id", "Column", 3],
+    ["tbl_products.col_products_name", "Column", 3],
+    ["tbl_products.col_products_price", "Column", 3],
+    ["tbl_users.col_users_email", "Column", 3],
+    ["tbl_users.col_users_id", "Column", 3],
+    ["tbl_users.col_users_name", "Column", 3]
+  ]
+}

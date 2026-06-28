@@ -1,0 +1,23 @@
+[
+  {
+    "__id": "result1",
+    "__label": "Result",
+    "__kind": "Result",
+    "feature": "[[#task1]]",
+    "files_changed": [
+      "src/parser.py",
+      "src/rebuild.py",
+      "tests/test_parser.py"
+    ],
+    "summary": "Fixed parser bugs",
+    "__types": {
+      "feature": "string",
+      "files_changed": "array",
+      "summary": "string"
+    },
+    "__syntax": {
+      "files_changed": "yaml_multiline_array"
+    },
+    "__level": 2
+  }
+]

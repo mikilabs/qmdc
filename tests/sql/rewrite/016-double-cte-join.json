@@ -1,0 +1,14 @@
+{
+  "input": "WITH doc_edges AS (SELECT s.__id as source_id, COUNT(*) as edge_cnt FROM edges e JOIN objects s ON e.source_id = s.__global_id GROUP BY s.__id), obj_info AS (SELECT __id, __kind FROM objects WHERE __kind IN ('__Document', 'Feature')) SELECT oi.__id, oi.__kind, COALESCE(de.edge_cnt, 0) as refs FROM obj_info oi LEFT JOIN doc_edges de ON oi.__id = de.source_id ORDER BY oi.__id",
+  "workspace": "ws2",
+  "expected": "WITH doc_edges AS (SELECT s.__id AS source_id, COUNT(*) AS edge_cnt FROM edges e INNER JOIN objects s ON e.source_id = s.__global_id AND s.__workspace = 'ws2' WHERE e.__workspace = 'ws2' GROUP BY s.__id), obj_info AS (SELECT __id, __kind FROM objects WHERE __kind IN ('__Document', 'Feature') AND __workspace = 'ws2') SELECT oi.__id, oi.__kind, COALESCE(de.edge_cnt, 0) AS refs FROM obj_info oi LEFT JOIN doc_edges de ON oi.__id = de.source_id ORDER BY oi.__id ASC",
+  "expected_result": {
+    "columns": ["__id", "__kind", "refs"],
+    "rows": [
+      ["doc_ry4ljv", "__Document", 3],
+      ["task2", "Feature", 0],
+      ["task3", "Feature", 0]
+    ]
+  }
+}
+

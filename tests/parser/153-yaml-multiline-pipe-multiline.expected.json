@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "finding1",
+    "__label": "Finding",
+    "__kind": "Finding",
+    "affected_files": [
+      "parser.py"
+    ],
+    "solution": "1. Add check for pending_text_field\n2. Handle code blocks inside text fields\n3. Update rebuild to preserve pipe syntax",
+    "severity": "high",
+    "__types": {
+      "affected_files": "array",
+      "solution": "string",
+      "severity": "string"
+    },
+    "__syntax": {
+      "affected_files": "yaml_array",
+      "solution": "yaml_multiline"
+    },
+    "__level": 2
+  }
+]

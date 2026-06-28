@@ -1,0 +1,5 @@
+tests/*
+qmdc-vscode/e2e/fixtures/**
+qmdc-semantic/tests/**
+qmdc-vscode/e2e/**
+.kiro/**

@@ -1,0 +1,4 @@
+{
+  "_comment": "Reference [[#quickstart.content]] targets a text field on the quickstart object — should produce no diagnostics",
+  "diagnostics": []
+}

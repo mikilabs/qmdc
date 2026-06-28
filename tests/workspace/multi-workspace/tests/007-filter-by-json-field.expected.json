@@ -1,0 +1,8 @@
+{
+  "columns": ["__id", "__label"],
+  "rows": [
+    ["PrimaryButton", "Primary Button"],
+    ["SecondaryButton", "Secondary Button"]
+  ]
+}
+

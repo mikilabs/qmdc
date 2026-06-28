@@ -1,0 +1,13 @@
+{
+  "input": "SELECT o.__id, (SELECT COUNT(*) FROM edges e JOIN objects t ON e.target_id = t.__global_id WHERE t.__id = o.__id) as incoming_refs FROM objects o WHERE o.__kind = 'Feature' ORDER BY o.__id",
+  "workspace": "ws2",
+  "expected": "SELECT o.__id, (SELECT COUNT(*) FROM edges e INNER JOIN objects t ON e.target_id = t.__global_id AND t.__workspace = 'ws2' WHERE t.__id = o.__id AND e.__workspace = 'ws2') AS incoming_refs FROM objects o WHERE o.__kind = 'Feature' AND o.__workspace = 'ws2' ORDER BY o.__id ASC",
+  "expected_result": {
+    "columns": ["__id", "incoming_refs"],
+    "rows": [
+      ["task2", 1],
+      ["task3", 1]
+    ]
+  }
+}
+

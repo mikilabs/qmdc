@@ -1,0 +1,10 @@
+{
+  "columns": ["__id", "__kind", "__file"],
+  "rows": [
+    ["#IncludedQuery", "__Query", "included.qmd.md"],
+    ["#ServiceA", "Service", "workspace-a/readme.qmd.md"],
+    ["#ns-a", "__Namespace", "workspace-a/readme.qmd.md"],
+    ["#workspace-a", "__Workspace", "workspace-a/readme.qmd.md"]
+  ]
+}
+

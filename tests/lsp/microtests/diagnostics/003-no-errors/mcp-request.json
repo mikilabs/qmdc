@@ -1,0 +1,6 @@
+{
+  "tool": "qmdc_describe_metamodel",
+  "arguments": {
+    "path": "{{workspace}}"
+  }
+}

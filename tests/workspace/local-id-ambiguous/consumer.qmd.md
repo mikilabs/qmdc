@@ -1,0 +1,4 @@
+## Dashboard [[dashboard]]
+
+- settings: [[#config]]
+

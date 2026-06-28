@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "doc",
+    "__label": "Doc",
+    "__kind": "Document",
+    "version": 1.0,
+    "content": "Some intro text.\n\n> This is a blockquote\n> with multiple lines\n\nMore text after quote.\n\n> Another single-line quote",
+    "__types": {
+      "version": "number",
+      "content": "string"
+    },
+    "__syntax": {
+      "content": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "content": "Content"
+    }
+  }
+]

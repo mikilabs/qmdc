@@ -1,0 +1,10 @@
+{
+  "columns": ["__namespace", "__kind", "cnt"],
+  "rows": [
+    ["", "Config", 2],
+    ["api", "Endpoint", 4],
+    ["components", "Component", 3],
+    ["pages", "Page", 3],
+    ["storage", "Table", 4]
+  ]
+}

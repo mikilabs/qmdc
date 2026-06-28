@@ -1,0 +1,4 @@
+{
+  "contents": "**Task** `Entity`\n\n🔍 `transcription:domain:Task`\n📁 architecture/domain/readme.qmd.md\n- table: [[#tasks]]\n- contains: [[#File]][]\n- produces: [\"[[#Transcript]]\",\"[[#Summary]]\"]\n- task_statuses: | status | description |\n|--------|-------------|\n| created | Task created |\n| scanning_durations | Detecting durations |\n| pricing | Calculating the price |\n| invoice_sent | Invoice sent |\n| waiting_for_payment | Awaiting payment |\n| paid | Paid |\n| processing_files | Processing files |\n| merging | Merging transcripts |\n| generating_summary | Generating summary |\n| ready | Ready |\n| expired | Source files deleted |\n| error | Error |",
+  "_comment": "Hover on [[#Task]] in deep nested file shows Task entity info"
+}

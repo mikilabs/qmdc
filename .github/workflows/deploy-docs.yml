@@ -1,0 +1,39 @@
+name: Deploy docs
+
+# Build the MkDocs site from the QMDC workspace in `docs/` and deploy it to a
+# Cloudflare Workers assets-only Worker (see wrangler.toml). The build reads only
+# the committed `docs/.qmdc-semantic/hints.json`, so no Git LFS fetch is needed.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - qmdc-mkdocs/**
+      - qmdc-py/**
+      - wrangler.toml
+      - .github/workflows/deploy-docs.yml
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-docs
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Build the documentation site
+        run: make site WS=./docs
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy

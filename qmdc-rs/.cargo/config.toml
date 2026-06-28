@@ -1,0 +1,10 @@
+[build]
+rustflags = ["-D", "warnings"]
+
+# Faster incremental dev builds: share more work across crates
+[profile.dev]
+# Split into more codegen units for faster parallel compilation
+codegen-units = 256
+
+[profile.dev.build-override]
+opt-level = 0

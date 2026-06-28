@@ -1,0 +1,39 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#text_0]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "# Report\n\n```table\nquery: [[#get_tables]]\n```\n\nSome text.\n\n```sql\nSELECT * FROM objects\n```",
+    "__line": 1,
+    "__container": "[[#doc_ry4ljv]]",
+    "__code_fences": [
+      {
+        "lang": "table",
+        "offset_line": 2,
+        "length_lines": 3
+      },
+      {
+        "lang": "sql",
+        "offset_line": 8,
+        "length_lines": 3
+      }
+    ],
+    "__references": [
+      {
+        "target": "#get_tables",
+        "type": "hash_local",
+        "line": 4,
+        "start_col": 7,
+        "end_col": 22,
+        "raw": "[[#get_tables]]"
+      }
+    ]
+  }
+]
+

@@ -1,0 +1,6 @@
+{
+  "input": "SELECT * FROM edges",
+  "workspace": "ws1",
+  "expected": "SELECT * FROM edges WHERE __workspace = 'ws1'"
+}
+

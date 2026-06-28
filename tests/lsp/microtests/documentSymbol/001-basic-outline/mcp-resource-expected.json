@@ -1,0 +1,14 @@
+{
+  "uri": "qmdc://tree",
+  "mimeType": "application/json",
+  "content": {
+    "success": true,
+    "truncated": false,
+    "nodes": [
+      { "id": "users", "global_id": "001-basic-outline::users", "kind": "Table", "label": "Users", "level": 1, "file": "input.qmd.md", "line": 1 },
+      { "id": "users.columns.email_col", "kind": "Column", "label": "email", "file": "input.qmd.md", "line": 16 },
+      { "id": "users.columns.id_col", "kind": "Column", "label": "id", "file": "input.qmd.md", "line": 12 },
+      { "id": "001-basic-outline", "global_id": "::001-basic-outline", "kind": "__Workspace" }
+    ]
+  }
+}

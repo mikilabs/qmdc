@@ -1,0 +1,24 @@
+[
+  {
+    "__id": "f1",
+    "__label": "Finding",
+    "__kind": "Finding",
+    "__comments": [
+      {
+        "after": "severity",
+        "content": "These are related values:"
+      },
+      {
+        "after": "severity",
+        "content": "- category: algorithm\n- extra_info: some detail"
+      }
+    ],
+    "category": "parser",
+    "severity": "high",
+    "__types": {
+      "category": "string",
+      "severity": "string"
+    },
+    "__level": 2
+  }
+]

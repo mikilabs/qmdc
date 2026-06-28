@@ -1,0 +1,123 @@
+# Data-driven search quality tests
+# Each query specifies expected results and minimum metrics
+#
+# Object IDs in mini-workspace:
+#   Services: user_service, order_service, product_service, api_gateway,
+#             auth, user-svc, order-svc, inventory, notify, payment
+#   Tables: users, orders, products, order_items,
+#           tbl_users, tbl_orders, tbl_products
+#   Other: ecommerce (workspace), queries, schema
+
+queries:
+  # Exact match queries - should find specific objects
+  - id: exact_api_service
+    query: "API gateway service"
+    description: "Find API gateway service"
+    expected:
+      must_contain:
+        - api_gateway
+      should_contain:
+        - user_service
+        - order_service
+    metrics:
+      precision_at_3: 0.3
+      mrr: 0.3
+
+  - id: exact_user_service
+    query: "user authentication service"
+    description: "Find user/auth services"
+    expected:
+      should_contain:
+        - user_service
+        - auth
+    metrics:
+      precision_at_5: 0.2
+      mrr: 0.2
+
+  - id: exact_tables
+    query: "users table"
+    description: "Find users table"
+    expected:
+      must_contain:
+        - users
+      should_contain:
+        - tbl_users
+    metrics:
+      precision_at_3: 0.3
+      mrr: 0.3
+
+  - id: exact_orders
+    query: "orders table columns"
+    description: "Find orders table"
+    expected:
+      must_contain:
+        - orders
+      should_contain:
+        - order_items
+    metrics:
+      precision_at_5: 0.2
+
+  # Semantic queries - test understanding
+  - id: semantic_data_storage
+    query: "where is customer data stored"
+    description: "Semantic query about data storage"
+    expected:
+      should_contain:
+        - users
+        - orders
+        - tbl_users
+    metrics:
+      recall_at_10: 0.3
+
+  - id: semantic_architecture
+    query: "system services overview"
+    description: "High-level services query"
+    expected:
+      should_contain:
+        - api_gateway
+        - user_service
+    metrics:
+      recall_at_10: 0.3
+
+  - id: semantic_payment
+    query: "how to process payments"
+    description: "Semantic query about payments"
+    expected:
+      should_contain:
+        - payment
+        - order_service
+    metrics:
+      recall_at_10: 0.3
+
+  # ID-like queries - test FTS boost
+  - id: id_query_auth
+    query: "auth"
+    description: "Short ID-like query"
+    expected:
+      must_contain:
+        - auth
+    metrics:
+      precision_at_1: 1.0
+      mrr: 1.0
+
+  # Edge case queries
+  - id: typo_tolerance
+    query: "servces"  # typo of "services"
+    description: "Minor typo should still surface the services documentation"
+    expected:
+      should_contain:
+        - services
+    metrics:
+      recall_at_10: 0.2
+
+  - id: empty_results_graceful
+    query: "zzzznonexistent12345"
+    description: "Non-matching query should return empty gracefully"
+    expected:
+      must_contain: []
+    metrics: {}
+
+# Global thresholds - all queries must pass
+global_thresholds:
+  min_avg_mrr: 0.3
+  min_avg_precision_at_5: 0.2

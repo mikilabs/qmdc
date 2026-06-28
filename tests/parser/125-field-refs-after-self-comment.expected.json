@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "algos1",
+    "__label": "Algorithms",
+    "__kind": "Section",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Algorithm implementations."
+      }
+    ],
+    "algo_search": "[[#algo_search]]",
+    "algo_index": "[[#algo_index]]",
+    "__types": {
+      "algo_search": "string",
+      "algo_index": "string"
+    },
+    "__level": 2
+  }
+]

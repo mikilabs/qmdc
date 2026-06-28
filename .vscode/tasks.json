@@ -1,0 +1,65 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "cargo: build qmdc",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["build"],
+      "options": {
+        "cwd": "${workspaceFolder}/qmdc-rs"
+      },
+      "problemMatcher": "$rustc",
+      "group": "build"
+    },
+    {
+      "label": "Copy qmdc binary",
+      "type": "shell",
+      "command": "cp",
+      "args": [
+        "${workspaceFolder}/qmdc-rs/target/debug/qmdc",
+        "${workspaceFolder}/qmdc-vscode/bin/qmdc"
+      ],
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false
+      }
+    },
+    {
+      "type": "npm",
+      "script": "compile",
+      "path": "qmdc-vscode",
+      "problemMatcher": "$tsc",
+      "label": "npm: compile - qmdc-vscode",
+      "group": "build"
+    },
+    {
+      "label": "Build All (Rust + Extension)",
+      "dependsOn": [
+        "cargo: build qmdc",
+        "Copy qmdc binary",
+        "npm: compile - qmdc-vscode"
+      ],
+      "dependsOrder": "sequence",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "watch",
+      "path": "qmdc-vscode",
+      "problemMatcher": "$tsc-watch",
+      "isBackground": true,
+      "label": "npm: watch - qmdc-vscode",
+      "group": "build"
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "id": "deep_ws",
+  "label": "Deep Nesting Workspace",
+  "file": "readme.qmd.md",
+  "line": 1,
+  "count": 7,
+  "kindGroups": [
+    {
+      "kind": "Feature",
+      "label": "Feature",
+      "count": 1,
+      "objects": [
+        {
+          "id": "level1",
+          "kind": "Feature",
+          "label": "Level 1",
+          "level": 2,
+          "file": "readme.qmd.md",
+          "line": 9,
+          "children": [
+            {
+              "id": "level1.level2",
+              "kind": "Feature",
+              "label": "Level 2",
+              "level": 3,
+              "file": "readme.qmd.md",
+              "line": 15,
+              "children": [
+                {
+                  "id": "level1.level2.level3",
+                  "kind": "Feature",
+                  "label": "Level 3",
+                  "level": 4,
+                  "file": "readme.qmd.md",
+                  "line": 21,
+                  "children": [
+                    {
+                      "id": "level1.level2.level3.level4",
+                      "kind": "Bug",
+                      "label": "Level 4",
+                      "level": 5,
+                      "file": "readme.qmd.md",
+                      "line": 27,
+                      "children": [],
+                      "workspace": "deep_ws"
+                    }
+                  ],
+                  "workspace": "deep_ws"
+                }
+              ],
+              "workspace": "deep_ws"
+            }
+          ],
+          "workspace": "deep_ws"
+        }
+      ]
+    },
+    {
+      "kind": "Section",
+      "label": "Section",
+      "count": 2,
+      "objects": [
+        {
+          "id": "another_root",
+          "kind": "Section",
+          "label": "Another Root",
+          "level": 2,
+          "file": "readme.qmd.md",
+          "line": 33,
+          "children": [
+            {
+              "id": "another_root.another_l1",
+              "kind": "Feature",
+              "label": "Another Level 1",
+              "level": 3,
+              "file": "readme.qmd.md",
+              "line": 37,
+              "children": [],
+              "workspace": "deep_ws"
+            }
+          ],
+          "workspace": "deep_ws"
+        },
+        {
+          "id": "root_section",
+          "kind": "Section",
+          "label": "Root Section",
+          "level": 2,
+          "file": "readme.qmd.md",
+          "line": 5,
+          "children": [],
+          "workspace": "deep_ws"
+        }
+      ]
+    }
+  ],
+  "namespaces": []
+}

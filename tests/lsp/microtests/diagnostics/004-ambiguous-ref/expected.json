@@ -1,0 +1,14 @@
+{
+  "_comment": "Two objects with same [[users]] ID — LSP detects duplicate. Reference [[users]] (no #) is not parsed as a ref.",
+  "diagnostics": [
+    {
+      "message": "Duplicate ID 'users' (first defined on line 1)",
+      "range": {
+        "start": { "line": 3, "character": 16 },
+        "end": { "line": 3, "character": 25 }
+      },
+      "severity": 1,
+      "code": "QMDC003"
+    }
+  ]
+}

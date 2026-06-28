@@ -1,0 +1,9 @@
+[
+  {
+    "__id": "test1",
+    "__kind": "__ParsingError",
+    "type": "explicit_system_type",
+    "reference": "[[test1: __Object]]",
+    "line": 1
+  }
+]

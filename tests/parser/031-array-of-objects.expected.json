@@ -1,0 +1,42 @@
+[
+  {
+    "__id": "company",
+    "__label": "Company",
+    "__kind": "__Object",
+    "teams": [
+      "[[#company.teams.frontend]]",
+      "[[#company.teams.backend]]"
+    ],
+    "__syntax": {
+      "teams": "headers"
+    },
+    "__level": 2,
+    "__labels": {
+      "teams": "Teams"
+    }
+  },
+  {
+    "__id": "company.teams.frontend",
+    "__local_id": "frontend",
+    "__label": "Frontend",
+    "__kind": "Team",
+    "__parent": "[[#company]]",
+    "__parent_field": "teams",
+    "lead": "Alice",
+    "__types": {
+      "lead": "string"
+    }
+  },
+  {
+    "__id": "company.teams.backend",
+    "__local_id": "backend",
+    "__label": "Backend",
+    "__kind": "Team",
+    "__parent": "[[#company]]",
+    "__parent_field": "teams",
+    "lead": "Bob",
+    "__types": {
+      "lead": "string"
+    }
+  }
+]

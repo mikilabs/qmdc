@@ -1,0 +1,24 @@
+[
+  {
+    "__id": "test",
+    "__label": "Test",
+    "__kind": "Kind",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Some text."
+      },
+      {
+        "after": "__self",
+        "content": "List before fields:\n\n- item 1\n- item 2"
+      }
+    ],
+    "field1": "value1",
+    "field2": "value2",
+    "__types": {
+      "field1": "string",
+      "field2": "string"
+    },
+    "__level": 2
+  }
+]

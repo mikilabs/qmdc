@@ -1,0 +1,28 @@
+[
+  {
+    "__id": "users",
+    "__label": "Users",
+    "__kind": "Table",
+    "name": "users_table",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "orders",
+    "__label": "Orders",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Ref to users: [[#Table.users]]"
+      },
+      {
+        "after": "__self",
+        "content": "Also see [[#users]] and [[#orders]]."
+      }
+    ],
+    "__level": 1
+  }
+]

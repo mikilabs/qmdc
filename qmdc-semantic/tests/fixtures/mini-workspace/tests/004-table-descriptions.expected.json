@@ -1,0 +1,12 @@
+{
+  "columns": ["__id", "description"],
+  "rows": [
+    ["order_items", "Items in orders (many-to-many)"],
+    ["orders", "Customer orders"],
+    ["products", "Product catalog"],
+    ["tbl_orders", "Orders table"],
+    ["tbl_products", "Product catalog"],
+    ["tbl_users", "Users table"],
+    ["users", "Main users table"]
+  ]
+}

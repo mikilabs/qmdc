@@ -1,0 +1,8 @@
+{
+  "uri": "workspace/ns_alpha/objects.qmd.md",
+  "range": {
+    "start": { "line": 2, "character": 0 },
+    "end": { "line": 2, "character": 24 }
+  },
+  "_comment": "Points to ## Users [[users:Table]] in alpha namespace"
+}

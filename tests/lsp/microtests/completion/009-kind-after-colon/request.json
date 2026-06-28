@@ -1,0 +1,5 @@
+{
+  "method": "textDocument/completion",
+  "position": { "line": 6, "character": 19 }
+}
+

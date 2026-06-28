@@ -1,0 +1,6 @@
+{
+  "input": "WITH cte AS (SELECT * FROM objects) SELECT * FROM cte",
+  "workspace": "ws1",
+  "expected": "WITH cte AS (SELECT * FROM objects WHERE __workspace = 'ws1') SELECT * FROM cte"
+}
+

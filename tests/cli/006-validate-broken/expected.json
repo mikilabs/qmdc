@@ -1,0 +1,13 @@
+[
+  {
+    "type": "broken_link",
+    "message": "Object 'nonexistent' not found",
+    "file": "readme.qmd.md",
+    "line": 5,
+    "objectId": "a",
+    "fieldName": null,
+    "reference": "[[#nonexistent]]",
+    "candidates": null,
+    "severity": "error"
+  }
+]

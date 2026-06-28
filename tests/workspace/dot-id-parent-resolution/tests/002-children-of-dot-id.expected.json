@@ -1,0 +1,7 @@
+{
+  "columns": ["__id", "__kind", "__parent"],
+  "rows": [
+    ["my_service.operations.op_refresh", "__Object", "my_service.operations"],
+    ["my_service.operations.op_token", "__Object", "my_service.operations"]
+  ]
+}

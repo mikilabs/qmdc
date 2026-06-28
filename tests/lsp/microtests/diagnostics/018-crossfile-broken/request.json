@@ -1,0 +1,5 @@
+{
+  "method": "textDocument/didOpen",
+  "uri": "workspace/main.qmd.md"
+}
+

@@ -1,0 +1,7 @@
+{
+  "columns": ["__id", "__parent"],
+  "rows": [
+    ["svc.ops", "svc"],
+    ["svc.ops.op1", "svc.ops"]
+  ]
+}

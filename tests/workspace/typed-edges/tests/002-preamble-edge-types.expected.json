@@ -1,0 +1,12 @@
+{
+  "columns": ["source_id", "source_field", "target_id", "edge_type"],
+  "rows": [
+    ["authentication", "auth_desc", "authentication", "about"],
+    ["authorization", "authz_desc", "authentication", "depends"],
+    ["authorization", "authz_desc", "authorization", "about"],
+    ["checkout_flow", "checkout_rationale", "checkout_flow", "about"],
+    ["checkout_flow", "checkout_rationale", "order_svc", "depends"],
+    ["checkout_flow", "checkout_rationale", "payment_svc", "depends"],
+    ["orders_db", "orders_db_overview", "orders_db", "about"]
+  ]
+}

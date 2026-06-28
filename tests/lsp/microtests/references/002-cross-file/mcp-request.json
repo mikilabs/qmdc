@@ -1,0 +1,7 @@
+{
+  "tool": "qmdc_find_references",
+  "arguments": {
+    "id": "users",
+    "path": "{{workspace}}"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "input": "SELECT __id FROM objects WHERE CASE WHEN __kind = 'Feature' THEN 1 ELSE 0 END = 1",
+  "workspace": "ws1",
+  "expected": "SELECT __id FROM objects WHERE CASE WHEN __kind = 'Feature' THEN 1 ELSE 0 END = 1 AND __workspace = 'ws1'",
+  "expected_result": {
+    "columns": ["__id"],
+    "rows": [["task1"]]
+  }
+}
+
+

@@ -1,0 +1,66 @@
+[
+  {
+    "__id": "doc",
+    "__label": "Doc",
+    "__kind": "__Object",
+    "structure": "- [[#ext]] — first mention\n- [[#ext]] — second mention\n\n[[#ext]]\n\nversion: [[#ext]]",
+    "__types": {
+      "structure": "string"
+    },
+    "__syntax": {
+      "structure": "multiline_text"
+    },
+    "__level": 1,
+    "__line": 1,
+    "__references": [
+      {
+        "target": "#ext",
+        "type": "hash_local",
+        "line": 5,
+        "start_col": 2,
+        "end_col": 10,
+        "raw": "[[#ext]]"
+      },
+      {
+        "target": "#ext",
+        "type": "hash_local",
+        "line": 6,
+        "start_col": 2,
+        "end_col": 10,
+        "raw": "[[#ext]]"
+      },
+      {
+        "target": "#ext",
+        "type": "hash_local",
+        "line": 8,
+        "start_col": 0,
+        "end_col": 8,
+        "raw": "[[#ext]]"
+      },
+      {
+        "target": "#ext",
+        "type": "hash_local",
+        "line": 10,
+        "start_col": 9,
+        "end_col": 17,
+        "raw": "[[#ext]]"
+      }
+    ],
+    "__positions": {
+      "structure": {
+        "line": 3,
+        "col": 13
+      }
+    },
+    "__labels": {
+      "structure": "Structure"
+    }
+  },
+  {
+    "__id": "ext",
+    "__label": "Ext",
+    "__kind": "__Object",
+    "__level": 1,
+    "__line": 12
+  }
+]

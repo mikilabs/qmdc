@@ -1,0 +1,129 @@
+[
+  {
+    "name": "Database",
+    "detail": "__Namespace",
+    "kind": 3,
+    "range": {
+      "start": {"line": 0, "character": 0},
+      "end": {"line": 0, "character": 29}
+    },
+    "selectionRange": {
+      "start": {"line": 0, "character": 0},
+      "end": {"line": 0, "character": 29}
+    },
+    "children": [
+      {
+        "name": "Users Table",
+        "detail": "Table",
+        "kind": 23,
+        "range": {
+          "start": {"line": 4, "character": 0},
+          "end": {"line": 4, "character": 30}
+        },
+        "selectionRange": {
+          "start": {"line": 4, "character": 0},
+          "end": {"line": 4, "character": 30}
+        },
+        "children": [
+          {
+            "name": "Columns Section",
+            "detail": "Section",
+            "kind": 5,
+            "range": {
+              "start": {"line": 8, "character": 0},
+              "end": {"line": 8, "character": 36}
+            },
+            "selectionRange": {
+              "start": {"line": 8, "character": 0},
+              "end": {"line": 8, "character": 36}
+            },
+            "children": [
+              {
+                "name": "id Column",
+                "detail": "Column",
+                "kind": 5,
+                "range": {
+                  "start": {"line": 12, "character": 0},
+                  "end": {"line": 12, "character": 32}
+                },
+                "selectionRange": {
+                  "start": {"line": 12, "character": 0},
+                  "end": {"line": 12, "character": 32}
+                }
+              },
+              {
+                "name": "email Column",
+                "detail": "Column",
+                "kind": 5,
+                "range": {
+                  "start": {"line": 17, "character": 0},
+                  "end": {"line": 17, "character": 38}
+                },
+                "selectionRange": {
+                  "start": {"line": 17, "character": 0},
+                  "end": {"line": 17, "character": 38}
+                }
+              }
+            ]
+          },
+          {
+            "name": "Indexes Section",
+            "detail": "Section",
+            "kind": 5,
+            "range": {
+              "start": {"line": 22, "character": 0},
+              "end": {"line": 22, "character": 39}
+            },
+            "selectionRange": {
+              "start": {"line": 22, "character": 0},
+              "end": {"line": 22, "character": 39}
+            },
+            "children": [
+              {
+                "name": "Email Index",
+                "detail": "Index",
+                "kind": 5,
+                "range": {
+                  "start": {"line": 26, "character": 0},
+                  "end": {"line": 26, "character": 36}
+                },
+                "selectionRange": {
+                  "start": {"line": 26, "character": 0},
+                  "end": {"line": 26, "character": 36}
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Products Table",
+        "detail": "Table",
+        "kind": 23,
+        "range": {
+          "start": {"line": 31, "character": 0},
+          "end": {"line": 31, "character": 36}
+        },
+        "selectionRange": {
+          "start": {"line": 31, "character": 0},
+          "end": {"line": 31, "character": 36}
+        },
+        "children": [
+          {
+            "name": "name Column",
+            "detail": "Column",
+            "kind": 5,
+            "range": {
+              "start": {"line": 35, "character": 0},
+              "end": {"line": 35, "character": 35}
+            },
+            "selectionRange": {
+              "start": {"line": 35, "character": 0},
+              "end": {"line": 35, "character": 35}
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,6 @@
+{
+  "columns": ["__id", "__parent"],
+  "rows": [
+    ["my_service.operations", "my_service"]
+  ]
+}

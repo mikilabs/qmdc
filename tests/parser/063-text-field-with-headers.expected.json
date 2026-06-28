@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "doc",
+    "__label": "Doc",
+    "__kind": "__Object",
+    "name": "Example",
+    "content": "### Section One\n\nSome text here.\n\n### Section Two\n\nMore text with **bold** and `code`.\n\n- bullet one\n- bullet two",
+    "__types": {
+      "name": "string",
+      "content": "string"
+    },
+    "__syntax": {
+      "content": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "content": "Content"
+    }
+  }
+]

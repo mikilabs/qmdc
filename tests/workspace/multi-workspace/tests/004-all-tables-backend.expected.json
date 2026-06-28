@@ -1,0 +1,10 @@
+{
+  "columns": ["__id", "__label"],
+  "rows": [
+    ["order_items", "Order Items Table"],
+    ["orders", "Orders Table"],
+    ["products", "Products Table"],
+    ["users", "Users Table"]
+  ]
+}
+

@@ -1,0 +1,53 @@
+{
+  "workspace_id": "root_ws",
+  "files": [
+    "readme.qmd.md",
+    "models.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["root_ws"],
+    "Model": ["User", "Order"]
+  },
+  "errors": [],
+  "nested_workspaces": [
+    {
+      "workspace_id": "child_a",
+      "root": "child_a",
+      "files": [
+        "readme.qmd.md",
+        "services.qmd.md"
+      ],
+      "objects": {
+        "__Workspace": ["child_a"],
+        "Service": ["auth", "api"]
+      },
+      "errors": []
+    },
+    {
+      "workspace_id": "child_b",
+      "root": "child_b",
+      "files": [
+        "readme.qmd.md",
+        "tables.qmd.md"
+      ],
+      "objects": {
+        "__Workspace": ["child_b"],
+        "Table": ["users", "orders"]
+      },
+      "errors": []
+    },
+    {
+      "workspace_id": "grandchild",
+      "root": "child_b/grandchild",
+      "files": [
+        "readme.qmd.md",
+        "configs.qmd.md"
+      ],
+      "objects": {
+        "__Workspace": ["grandchild"],
+        "Config": ["prod", "dev"]
+      },
+      "errors": []
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "workspace_a",
+    "label": "Workspace A",
+    "file": "workspace-a/readme.qmd.md",
+    "line": 1,
+    "count": 1,
+    "kindGroups": [],
+    "namespaces": [
+      {
+        "id": "architecture",
+        "label": "Architecture",
+        "file": "workspace-a/shared-ns/readme.qmd.md",
+        "line": 1,
+        "kindGroups": [
+          {
+            "kind": "Module",
+            "label": "Module",
+            "count": 1,
+            "objects": [
+              {
+                "id": "auth_service",
+                "kind": "Module",
+                "label": "Auth Service",
+                "level": 2,
+                "file": "workspace-a/shared-ns/services.qmd.md",
+                "line": 1,
+                "workspace": "workspace_a",
+                "namespace": "architecture",
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "workspace_b",
+    "label": "Workspace B",
+    "file": "workspace-b/readme.qmd.md",
+    "line": 1,
+    "count": 1,
+    "kindGroups": [],
+    "namespaces": [
+      {
+        "id": "architecture",
+        "label": "Architecture",
+        "file": "workspace-b/shared-ns/readme.qmd.md",
+        "line": 1,
+        "kindGroups": [
+          {
+            "kind": "Module",
+            "label": "Module",
+            "count": 1,
+            "objects": [
+              {
+                "id": "payment_service",
+                "kind": "Module",
+                "label": "Payment Service",
+                "level": 2,
+                "file": "workspace-b/shared-ns/services.qmd.md",
+                "line": 1,
+                "workspace": "workspace_b",
+                "namespace": "architecture",
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

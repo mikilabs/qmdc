@@ -1,0 +1,13 @@
+{
+  "workspace_id": "local_id_ns_field_test",
+  "files": [
+    "docs/readme.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["local_id_ns_field_test"],
+    "__Namespace": ["docs"],
+    "__Object": ["group", "group.cmd_init"]
+  },
+  "errors": []
+}

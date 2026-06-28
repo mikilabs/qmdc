@@ -1,0 +1,4 @@
+{
+  "method": "textDocument/didOpen",
+  "uri": "workspace/mcp/discovery.qmd.md"
+}

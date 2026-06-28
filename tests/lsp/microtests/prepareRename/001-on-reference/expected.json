@@ -1,0 +1,4 @@
+{
+  "range": { "start": {"line": 3, "character": 4}, "end": {"line": 3, "character": 13} },
+  "placeholder": "user"
+}

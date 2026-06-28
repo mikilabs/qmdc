@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "escape_test",
+    "__label": "Escape Test",
+    "__kind": "__Object",
+    "escaped_inline": "`[[#fake_ref]]`",
+    "mixed_text": "See `[[#example]]` for details",
+    "code_syntax": "Use syntax `[[#id]]` to reference",
+    "__types": {
+      "escaped_inline": "string",
+      "mixed_text": "string",
+      "code_syntax": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "real_object",
+    "__label": "Real Object",
+    "__kind": "__Object",
+    "name": "Target",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 1
+  }
+]

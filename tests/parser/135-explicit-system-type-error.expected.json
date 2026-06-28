@@ -1,0 +1,19 @@
+[
+  {
+    "__id": "section1",
+    "__label": "Section",
+    "__kind": "__Object",
+    "name": "test",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "test_doc",
+    "__kind": "__ParsingError",
+    "type": "explicit_system_type",
+    "reference": "[[test_doc: __Document]]",
+    "line": 1
+  }
+]

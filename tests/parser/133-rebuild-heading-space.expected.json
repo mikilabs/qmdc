@@ -1,0 +1,14 @@
+[
+  {
+    "__id": "finding1",
+    "__label": "Root Cause",
+    "__kind": "Finding",
+    "category": "parser",
+    "severity": "high",
+    "__types": {
+      "category": "string",
+      "severity": "string"
+    },
+    "__level": 2
+  }
+]

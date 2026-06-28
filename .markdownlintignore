@@ -1,0 +1,8 @@
+# Folders excluded from markdownlint (gitignore-style; auto-read by markdownlint-cli).
+# Dependencies / build output and test-fixture trees we don't keep lint-clean.
+**/node_modules/**
+**/.venv/**
+qmdc-semantic/tests/fixtures/
+qmdc-vscode/e2e/fixtures/
+qmdc-mkdocs/tests/
+tests
