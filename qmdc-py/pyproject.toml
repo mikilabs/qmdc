@@ -1,6 +1,6 @@
 [project]
 name = "qmdc"
-version = "1.0.3"
+version = "1.0.4"
 description = "QMDC parser — convert QMD.md to a queryable object graph (JSON) and back"
 readme = "README.md"
 requires-python = ">=3.12"

@@ -639,12 +639,16 @@ impl Backend {
     ) -> Option<&'a WorkspaceInfo> {
         let file_path = file_uri.to_file_path().ok()?;
 
-        // Find workspace whose root is a prefix of this file's path
-        // Note: nested workspaces are not allowed, so there should be only one match
-        index
+        // Find workspace whose root is a prefix of this file's path.
+        // Nested workspaces are not allowed, so there is at most one match
+        // (shared prefix-owner rule with the MCP/core resolver, QMD-63).
+        let roots: Vec<std::path::PathBuf> = index
             .by_uri
             .values()
-            .find(|ws| file_path.starts_with(&ws.root_path))
+            .map(|ws| ws.root_path.clone())
+            .collect();
+        let owner = crate::workspace::owner_root(&roots, &file_path)?;
+        index.by_uri.values().find(|ws| ws.root_path == owner)
     }
 
     /// Get the UTF-16 character offset at the end of a line in a document.

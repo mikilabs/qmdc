@@ -16,13 +16,39 @@ type ObjectLocation = (String, String, String, String, u32);
 
 /// Shared `__Workspace` marker check. Detects `[[id: __Workspace]]` in readme
 /// content, allowing optional whitespace after the colon. Single source of truth
-/// for workspace-root detection (avoids divergent inline regexes).
-fn content_has_workspace_marker(content: &str) -> bool {
+/// for workspace-root detection (avoids divergent inline regexes), consistent
+/// with the resolver/indexer (which recognises a bare top-level marker and
+/// otherwise falls back to a virtual workspace).
+pub fn content_has_workspace_marker(content: &str) -> bool {
     use std::sync::OnceLock;
     static WORKSPACE_MARKER_RE: OnceLock<Regex> = OnceLock::new();
     let re =
         WORKSPACE_MARKER_RE.get_or_init(|| Regex::new(r"\[\[[^\]]+:\s*__Workspace\]\]").unwrap());
     re.is_match(content)
+}
+
+/// Does the directory's `readme.qmd.md` declare a `__Workspace`?
+/// The single primitive shared by core/MCP discovery and the LSP per-file lookup.
+pub fn dir_is_workspace_root(dir: &Path) -> bool {
+    let readme = dir.join("readme.qmd.md");
+    if !readme.is_file() {
+        return false;
+    }
+    match fs::read_to_string(&readme) {
+        Ok(content) => content_has_workspace_marker(&content),
+        Err(_) => false,
+    }
+}
+
+/// Return the single workspace root that contains `path` (i.e. whose root is a
+/// prefix of `path`). Nested workspaces are illegal, so there is at most one;
+/// if several somehow match, the deepest (longest) wins for safety.
+pub fn owner_root(roots: &[PathBuf], path: &Path) -> Option<PathBuf> {
+    roots
+        .iter()
+        .filter(|r| path.starts_with(r))
+        .max_by_key(|r| r.as_os_str().len())
+        .cloned()
 }
 
 /// Check if position is inside backticks (inline code).
@@ -121,6 +147,8 @@ pub fn find_nested_workspace_roots(root_path: &Path) -> Vec<PathBuf> {
         }
     }
 
+    // Deterministic, shortest-first (an ancestor sorts before its descendants).
+    roots.sort_by_key(|p| p.as_os_str().len());
     roots
 }
 

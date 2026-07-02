@@ -1,6 +1,6 @@
 {
   "name": "@qmdc/qmdc",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "QMDC parser — convert QMD.md to a queryable object graph (JSON) and back",
   "license": "AGPL-3.0-or-later",
   "author": "mikilabs",

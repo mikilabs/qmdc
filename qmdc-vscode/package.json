@@ -2,7 +2,7 @@
   "name": "qmdc-vscode",
   "displayName": "QMDC — QMD.md Language Support",
   "description": "QMDC language support for QMD.md files: LSP-powered IntelliSense, live preview, and SQL queries over your Markdown.",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "publisher": "mikilabs",
   "icon": "icons/qmdc-marketplace.png",
   "license": "AGPL-3.0-or-later",

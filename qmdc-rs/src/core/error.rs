@@ -26,6 +26,8 @@ pub enum ErrorCode {
     NoPath,
     /// Per-call reparse exceeds the NFR-2 bound.
     ReparseBoundExceeded,
+    /// A path resolves to more than one candidate workspace; the caller must pick one (QMD-63).
+    Ambiguous,
     /// Any other failure, surfaced as data rather than a crash.
     InternalError,
 }
@@ -41,6 +43,7 @@ impl ErrorCode {
             Self::NotFound => "not-found",
             Self::NoPath => "no-path",
             Self::ReparseBoundExceeded => "reparse-bound-exceeded",
+            Self::Ambiguous => "ambiguous",
             Self::InternalError => "internal-error",
         }
     }
@@ -58,6 +61,25 @@ impl ErrorEnvelope {
             "error": {
                 "code": code.as_str(),
                 "message": message.into()
+            }
+        })
+    }
+
+    /// Construct an error envelope that also carries a list of candidate paths.
+    ///
+    /// Used by ambiguous workspace resolution (QMD-63): the caller re-invokes the
+    /// tool with one of the `candidates` as `path`.
+    pub fn error_with_candidates(
+        code: ErrorCode,
+        message: impl Into<String>,
+        candidates: Vec<String>,
+    ) -> Value {
+        json!({
+            "success": false,
+            "error": {
+                "code": code.as_str(),
+                "message": message.into(),
+                "candidates": candidates
             }
         })
     }
@@ -95,6 +117,7 @@ mod tests {
             (ErrorCode::NotFound, "not-found"),
             (ErrorCode::NoPath, "no-path"),
             (ErrorCode::ReparseBoundExceeded, "reparse-bound-exceeded"),
+            (ErrorCode::Ambiguous, "ambiguous"),
             (ErrorCode::InternalError, "internal-error"),
         ];
 
@@ -139,6 +162,7 @@ mod tests {
             ErrorCode::ReparseBoundExceeded.as_str(),
             "reparse-bound-exceeded"
         );
+        assert_eq!(ErrorCode::Ambiguous.as_str(), "ambiguous");
         assert_eq!(ErrorCode::InternalError.as_str(), "internal-error");
     }
 }

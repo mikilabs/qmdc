@@ -1,0 +1,8 @@
+{
+  "success": false,
+  "error": {
+    "code": "ambiguous",
+    "message": "__any__",
+    "candidates": "__array_nonempty__"
+  }
+}
