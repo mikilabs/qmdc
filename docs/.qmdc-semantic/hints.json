@@ -86,18 +86,18 @@
       "id": "semantic_commands.cmd_sem_index"
     },
     {
-      "label": "MCP Server",
-      "kind": "Namespace",
-      "file": "mcp/readme.qmd.md",
-      "score": 0.77,
-      "id": "mcp"
-    },
-    {
       "label": "Workspace",
       "kind": "SyntaxConcept",
       "file": "format/workspaces.qmd.md",
       "score": 0.744,
       "id": "workspace"
+    },
+    {
+      "label": "MCP Server",
+      "kind": "Namespace",
+      "file": "mcp/readme.qmd.md",
+      "score": 0.732,
+      "id": "mcp"
     }
   ],
   "docs:architecture:sqlite_mapping": [
@@ -4340,11 +4340,11 @@
       "id": "mcp"
     },
     {
-      "label": "Content Generator",
-      "kind": "ContentGenerator",
-      "file": "guides/query-graph.qmd.md",
-      "score": 0.712,
-      "id": "guide_query.guide_query_gen"
+      "label": "Quickstart",
+      "kind": "Tutorial",
+      "file": "tutorials/quickstart.qmd.md",
+      "score": 0.714,
+      "id": "quickstart"
     }
   ],
   "field:why_qmdc_gen_prompt@learn/why-qmdc.qmd.md": [
@@ -4421,7 +4421,7 @@
       "label": "VS Code Extension",
       "kind": "Namespace",
       "file": "extension/readme.qmd.md",
-      "score": 0.821,
+      "score": 0.826,
       "id": "extension"
     },
     {
@@ -5345,11 +5345,11 @@
       "id": "human_machine_readable"
     },
     {
-      "label": "Learn",
-      "kind": "Namespace",
-      "file": "learn/readme.qmd.md",
-      "score": 0.82,
-      "id": "learn"
+      "label": "Quickstart",
+      "kind": "Tutorial",
+      "file": "tutorials/quickstart.qmd.md",
+      "score": 0.821,
+      "id": "quickstart"
     }
   ],
   "field:syntax@lsp/commands.qmd.md": [
@@ -5778,7 +5778,7 @@
       "label": "Quickstart",
       "kind": "Tutorial",
       "file": "tutorials/quickstart.qmd.md",
-      "score": 0.749,
+      "score": 0.744,
       "id": "quickstart"
     },
     {
@@ -5847,7 +5847,7 @@
       "label": "Quickstart",
       "kind": "Tutorial",
       "file": "tutorials/quickstart.qmd.md",
-      "score": 0.697,
+      "score": 0.707,
       "id": "quickstart"
     },
     {
@@ -5874,11 +5874,11 @@
       "id": "ext_cmd_parse"
     },
     {
-      "label": "Overview",
-      "kind": "NarrativeDoc",
-      "file": "ssg/readme.qmd.md",
-      "score": 0.74,
-      "id": "ssg_overview"
+      "label": "Quickstart",
+      "kind": "Tutorial",
+      "file": "tutorials/quickstart.qmd.md",
+      "score": 0.741,
+      "id": "quickstart"
     }
   ],
   "docs:parsers:rust_parser": [
@@ -5902,7 +5902,7 @@
       "label": "Quickstart",
       "kind": "Tutorial",
       "file": "tutorials/quickstart.qmd.md",
-      "score": 0.696,
+      "score": 0.683,
       "id": "quickstart"
     },
     {
@@ -6071,18 +6071,18 @@
       "id": "semantic"
     },
     {
-      "label": "MCP Server",
-      "kind": "Namespace",
-      "file": "mcp/readme.qmd.md",
-      "score": 0.784,
-      "id": "mcp"
-    },
-    {
       "label": "Workspace Indexing",
       "kind": "Algorithm",
       "file": "architecture/algorithms.qmd.md",
       "score": 0.782,
       "id": "workspace_indexing"
+    },
+    {
+      "label": "CLI",
+      "kind": "CLI",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.752,
+      "id": "qmdc_guide.cli"
     }
   ],
   "field:examples@semantic/commands.qmd.md": [
@@ -6186,18 +6186,18 @@
       "id": "python_parser"
     },
     {
+      "label": "Quickstart",
+      "kind": "Tutorial",
+      "file": "tutorials/quickstart.qmd.md",
+      "score": 0.748,
+      "id": "quickstart"
+    },
+    {
       "label": "TypeScript Parser",
       "kind": "Parser",
       "file": "parsers/typescript-parser.qmd.md",
       "score": 0.743,
       "id": "typescript_parser"
-    },
-    {
-      "label": "Query Your Markdown Graph",
-      "kind": "HowTo",
-      "file": "guides/query-graph.qmd.md",
-      "score": 0.743,
-      "id": "guide_query"
     }
   ],
   "field:ssg_features@ssg/readme.qmd.md": [
@@ -6563,11 +6563,11 @@
       "id": "why_qmdc"
     },
     {
-      "label": "Quickstart",
-      "kind": "Tutorial",
-      "file": "tutorials/quickstart.qmd.md",
-      "score": 0.77,
-      "id": "quickstart"
+      "label": "Validate a Document",
+      "kind": "HowTo",
+      "file": "guides/validate-document.qmd.md",
+      "score": 0.768,
+      "id": "guide_validate"
     }
   ],
   "field:expected_output@guides/small-workspace.qmd.md": [
@@ -6589,7 +6589,7 @@
       "label": "Quickstart",
       "kind": "Tutorial",
       "file": "tutorials/quickstart.qmd.md",
-      "score": 0.763,
+      "score": 0.753,
       "id": "quickstart"
     }
   ],
@@ -6901,18 +6901,18 @@
       "id": "qmdc_guide.syntax"
     },
     {
+      "label": "Quickstart",
+      "kind": "Tutorial",
+      "file": "tutorials/quickstart.qmd.md",
+      "score": 0.736,
+      "id": "quickstart"
+    },
+    {
       "label": "Parsing Algorithm",
       "kind": "Algorithm",
       "file": "architecture/algorithms.qmd.md",
       "score": 0.71,
       "id": "parsing_algorithm"
-    },
-    {
-      "label": "Content Generator",
-      "kind": "ContentGenerator",
-      "file": "tutorials/first-file.qmd.md",
-      "score": 0.709,
-      "id": "guide_first_file.guide_first_file_gen"
     }
   ],
   "field:the_resulting_graph@learn/markdown-to-graph.qmd.md": [
@@ -6977,11 +6977,11 @@
       "id": "qmdc_guide.metamodel"
     },
     {
-      "label": "Quickstart",
-      "kind": "Tutorial",
-      "file": "tutorials/quickstart.qmd.md",
-      "score": 0.777,
-      "id": "quickstart"
+      "label": "Workspace",
+      "kind": "Workspace",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.775,
+      "id": "qmdc_guide.workspace"
     }
   ],
   "field:goal@learn/qmd-md-vs-quarto.qmd.md": [
@@ -7239,11 +7239,11 @@
       "id": "markdown_to_graph.markdown_to_graph_gen"
     },
     {
-      "label": "QMDC for Agents",
-      "kind": "Explanation",
-      "file": "learn/qmdc-for-agents.qmd.md",
-      "score": 0.834,
-      "id": "qmdc_for_agents"
+      "label": "Quickstart",
+      "kind": "Tutorial",
+      "file": "tutorials/quickstart.qmd.md",
+      "score": 0.84,
+      "id": "quickstart"
     }
   ],
   "field:how_it_compares@learn/why-qmdc.qmd.md": [
@@ -7637,7 +7637,7 @@
       "label": "Content Generator",
       "kind": "ContentGenerator",
       "file": "tutorials/quickstart.qmd.md",
-      "score": 0.792,
+      "score": 0.768,
       "id": "quickstart.quickstart_gen"
     },
     {
@@ -7653,7 +7653,7 @@
       "label": "Quickstart",
       "kind": "Tutorial",
       "file": "tutorials/quickstart.qmd.md",
-      "score": 0.867,
+      "score": 0.855,
       "id": "quickstart"
     },
     {
@@ -7910,18 +7910,18 @@
       "id": "qmdc_guide.workspace"
     },
     {
-      "label": "Quickstart",
-      "kind": "Tutorial",
-      "file": "tutorials/quickstart.qmd.md",
-      "score": 0.782,
-      "id": "quickstart"
-    },
-    {
       "label": "Guides",
       "kind": "Namespace",
       "file": "guides/readme.qmd.md",
       "score": 0.777,
       "id": "guides"
+    },
+    {
+      "label": "Quickstart",
+      "kind": "Tutorial",
+      "file": "tutorials/quickstart.qmd.md",
+      "score": 0.776,
+      "id": "quickstart"
     }
   ],
   "field:get_user_get_user_endpoint@guides/small-workspace.qmd.md": [
@@ -8209,18 +8209,18 @@
       "id": "why_qmdc"
     },
     {
+      "label": "Quickstart",
+      "kind": "Tutorial",
+      "file": "tutorials/quickstart.qmd.md",
+      "score": 0.868,
+      "id": "quickstart"
+    },
+    {
       "label": "Content Generator",
       "kind": "ContentGenerator",
       "file": "learn/markdown-to-graph.qmd.md",
       "score": 0.857,
       "id": "markdown_to_graph.markdown_to_graph_gen"
-    },
-    {
-      "label": "Syntax",
-      "kind": "Syntax",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.848,
-      "id": "qmdc_guide.syntax"
     }
   ],
   "docs:learn:human_machine_readable": [
@@ -8271,6 +8271,13 @@
   ],
   "field:preamble@learn/markdown-to-graph.qmd.md": [
     {
+      "label": "Quickstart",
+      "kind": "Tutorial",
+      "file": "tutorials/quickstart.qmd.md",
+      "score": 0.824,
+      "id": "quickstart"
+    },
+    {
       "label": "QMDC for Agents",
       "kind": "Explanation",
       "file": "learn/qmdc-for-agents.qmd.md",
@@ -8283,13 +8290,6 @@
       "file": "guides/qmdc-guide.qmd.md",
       "score": 0.81,
       "id": "qmdc_guide.syntax"
-    },
-    {
-      "label": "Quickstart",
-      "kind": "Tutorial",
-      "file": "tutorials/quickstart.qmd.md",
-      "score": 0.809,
-      "id": "quickstart"
     }
   ],
   "docs:learn:markdown_to_graph": [
@@ -8340,6 +8340,13 @@
   ],
   "field:the_problem_agents_need_structured_conte@learn/qmdc-for-agents.qmd.md": [
     {
+      "label": "Quickstart",
+      "kind": "Tutorial",
+      "file": "tutorials/quickstart.qmd.md",
+      "score": 0.736,
+      "id": "quickstart"
+    },
+    {
       "label": "Why QMDC",
       "kind": "Explanation",
       "file": "learn/why-qmdc.qmd.md",
@@ -8352,13 +8359,6 @@
       "file": "learn/readme.qmd.md",
       "score": 0.712,
       "id": "learn"
-    },
-    {
-      "label": "Content Generator",
-      "kind": "ContentGenerator",
-      "file": "learn/why-qmdc.qmd.md",
-      "score": 0.694,
-      "id": "why_qmdc.why_qmdc_gen"
     }
   ],
   "field:beyond_sql_other_access_patterns@learn/qmdc-for-agents.qmd.md": [
@@ -8518,7 +8518,7 @@
       "label": "Quickstart",
       "kind": "Tutorial",
       "file": "tutorials/quickstart.qmd.md",
-      "score": 0.786,
+      "score": 0.789,
       "id": "quickstart"
     }
   ],
@@ -8825,11 +8825,11 @@
       "id": "field"
     },
     {
-      "label": "Human Text, Machine Structure",
-      "kind": "Explanation",
-      "file": "learn/human-machine-readable.qmd.md",
-      "score": 0.676,
-      "id": "human_machine_readable"
+      "label": "Quickstart",
+      "kind": "Tutorial",
+      "file": "tutorials/quickstart.qmd.md",
+      "score": 0.678,
+      "id": "quickstart"
     }
   ],
   "field:auto_detection@guides/qmdc-guide.qmd.md": [
@@ -10118,24 +10118,24 @@
   ],
   "field:content@tutorials/quickstart.qmd.md": [
     {
-      "label": "Content Generator",
-      "kind": "ContentGenerator",
-      "file": "tutorials/first-file.qmd.md",
-      "score": 0.867,
-      "id": "guide_first_file.guide_first_file_gen"
-    },
-    {
       "label": "Human Text, Machine Structure",
       "kind": "Explanation",
       "file": "learn/human-machine-readable.qmd.md",
-      "score": 0.844,
+      "score": 0.868,
       "id": "human_machine_readable"
+    },
+    {
+      "label": "Content Generator",
+      "kind": "ContentGenerator",
+      "file": "tutorials/first-file.qmd.md",
+      "score": 0.855,
+      "id": "guide_first_file.guide_first_file_gen"
     },
     {
       "label": "Why QMDC",
       "kind": "Explanation",
       "file": "learn/why-qmdc.qmd.md",
-      "score": 0.827,
+      "score": 0.84,
       "id": "why_qmdc"
     }
   ],
@@ -10144,22 +10144,22 @@
       "label": "Guides",
       "kind": "Namespace",
       "file": "guides/readme.qmd.md",
-      "score": 0.799,
+      "score": 0.786,
       "id": "guides"
+    },
+    {
+      "label": "Learn",
+      "kind": "Namespace",
+      "file": "learn/readme.qmd.md",
+      "score": 0.783,
+      "id": "learn"
     },
     {
       "label": "Content Generator",
       "kind": "ContentGenerator",
-      "file": "tutorials/first-file.qmd.md",
-      "score": 0.797,
-      "id": "guide_first_file.guide_first_file_gen"
-    },
-    {
-      "label": "Write Your First QMD.md File",
-      "kind": "Tutorial",
-      "file": "tutorials/first-file.qmd.md",
-      "score": 0.792,
-      "id": "guide_first_file"
+      "file": "learn/markdown-to-graph.qmd.md",
+      "score": 0.779,
+      "id": "markdown_to_graph.markdown_to_graph_gen"
     }
   ],
   "field:alice_alice@tutorials/first-file.qmd.md": [

@@ -1,6 +1,6 @@
 [package]
 name = "qmdc"
-version = "1.0.4"
+version = "1.0.5"
 edition = "2021"
 description = "QMDC parser, LSP server, and MCP server — convert QMD.md to a queryable object graph"
 license = "AGPL-3.0-or-later"

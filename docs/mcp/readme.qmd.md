@@ -11,7 +11,9 @@ The surface is **14 tools** (`tools/call`) plus **4 resources** (`resources/read
 
 ## Workspace Anchoring [[mcp_path_anchor: text]]
 
-Every index-backed tool takes a `path` argument: any file or directory inside the target QMDC workspace. The server walks upward from `path` to find the nearest enclosing workspace root (a `readme.qmd.md` declaring `__Workspace`/`__Namespace`), then indexes that whole workspace. The operation covers the entire workspace, not just the file at `path`.
+Every index-backed tool takes a `path` argument: any file or directory inside — or containing — the target QMDC workspace. The server resolves the workspace root **down first, then up**: if `path` itself is a workspace it is used; otherwise the server scans **downward** for a workspace root (a `readme.qmd.md` declaring `__Workspace`), and only if none is found does it walk **upward** to the nearest enclosing one. It then indexes that whole workspace — the operation covers the entire workspace, not just the file at `path`.
+
+The downward scan is bounded to **5 directory levels** (a fixed, non-configurable default) and honours `.qmdcignore`, so pointing a tool at a large repository root stays cheap. If the scan finds **more than one** workspace below `path`, the tool returns an `ambiguous` error listing the candidate roots (and the depth searched); re-call with one of them as `path`. A marker deeper than 5 levels is not discovered by the downward scan — point `path` closer to it.
 
 ## Tool Naming [[mcp_tool_naming: text]]
 

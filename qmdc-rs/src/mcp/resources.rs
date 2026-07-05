@@ -14,7 +14,7 @@ use rmcp::model::{AnnotateAble, RawResource, ReadResourceResult, Resource, Resou
 
 use crate::core::error::{ErrorCode, ErrorEnvelope};
 use crate::core::guide::GUIDE_CONTENT;
-use crate::core::index_seam::{enforce_force_root, get_index, resolve_root};
+use crate::core::index_seam::{enforce_force_root, get_index, resolve_root_bidirectional};
 use crate::core::ops::{describe, tree, validate};
 
 /// Build the static resource catalogue for `resources/list`.
@@ -154,7 +154,7 @@ where
     if let Err(e) = enforce_force_root(p) {
         return error_json(uri, &e);
     }
-    let root = match resolve_root(p) {
+    let root = match resolve_root_bidirectional(p) {
         Ok(r) => r,
         Err(e) => return error_json(uri, &e),
     };

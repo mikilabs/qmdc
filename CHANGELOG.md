@@ -3,37 +3,18 @@
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Each package (`qmdc`, `qmdc-semantic`, `qmdc-mkdocs`, `qmdc-vscode`) is versioned
-independently following [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The whole system is released under a single version following
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html); a release ships all
+packages (`qmdc`, `qmdc-semantic`, `qmdc-mkdocs`, `qmdc-vscode`) together. This
+file is maintained by hand.
 
-This file is maintained by hand; entries are collected under `## [Unreleased]`
-and curated into a versioned section at release time.
+## [1.0.1] - 2026-07-02
 
-## [Unreleased]
-
-_Nothing yet._
+- MCP workspace resolution searches down then up, so any path (a repo or container dir) resolves the workspace inside it and a container with several workspaces returns an `ambiguous` error with candidates — bundled-binary bump shipping in [qmdc (PyPI)](https://pypi.org/project/qmdc/), [qmdc (crates.io)](https://crates.io/crates/qmdc), [@qmdc/qmdc (npm)](https://www.npmjs.com/package/@qmdc/qmdc), and [qmdc-vscode](https://marketplace.visualstudio.com/items?itemName=MiKiLabs.qmdc-vscode).
 
 ## [1.0.0] - 2026-06-13
 
-Initial public release of the QMD.md format and the QMDC toolchain.
+Initial release.
 
-### Added
-
-- **QMD.md format** — Markdown convention for structured data: headings as objects,
-  list items as fields, `[[#references]]` as typed edges, stored in `.qmd.md` files.
-- **Three parser implementations** at byte-for-byte parity, sharing one conformance
-  test corpus:
-  - `qmdc-py` — Python reference implementation (workspace + SQL).
-  - `qmdc-rs` — high-performance Rust implementation with LSP and MCP servers.
-  - `qmdc-ts` — TypeScript implementation for Node.js and the browser.
-- **`qmdc` CLI** — `parse`, `rebuild`, `workspace parse`/`validate`, and SQL `query`,
-  published to PyPI, npm, and crates.io with a bundled native binary.
-- **`qmdc-semantic`** — semantic search over a QMDC workspace (hybrid search, graph
-  walk, inferred edges).
-- **`qmdc-mkdocs`** — MkDocs integration to build a documentation site from a QMDC
-  workspace.
-- **`qmdc-vscode`** — VS Code extension with LSP-powered diagnostics, completion,
-  navigation, and refactoring.
-- Documentation site at <https://qmdc.mikilabs.io/>.
-
+[1.0.1]: https://github.com/mikilabs/qmdc/releases/tag/v1.0.1
 [1.0.0]: https://github.com/mikilabs/qmdc/releases/tag/v1.0.0

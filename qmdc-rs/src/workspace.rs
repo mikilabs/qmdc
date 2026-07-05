@@ -16,13 +16,28 @@ type ObjectLocation = (String, String, String, String, u32);
 
 /// Shared `__Workspace` marker check. Detects `[[id: __Workspace]]` in readme
 /// content, allowing optional whitespace after the colon. Single source of truth
-/// for workspace-root detection (avoids divergent inline regexes).
+/// for workspace-root detection (avoids divergent inline regexes), consistent
+/// with the resolver/indexer (which recognises a bare top-level marker and
+/// otherwise falls back to a virtual workspace).
 fn content_has_workspace_marker(content: &str) -> bool {
     use std::sync::OnceLock;
     static WORKSPACE_MARKER_RE: OnceLock<Regex> = OnceLock::new();
     let re =
         WORKSPACE_MARKER_RE.get_or_init(|| Regex::new(r"\[\[[^\]]+:\s*__Workspace\]\]").unwrap());
     re.is_match(content)
+}
+
+/// Does the directory's `readme.qmd.md` declare a `__Workspace`?
+/// Used by the core/MCP resolver (`resolve_root_bidirectional`) for its self-check.
+pub fn dir_is_workspace_root(dir: &Path) -> bool {
+    let readme = dir.join("readme.qmd.md");
+    if !readme.is_file() {
+        return false;
+    }
+    match fs::read_to_string(&readme) {
+        Ok(content) => content_has_workspace_marker(&content),
+        Err(_) => false,
+    }
 }
 
 /// Check if position is inside backticks (inline code).
@@ -80,23 +95,46 @@ pub struct WorkspaceResult {
     pub errors: Vec<WorkspaceError>,
 }
 
-/// Find all nested workspace roots within a directory.
+/// Maximum directory depth for downward workspace discovery.
+///
+/// A fixed, non-configurable default (QMD-63): the MCP resolver's downward scan
+/// (`find_nested_workspace_roots_bounded`) is capped at this depth so pointing a tool
+/// at a large checkout (build artifacts, vendored deps) can't turn a single call into
+/// a full-tree crawl. Workspaces normally live near the top; a marker deeper than this
+/// is not discovered by the MCP downward scan. Documented in `docs/mcp/readme.qmd.md`.
+pub const WORKSPACE_SCAN_MAX_DEPTH: usize = 5;
+
+/// Find all nested workspace roots within a directory (unbounded depth).
 /// Returns paths to directories containing [[id:__Workspace]] in readme.qmd.md.
-/// Respects .qmdcignore patterns.
+///
+/// Used by `parse_workspace`/`scan_workspace` for nested-workspace detection and
+/// exclusion, which must see nesting at *any* depth — so this variant is not
+/// depth-capped. It is still `.qmdcignore`-pruned via `filter_entry` (descent into
+/// ignored directories is skipped, not merely filtered from results).
 pub fn find_nested_workspace_roots(root_path: &Path) -> Vec<PathBuf> {
+    find_nested_workspace_roots_bounded(root_path, usize::MAX)
+}
+
+/// Depth-bounded variant of [`find_nested_workspace_roots`]. The crawl is capped at
+/// `max_depth` directory levels. Used by the MCP resolver (with
+/// [`WORKSPACE_SCAN_MAX_DEPTH`]) so pointing a tool at a large checkout can't turn a
+/// single call into a full-tree crawl; the unbounded wrapper is used where complete
+/// nested-workspace detection is required.
+pub fn find_nested_workspace_roots_bounded(root_path: &Path, max_depth: usize) -> Vec<PathBuf> {
     let ignore_set = load_qmdcignore(root_path);
     let mut roots = Vec::new();
 
-    for entry in WalkDir::new(root_path).into_iter().filter_map(|e| e.ok()) {
+    // `filter_entry` prunes descent into ignored dirs; `max_depth` caps the crawl.
+    let walker = WalkDir::new(root_path)
+        .max_depth(max_depth)
+        .into_iter()
+        .filter_entry(|e| !is_ignored(e.path(), root_path, &ignore_set));
+
+    for entry in walker.filter_map(|e| e.ok()) {
         let path = entry.path();
 
         // Skip root directory
         if path == root_path {
-            continue;
-        }
-
-        // Check .qmdcignore before processing
-        if is_ignored(path, root_path, &ignore_set) {
             continue;
         }
 
@@ -121,6 +159,15 @@ pub fn find_nested_workspace_roots(root_path: &Path) -> Vec<PathBuf> {
         }
     }
 
+    // Deterministic: shortest first (an ancestor sorts before its descendants),
+    // with a lexicographic tie-break so equal-length siblings have a stable order
+    // across filesystems/OSes (keeps the MCP `ambiguous` candidate list stable).
+    roots.sort_by(|a, b| {
+        a.as_os_str()
+            .len()
+            .cmp(&b.as_os_str().len())
+            .then_with(|| a.cmp(b))
+    });
     roots
 }
 

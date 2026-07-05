@@ -1,7 +1,9 @@
 //! Index seam — workspace root resolution and index materialisation.
 //!
-//! Provides two entry points:
+//! Provides three entry points:
 //! - [`resolve_root`]: bounded upward walk to find the nearest enclosing QMDC workspace root.
+//! - [`resolve_root_bidirectional`]: down-first (then up) single-root resolver used by the MCP
+//!   server (QMD-63); returns `ambiguous` when a container holds several workspaces.
 //! - [`get_index`]: reparse + DB sync to produce a [`ResolvedIndex`].
 //!
 //! Invariants enforced:
@@ -19,7 +21,10 @@ use serde_json::Value;
 
 use crate::db::QmdcDatabase;
 use crate::parser::OutputFormat;
-use crate::workspace::parse_all_workspaces;
+use crate::workspace::{
+    dir_is_workspace_root, find_nested_workspace_roots_bounded, find_workspace_root,
+    parse_all_workspaces, WORKSPACE_SCAN_MAX_DEPTH,
+};
 
 use super::error::{ErrorCode, ErrorEnvelope};
 use super::log::{core_log, EventCategory, Severity};
@@ -173,6 +178,123 @@ pub fn resolve_root(path: &Path) -> Result<PathBuf, Value> {
             }
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// resolve_root_bidirectional — down-first, then up (QMD-63)
+// ---------------------------------------------------------------------------
+
+/// Resolve a single workspace root for an MCP `path`, searching **down first,
+/// then up** (QMD-63). Reuses the workspace-discovery primitives
+/// (`dir_is_workspace_root`, `find_nested_workspace_roots_bounded`,
+/// `find_workspace_root`) that the CLI resolver (`resolve_workspace`) also builds
+/// on — no MCP-specific discovery logic.
+///
+/// 1. If `path` (or its parent, when a file) is itself a workspace root → it.
+/// 2. Else discover `__Workspace` roots below it:
+///    - exactly one → that root,
+///    - more than one → [`ErrorCode::Ambiguous`] carrying the candidate paths
+///      (in a valid layout these are disjoint siblings, since nesting is illegal).
+/// 3. Else walk upward to the enclosing workspace (`find_workspace_root`,
+///    `__Workspace`-only, matching the QMD-59 walk-up contract). Note this walk
+///    intentionally does NOT stop at a `.git` boundary — removing that false
+///    boundary is the point of QMD-63; when a `force_root` is set the MCP caller
+///    still bounds the result via `enforce_force_root`.
+/// 4. Else [`ErrorCode::NotResolved`].
+pub fn resolve_root_bidirectional(path: &Path) -> Result<PathBuf, Value> {
+    let start = if path.is_file() {
+        path.parent().unwrap_or(path)
+    } else {
+        path
+    };
+
+    let start = start.canonicalize().map_err(|e| {
+        core_log(
+            EventCategory::Resolution,
+            Severity::Warning,
+            &format!("cannot canonicalize '{}': {}", path.display(), e),
+        );
+        ErrorEnvelope::error(
+            ErrorCode::NotResolved,
+            format!(
+                "path does not exist or is not accessible: {}",
+                path.display()
+            ),
+        )
+    })?;
+
+    // 1. The path itself is a workspace root.
+    if dir_is_workspace_root(&start) {
+        core_log(
+            EventCategory::Resolution,
+            Severity::Info,
+            &format!("resolved root (self): '{}'", start.display()),
+        );
+        return Ok(start);
+    }
+
+    // 2. Down: workspaces below `start` (bounded to WORKSPACE_SCAN_MAX_DEPTH levels).
+    let below = find_nested_workspace_roots_bounded(&start, WORKSPACE_SCAN_MAX_DEPTH);
+    // Keep only top-level roots. Nested workspaces are illegal; if any slipped in,
+    // treat the outermost as the workspace so candidates stay disjoint siblings.
+    // `below` is sorted shortest-first, so a prefix check against kept roots works.
+    let mut top: Vec<PathBuf> = Vec::new();
+    for r in below {
+        if !top.iter().any(|kept| r.starts_with(kept)) {
+            top.push(r);
+        }
+    }
+    match top.len() {
+        1 => {
+            let root = top.into_iter().next().unwrap();
+            core_log(
+                EventCategory::Resolution,
+                Severity::Info,
+                &format!("resolved root (down): '{}'", root.display()),
+            );
+            return Ok(root);
+        }
+        n if n > 1 => {
+            let candidates: Vec<String> = top.iter().map(|p| p.display().to_string()).collect();
+            core_log(
+                EventCategory::Resolution,
+                Severity::Info,
+                &format!("ambiguous: {} workspaces under '{}'", n, start.display()),
+            );
+            return Err(ErrorEnvelope::error_with_candidates(
+                ErrorCode::Ambiguous,
+                format!(
+                    "path '{}' contains {} workspaces (searched {} levels down); \
+                     re-call with one of `candidates` as `path`",
+                    start.display(),
+                    n,
+                    WORKSPACE_SCAN_MAX_DEPTH
+                ),
+                candidates,
+            ));
+        }
+        _ => {}
+    }
+
+    // 3. Up: nearest enclosing workspace (skips namespaces, QMD-59 contract).
+    if let Some(root) = find_workspace_root(&start) {
+        core_log(
+            EventCategory::Resolution,
+            Severity::Info,
+            &format!("resolved root (up): '{}'", root.display()),
+        );
+        return Ok(root);
+    }
+
+    // 4. Nothing at, below, or above.
+    Err(ErrorEnvelope::error(
+        ErrorCode::NotResolved,
+        format!(
+            "no workspace found at '{}', within {} levels below it, or in any ancestor",
+            path.display(),
+            WORKSPACE_SCAN_MAX_DEPTH
+        ),
+    ))
 }
 
 // ---------------------------------------------------------------------------

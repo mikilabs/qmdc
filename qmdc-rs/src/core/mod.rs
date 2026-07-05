@@ -32,8 +32,8 @@ pub use log::{core_log, EventCategory, Severity};
 
 // Re-exports: index seam (Layer 2)
 pub use index_seam::{
-    assert_within_root, enforce_force_root, force_root, get_index, resolve_root, set_force_root,
-    REPARSE_FILE_BOUND,
+    assert_within_root, enforce_force_root, force_root, get_index, resolve_root,
+    resolve_root_bidirectional, set_force_root, REPARSE_FILE_BOUND,
 };
 pub use resolved_index::ResolvedIndex;
 
