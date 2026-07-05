@@ -38,12 +38,13 @@ jobs:
         with:
           lfs: true
       - uses: dtolnay/rust-toolchain@stable
-      - uses: mlugg/setup-zig@v1
+      # v1 (frozen at v1.2.2) predates Zig's tarball rename and requests the old
+      # `zig-<os>-<arch>-<ver>` name, which 404s for 0.15.x (real file is
+      # `zig-<arch>-<os>-<ver>`). v2.x uses the current naming + community mirrors.
+      - uses: mlugg/setup-zig@v2.2.1
         with:
-          # Pin a real stable release. The default `version: latest` resolved to
-          # dev build 0.16.0, whose tarball 404s on every community mirror →
-          # "Unable to locate executable file: zig" and the whole build fails.
-          # 0.15.2 is the current stable and is mirrored.
+          # Pin a real stable release. `latest` resolved to dev build 0.16.0
+          # whose tarball is not on the mirrors. 0.15.2 is the current stable.
           version: 0.15.2
       - uses: taiki-e/install-action@v2
         with:
