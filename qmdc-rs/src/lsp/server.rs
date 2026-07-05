@@ -670,10 +670,14 @@ impl Backend {
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<notify::Event>();
 
         let mut watcher =
-            match notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
-                if let Ok(event) = res {
+            match notify::recommended_watcher(move |res: notify::Result<notify::Event>| match res {
+                Ok(event) => {
                     let _ = tx.send(event);
                 }
+                // Surface watcher failures (overflow, permission loss). If these
+                // are dropped silently the server stops receiving events and the
+                // stale-index bug (QMD-64) quietly returns.
+                Err(e) => eprintln!("[LSP] fs watcher event error: {:?}", e),
             }) {
                 Ok(w) => w,
                 Err(e) => {
