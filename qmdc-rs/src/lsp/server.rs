@@ -444,7 +444,7 @@ impl Backend {
                     if let Ok(rel_path) = full_path.strip_prefix(project_root) {
                         obj_map.insert(
                             "__file".to_string(),
-                            serde_json::json!(rel_path.to_string_lossy().to_string()),
+                            serde_json::json!(crate::workspace::path_to_slash(rel_path)),
                         );
                     }
                 }

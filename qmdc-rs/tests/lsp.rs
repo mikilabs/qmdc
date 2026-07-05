@@ -76,7 +76,13 @@ fn uri_to_relative_path(uri_str: &str, ws_root: &Option<PathBuf>) -> String {
         if let Ok(uri) = Url::parse(uri_str) {
             if let Ok(path) = uri.to_file_path() {
                 if let Ok(relative) = path.strip_prefix(ws_root) {
-                    return format!("workspace/{}", relative.display());
+                    // Normalise to forward slashes so the harness produces the same
+                    // relative path on Windows (where `display()` yields `\`) as on
+                    // Unix — fixtures use `/` (QMD-65).
+                    let rel = relative
+                        .to_string_lossy()
+                        .replace(std::path::MAIN_SEPARATOR, "/");
+                    return format!("workspace/{}", rel);
                 }
             }
         }

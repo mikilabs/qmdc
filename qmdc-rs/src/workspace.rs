@@ -14,6 +14,27 @@ use crate::{parse, OutputFormat, ParseOptions};
 /// (file, kind, namespace, id, line) — location tuple for indexed objects.
 type ObjectLocation = (String, String, String, String, u32);
 
+/// Normalise OS path separators to `/` for logical output (`__file`, `files`,
+/// `uri`, `error.file`) so QMD's logical paths are portable and identical across
+/// platforms and parsers (QMD-65). Replaces **only the platform separator**
+/// (`std::path::MAIN_SEPARATOR`): on Windows `strip_prefix` yields `\`, converted
+/// here to `/`; a genuine no-op on Unix (separator is already `/`).
+///
+/// Deliberately does NOT replace `\` unconditionally: on Unix a backslash is a
+/// valid filename character (only `/` and NUL are forbidden), so `weird\name.md`
+/// is a single component and must be preserved. Only for logical output — never
+/// for a string handed back to the OS as a filesystem path.
+pub(crate) fn path_to_slash(rel: &Path) -> String {
+    sep_to_slash(&rel.to_string_lossy(), std::path::MAIN_SEPARATOR)
+}
+
+/// Testable core of [`path_to_slash`]: replace `sep` with `/`. Production always
+/// passes `MAIN_SEPARATOR`; tests pass `'\\'` explicitly to exercise the Windows
+/// branch on any host (a no-op-on-Unix helper is otherwise untestable on macOS).
+fn sep_to_slash(s: &str, sep: char) -> String {
+    s.replace(sep, "/")
+}
+
 /// Shared `__Workspace` marker check. Detects `[[id: __Workspace]]` in readme
 /// content, allowing optional whitespace after the colon. Single source of truth
 /// for workspace-root detection (avoids divergent inline regexes), consistent
@@ -201,7 +222,7 @@ pub fn scan_workspace(root_path: &Path, exclude_nested: bool) -> Vec<String> {
             && path.to_string_lossy().contains(".qmd.")
         {
             if let Ok(rel_path) = path.strip_prefix(root_path) {
-                files.push(rel_path.to_string_lossy().to_string());
+                files.push(path_to_slash(rel_path));
             }
         }
     }
@@ -310,7 +331,7 @@ pub fn parse_workspace(root_path: &Path, format: OutputFormat) -> WorkspaceResul
                 let ws_id = ws_obj.get("__id").and_then(|v| v.as_str()).unwrap_or("");
                 let rel_path = nested_readme
                     .strip_prefix(&root)
-                    .map(|p| p.to_string_lossy().to_string())
+                    .map(path_to_slash)
                     .unwrap_or_default();
 
                 errors.push(WorkspaceError {
@@ -1378,10 +1399,7 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
             if let Some(obj_map) = obj.as_object_mut() {
                 if let Some(file) = obj_map.get("__file").and_then(|v| v.as_str()) {
                     if let Ok(rel_path) = ws_dir.join(file).strip_prefix(root_path) {
-                        obj_map.insert(
-                            "__file".to_string(),
-                            json!(rel_path.to_string_lossy().to_string()),
-                        );
+                        obj_map.insert("__file".to_string(), json!(path_to_slash(rel_path)));
                     }
                 }
             }
@@ -1391,7 +1409,7 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
         // Make file paths relative to root_path
         for file in ws_result.files {
             if let Ok(rel_path) = ws_dir.join(&file).strip_prefix(root_path) {
-                all_files.push(rel_path.to_string_lossy().to_string());
+                all_files.push(path_to_slash(rel_path));
             }
         }
 
@@ -1399,7 +1417,7 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
         for mut error in ws_result.errors {
             if let Some(ref file) = error.file {
                 if let Ok(rel_path) = ws_dir.join(file).strip_prefix(root_path) {
-                    error.file = Some(rel_path.to_string_lossy().to_string());
+                    error.file = Some(path_to_slash(rel_path));
                 }
             }
             all_errors.push(error);
@@ -1490,8 +1508,8 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
 
                 let rel_file = file_path
                     .strip_prefix(root_path)
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_else(|_| file_path.to_string_lossy().to_string());
+                    .map(path_to_slash)
+                    .unwrap_or_else(|_| path_to_slash(&file_path));
 
                 // Check if this is a readme file
                 let is_readme = file_path
@@ -1617,4 +1635,40 @@ pub fn resolve_workspace(path: &Path, format: OutputFormat) -> WorkspaceResult {
         return parse_workspace(&root, format);
     }
     parse_all_workspaces(path, format)
+}
+
+#[cfg(test)]
+mod qmd65_tests {
+    use super::{path_to_slash, sep_to_slash};
+    use std::path::Path;
+
+    /// The Windows-separator branch renders logical paths with forward slashes
+    /// (QMD-65). Driven on any host by passing `'\\'` explicitly, since the
+    /// production wrapper is a no-op on macOS (`MAIN_SEPARATOR == '/'`).
+    #[test]
+    fn sep_to_slash_converts_windows_separator() {
+        assert_eq!(sep_to_slash("db\\models.qmd.md", '\\'), "db/models.qmd.md");
+        assert_eq!(
+            sep_to_slash("architecture\\domain\\readme.qmd.md", '\\'),
+            "architecture/domain/readme.qmd.md"
+        );
+    }
+
+    /// On Unix a backslash is a valid filename character (only `/` and NUL are
+    /// forbidden), so it must be preserved — the platform-separator replace never
+    /// touches it. Guards against a naive unconditional `\` -> `/` replace.
+    #[test]
+    fn sep_to_slash_preserves_literal_backslash_on_unix() {
+        assert_eq!(
+            sep_to_slash("weird\\name.qmd.md", '/'),
+            "weird\\name.qmd.md"
+        );
+        assert_eq!(sep_to_slash("a/b/c.qmd.md", '/'), "a/b/c.qmd.md");
+    }
+
+    /// The production wrapper is a no-op for already-`/` paths on every host.
+    #[test]
+    fn path_to_slash_passthrough_forward_slashes() {
+        assert_eq!(path_to_slash(Path::new("a/b/c.qmd.md")), "a/b/c.qmd.md");
+    }
 }
