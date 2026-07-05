@@ -6,3 +6,5 @@ qmdc-semantic/tests/fixtures/
 qmdc-vscode/e2e/fixtures/
 qmdc-mkdocs/tests/
 tests
+# Internal, private code-review scratch notes (not part of published docs).
+reviews/
