@@ -9,6 +9,15 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+# A called (reusable) workflow can never request MORE token scopes than its
+# caller is allowed. The reused ci.yml asks for `contents: read` +
+# `pull-requests: read` (dorny/paths-filter needs PR read), so this caller must
+# grant at least those — otherwise the run fails at startup with
+# "requesting 'pull-requests: read', but is only allowed 'pull-requests: none'".
+permissions:
+  contents: read
+  pull-requests: read
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
