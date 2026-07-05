@@ -23,6 +23,7 @@ use crate::db::QmdcDatabase;
 use crate::parser::OutputFormat;
 use crate::workspace::{
     dir_is_workspace_root, find_nested_workspace_roots, find_workspace_root, parse_all_workspaces,
+    WORKSPACE_SCAN_MAX_DEPTH,
 };
 
 use super::error::{ErrorCode, ErrorEnvelope};
@@ -231,11 +232,20 @@ pub fn resolve_root_bidirectional(path: &Path) -> Result<PathBuf, Value> {
         return Ok(start);
     }
 
-    // 2. Down: workspaces strictly below `start`.
+    // 2. Down: workspaces below `start` (bounded to WORKSPACE_SCAN_MAX_DEPTH levels).
     let below = find_nested_workspace_roots(&start);
-    match below.len() {
+    // Keep only top-level roots. Nested workspaces are illegal; if any slipped in,
+    // treat the outermost as the workspace so candidates stay disjoint siblings.
+    // `below` is sorted shortest-first, so a prefix check against kept roots works.
+    let mut top: Vec<PathBuf> = Vec::new();
+    for r in below {
+        if !top.iter().any(|kept| r.starts_with(kept)) {
+            top.push(r);
+        }
+    }
+    match top.len() {
         1 => {
-            let root = below.into_iter().next().unwrap();
+            let root = top.into_iter().next().unwrap();
             core_log(
                 EventCategory::Resolution,
                 Severity::Info,
@@ -244,7 +254,7 @@ pub fn resolve_root_bidirectional(path: &Path) -> Result<PathBuf, Value> {
             return Ok(root);
         }
         n if n > 1 => {
-            let candidates: Vec<String> = below.iter().map(|p| p.display().to_string()).collect();
+            let candidates: Vec<String> = top.iter().map(|p| p.display().to_string()).collect();
             core_log(
                 EventCategory::Resolution,
                 Severity::Info,
@@ -253,9 +263,11 @@ pub fn resolve_root_bidirectional(path: &Path) -> Result<PathBuf, Value> {
             return Err(ErrorEnvelope::error_with_candidates(
                 ErrorCode::Ambiguous,
                 format!(
-                    "path '{}' contains {} workspaces; re-call with one of `candidates` as `path`",
+                    "path '{}' contains {} workspaces (searched {} levels down); \
+                     re-call with one of `candidates` as `path`",
                     start.display(),
-                    n
+                    n,
+                    WORKSPACE_SCAN_MAX_DEPTH
                 ),
                 candidates,
             ));
@@ -277,8 +289,9 @@ pub fn resolve_root_bidirectional(path: &Path) -> Result<PathBuf, Value> {
     Err(ErrorEnvelope::error(
         ErrorCode::NotResolved,
         format!(
-            "no workspace found at, below, or above '{}'",
-            path.display()
+            "no workspace found at '{}', within {} levels below it, or in any ancestor",
+            path.display(),
+            WORKSPACE_SCAN_MAX_DEPTH
         ),
     ))
 }

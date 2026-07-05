@@ -40,17 +40,6 @@ pub fn dir_is_workspace_root(dir: &Path) -> bool {
     }
 }
 
-/// Return the single workspace root that contains `path` (i.e. whose root is a
-/// prefix of `path`). Nested workspaces are illegal, so there is at most one;
-/// if several somehow match, the deepest (longest) wins for safety.
-pub fn owner_root(roots: &[PathBuf], path: &Path) -> Option<PathBuf> {
-    roots
-        .iter()
-        .filter(|r| path.starts_with(r))
-        .max_by_key(|r| r.as_os_str().len())
-        .cloned()
-}
-
 /// Check if position is inside backticks (inline code).
 /// Handles both single backticks (`) and double backticks (``).
 fn is_inside_backticks(line: &str, pos: usize) -> bool {
@@ -106,23 +95,36 @@ pub struct WorkspaceResult {
     pub errors: Vec<WorkspaceError>,
 }
 
+/// Maximum directory depth for downward workspace discovery.
+///
+/// A fixed, non-configurable default (QMD-63): it bounds `find_nested_workspace_roots`
+/// so pointing discovery at a large checkout (build artifacts, vendored deps) can't
+/// turn a single call into a full-tree crawl. Workspaces normally live near the top;
+/// a marker deeper than this is not discovered by the downward scan. Documented in
+/// `docs/mcp/readme.qmd.md`.
+pub const WORKSPACE_SCAN_MAX_DEPTH: usize = 5;
+
 /// Find all nested workspace roots within a directory.
 /// Returns paths to directories containing [[id:__Workspace]] in readme.qmd.md.
-/// Respects .qmdcignore patterns.
+///
+/// Bounded and `.qmdcignore`-pruned: `filter_entry` stops descent into ignored
+/// directories (not merely filtering them from results), and the walk is capped at
+/// [`WORKSPACE_SCAN_MAX_DEPTH`] levels.
 pub fn find_nested_workspace_roots(root_path: &Path) -> Vec<PathBuf> {
     let ignore_set = load_qmdcignore(root_path);
     let mut roots = Vec::new();
 
-    for entry in WalkDir::new(root_path).into_iter().filter_map(|e| e.ok()) {
+    // `filter_entry` prunes descent into ignored dirs; `max_depth` caps the crawl.
+    let walker = WalkDir::new(root_path)
+        .max_depth(WORKSPACE_SCAN_MAX_DEPTH)
+        .into_iter()
+        .filter_entry(|e| !is_ignored(e.path(), root_path, &ignore_set));
+
+    for entry in walker.filter_map(|e| e.ok()) {
         let path = entry.path();
 
         // Skip root directory
         if path == root_path {
-            continue;
-        }
-
-        // Check .qmdcignore before processing
-        if is_ignored(path, root_path, &ignore_set) {
             continue;
         }
 
@@ -147,8 +149,15 @@ pub fn find_nested_workspace_roots(root_path: &Path) -> Vec<PathBuf> {
         }
     }
 
-    // Deterministic, shortest-first (an ancestor sorts before its descendants).
-    roots.sort_by_key(|p| p.as_os_str().len());
+    // Deterministic: shortest first (an ancestor sorts before its descendants),
+    // with a lexicographic tie-break so equal-length siblings have a stable order
+    // across filesystems/OSes (keeps the MCP `ambiguous` candidate list stable).
+    roots.sort_by(|a, b| {
+        a.as_os_str()
+            .len()
+            .cmp(&b.as_os_str().len())
+            .then_with(|| a.cmp(b))
+    });
     roots
 }
 

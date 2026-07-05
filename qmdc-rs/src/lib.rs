@@ -17,7 +17,6 @@ pub use mcp::run_mcp_server;
 pub use parser::{parse, OutputFormat, ParseOptions, QmdcObject};
 pub use rebuild::rebuild;
 pub use workspace::{
-    dir_is_workspace_root, find_nested_workspace_roots, find_workspace_root, owner_root,
-    parse_all_workspaces, parse_workspace, resolve_workspace, scan_workspace, WorkspaceError,
-    WorkspaceResult,
+    dir_is_workspace_root, find_nested_workspace_roots, find_workspace_root, parse_all_workspaces,
+    parse_workspace, resolve_workspace, scan_workspace, WorkspaceError, WorkspaceResult,
 };
