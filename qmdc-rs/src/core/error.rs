@@ -2,11 +2,11 @@
 //!
 //! Every Core operation returns `Result<serde_json::Value, serde_json::Value>` at its boundary,
 //! where both variants are in-band envelopes (never transport faults). This module provides
-//! the 8 logical error codes (exhaustive enum) and helpers to construct the envelope shapes.
+//! the 9 logical error codes (exhaustive enum) and helpers to construct the envelope shapes.
 
 use serde_json::{json, Value};
 
-/// The 8 logical error categories (cross-cutting §5).
+/// The 9 logical error categories (cross-cutting §5).
 ///
 /// Using a typed enum ensures exhaustive, fail-closed handling — any new error category
 /// requires updating all match sites.

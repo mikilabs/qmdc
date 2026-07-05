@@ -97,26 +97,36 @@ pub struct WorkspaceResult {
 
 /// Maximum directory depth for downward workspace discovery.
 ///
-/// A fixed, non-configurable default (QMD-63): it bounds `find_nested_workspace_roots`
-/// so pointing discovery at a large checkout (build artifacts, vendored deps) can't
-/// turn a single call into a full-tree crawl. Workspaces normally live near the top;
-/// a marker deeper than this is not discovered by the downward scan. Documented in
-/// `docs/mcp/readme.qmd.md`.
+/// A fixed, non-configurable default (QMD-63): the MCP resolver's downward scan
+/// (`find_nested_workspace_roots_bounded`) is capped at this depth so pointing a tool
+/// at a large checkout (build artifacts, vendored deps) can't turn a single call into
+/// a full-tree crawl. Workspaces normally live near the top; a marker deeper than this
+/// is not discovered by the MCP downward scan. Documented in `docs/mcp/readme.qmd.md`.
 pub const WORKSPACE_SCAN_MAX_DEPTH: usize = 5;
 
-/// Find all nested workspace roots within a directory.
+/// Find all nested workspace roots within a directory (unbounded depth).
 /// Returns paths to directories containing [[id:__Workspace]] in readme.qmd.md.
 ///
-/// Bounded and `.qmdcignore`-pruned: `filter_entry` stops descent into ignored
-/// directories (not merely filtering them from results), and the walk is capped at
-/// [`WORKSPACE_SCAN_MAX_DEPTH`] levels.
+/// Used by `parse_workspace`/`scan_workspace` for nested-workspace detection and
+/// exclusion, which must see nesting at *any* depth — so this variant is not
+/// depth-capped. It is still `.qmdcignore`-pruned via `filter_entry` (descent into
+/// ignored directories is skipped, not merely filtered from results).
 pub fn find_nested_workspace_roots(root_path: &Path) -> Vec<PathBuf> {
+    find_nested_workspace_roots_bounded(root_path, usize::MAX)
+}
+
+/// Depth-bounded variant of [`find_nested_workspace_roots`]. The crawl is capped at
+/// `max_depth` directory levels. Used by the MCP resolver (with
+/// [`WORKSPACE_SCAN_MAX_DEPTH`]) so pointing a tool at a large checkout can't turn a
+/// single call into a full-tree crawl; the unbounded wrapper is used where complete
+/// nested-workspace detection is required.
+pub fn find_nested_workspace_roots_bounded(root_path: &Path, max_depth: usize) -> Vec<PathBuf> {
     let ignore_set = load_qmdcignore(root_path);
     let mut roots = Vec::new();
 
     // `filter_entry` prunes descent into ignored dirs; `max_depth` caps the crawl.
     let walker = WalkDir::new(root_path)
-        .max_depth(WORKSPACE_SCAN_MAX_DEPTH)
+        .max_depth(max_depth)
         .into_iter()
         .filter_entry(|e| !is_ignored(e.path(), root_path, &ignore_set));
 

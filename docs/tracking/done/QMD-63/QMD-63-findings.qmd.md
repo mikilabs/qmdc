@@ -152,12 +152,16 @@ The repo-root repro: `discover_workspace_roots(repo_root)` returns exactly
      and needs no fixture churn. **Awaiting operator confirmation** on whether to
      pursue true parse-based unification separately (optionally fence-aware regex
      to address the code-block false-match concern).
-2. **LSP dedup (scope).** The per-file owner lookup (`find_workspace_for_file`)
-   now routes through the shared `owner_root` (prefix-owner rule, QMD-63). The
-   LSP workspace *scan* was left unchanged to avoid altering LSP detection
-   semantics. MCP reuses the CLI discovery primitives (`find_nested_workspace_roots`,
-   `find_workspace_root`).
-3. Down-scan stays `.qmdcignore`-pruned (unbounded depth, as today).
+2. **LSP dedup (scope) — reverted.** An earlier change routed
+   `find_workspace_for_file` through a shared `owner_root` helper. It was
+   behaviour-equivalent (nesting is illegal ⇒ at most one prefix match) and not
+   needed for the MCP fix, so it was reverted: the LSP is left untouched and
+   `owner_root` was removed. MCP reuses `find_workspace_root` and a depth-bounded
+   `find_nested_workspace_roots_bounded`.
+3. **Down-scan is bounded (MCP only).** `find_nested_workspace_roots` stays
+   unbounded (CLI/`parse_workspace` need complete nested-workspace detection);
+   the MCP resolver uses `find_nested_workspace_roots_bounded(_, WORKSPACE_SCAN_MAX_DEPTH=5)`.
+   `.qmdcignore` now prunes descent (`filter_entry`) in both.
 
 ## Ambiguous case → new error code + standard envelope [[qmd63_finding_error: Finding]]
 

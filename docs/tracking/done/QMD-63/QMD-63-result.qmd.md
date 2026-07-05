@@ -23,14 +23,18 @@ single workspace below it; a container holding several workspaces returns a new
 - `core/error.rs`: new `ErrorCode::Ambiguous` (`"ambiguous"`) +
   `ErrorEnvelope::error_with_candidates(code, message, candidates)`; the
   candidate workspace paths ride in `error.candidates`.
-- `workspace.rs`: added `dir_is_workspace_root` and `owner_root` (shared
-  prefix-owner rule); `find_nested_workspace_roots` now sorts shortest-first for
-  determinism.
+- `workspace.rs`: added `dir_is_workspace_root`; `find_nested_workspace_roots`
+  now sorts shortest-first (lexicographic tie-break) and `.qmdcignore` actually
+  prunes descent (`filter_entry`). Added `find_nested_workspace_roots_bounded`
+  (depth-capped variant) used by the MCP resolver.
 - `mcp/tools.rs`, `mcp/resources.rs`: both entry points call
   `resolve_root_bidirectional` (was `resolve_root`). `force_root` boundary
   unchanged.
-- `lsp/server.rs`: `find_workspace_for_file` routes through the shared
-  `owner_root`.
+- The MCP down-scan is bounded to `WORKSPACE_SCAN_MAX_DEPTH` (5) levels; the
+  ambiguous/not-resolved envelopes surface the searched depth.
+- `lsp/server.rs`: **unchanged** — an earlier attempt to route
+  `find_workspace_for_file` through a shared `owner_root` helper was reverted;
+  the LSP keeps its original direct prefix match (`owner_root` was removed).
 - Exports updated in `core/mod.rs` and `lib.rs`.
 
 ### Detection decision (regex kept) [[qmd63_result_detection: text]]

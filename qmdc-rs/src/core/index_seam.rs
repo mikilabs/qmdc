@@ -22,8 +22,8 @@ use serde_json::Value;
 use crate::db::QmdcDatabase;
 use crate::parser::OutputFormat;
 use crate::workspace::{
-    dir_is_workspace_root, find_nested_workspace_roots, find_workspace_root, parse_all_workspaces,
-    WORKSPACE_SCAN_MAX_DEPTH,
+    dir_is_workspace_root, find_nested_workspace_roots_bounded, find_workspace_root,
+    parse_all_workspaces, WORKSPACE_SCAN_MAX_DEPTH,
 };
 
 use super::error::{ErrorCode, ErrorEnvelope};
@@ -233,7 +233,7 @@ pub fn resolve_root_bidirectional(path: &Path) -> Result<PathBuf, Value> {
     }
 
     // 2. Down: workspaces below `start` (bounded to WORKSPACE_SCAN_MAX_DEPTH levels).
-    let below = find_nested_workspace_roots(&start);
+    let below = find_nested_workspace_roots_bounded(&start, WORKSPACE_SCAN_MAX_DEPTH);
     // Keep only top-level roots. Nested workspaces are illegal; if any slipped in,
     // treat the outermost as the workspace so candidates stay disjoint siblings.
     // `below` is sorted shortest-first, so a prefix check against kept roots works.
