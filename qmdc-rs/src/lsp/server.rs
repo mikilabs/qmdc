@@ -50,6 +50,7 @@ impl tower_lsp::lsp_types::notification::Notification for WorkspaceUpdated {
     const METHOD: &'static str = "qmdc/workspaceUpdated";
 }
 
+#[derive(Clone)]
 pub struct Backend {
     pub(crate) client: Client,
     pub(crate) documents: Arc<RwLock<HashMap<Url, Document>>>,
@@ -63,6 +64,11 @@ pub struct Backend {
     db_last_sync: Arc<std::sync::atomic::AtomicU64>,
     /// Workspace folders from initialize (for rescan)
     workspace_folders: Arc<RwLock<Option<Vec<WorkspaceFolder>>>>,
+    /// Native filesystem watcher (QMD-64). Kept alive for the life of the server
+    /// so the LSP's workspace index stays a faithful projection of on-disk state
+    /// even when the client fails to deliver `workspace/didChangeWatchedFiles`
+    /// (external tool writes, folder `mv`, etc.).
+    fs_watcher: Arc<tokio::sync::Mutex<Option<notify::RecommendedWatcher>>>,
 }
 
 impl Backend {
@@ -76,6 +82,7 @@ impl Backend {
             db_dirty: Arc::new(std::sync::atomic::AtomicBool::new(true)),
             db_last_sync: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             workspace_folders: Arc::new(RwLock::new(None)),
+            fs_watcher: Arc::new(tokio::sync::Mutex::new(None)),
         }
     }
 
@@ -629,6 +636,137 @@ impl Backend {
             .send_notification::<WorkspaceUpdated>(WorkspaceUpdatedParams {})
             .await;
         eprintln!("[LSP] Rescan notification sent");
+    }
+
+    /// Start a native filesystem watcher over the workspace folder roots (QMD-64).
+    ///
+    /// The LSP must not depend on the client volunteering
+    /// `workspace/didChangeWatchedFiles`: clients routinely drop those events for
+    /// programmatic/batch file operations (a tool writing a file, a folder `mv`),
+    /// which leaves the cached workspace index stale and produces false QMDC001
+    /// diagnostics until a server restart. By owning an OS-level watcher the
+    /// server keeps its index a faithful projection of on-disk state regardless
+    /// of client behaviour.
+    ///
+    /// Watcher events are funnelled through the SAME handler as the client
+    /// notification (`did_change_watched_files`), so all the QMD-58 refresh
+    /// machinery (rescan on create/delete, incremental re-index on change,
+    /// re-publish of open docs) is reused unchanged. Double-delivery (client +
+    /// native) is harmless: the handler is idempotent.
+    async fn start_fs_watcher(&self) {
+        use notify::{RecursiveMode, Watcher};
+
+        let folders = {
+            let ws_folders = self.workspace_folders.read().await;
+            ws_folders.clone()
+        };
+        let Some(folders) = folders else {
+            return; // single-file / no-folder mode: nothing to watch
+        };
+
+        // notify's event callback is a synchronous closure; forward raw events
+        // into an async channel drained by a background task that holds a cheap
+        // clone of this Backend (all state is shared via Arc).
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<notify::Event>();
+
+        let mut watcher =
+            match notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+                if let Ok(event) = res {
+                    let _ = tx.send(event);
+                }
+            }) {
+                Ok(w) => w,
+                Err(e) => {
+                    eprintln!("[LSP] Failed to create fs watcher: {:?}", e);
+                    return;
+                }
+            };
+
+        let mut watched_any = false;
+        for folder in &folders {
+            if let Ok(path) = folder.uri.to_file_path() {
+                match watcher.watch(&path, RecursiveMode::Recursive) {
+                    Ok(()) => {
+                        eprintln!("[LSP] fs watcher watching {}", path.display());
+                        watched_any = true;
+                    }
+                    Err(e) => eprintln!("[LSP] fs watcher failed on {}: {:?}", path.display(), e),
+                }
+            }
+        }
+
+        if !watched_any {
+            return;
+        }
+
+        // Keep the watcher alive for the life of the server.
+        {
+            let mut slot = self.fs_watcher.lock().await;
+            *slot = Some(watcher);
+        }
+
+        // Drain + coalesce events, then feed them through the shared handler.
+        let this = self.clone();
+        tokio::spawn(async move {
+            while let Some(first) = rx.recv().await {
+                // Debounce: let a burst (e.g. a folder move = many per-file
+                // events) settle, then process the whole batch in one pass.
+                tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+
+                let mut events = vec![first];
+                while let Ok(ev) = rx.try_recv() {
+                    events.push(ev);
+                }
+
+                let changes = Self::fs_events_to_changes(events);
+                if !changes.is_empty() {
+                    this.did_change_watched_files(DidChangeWatchedFilesParams { changes })
+                        .await;
+                }
+            }
+        });
+    }
+
+    /// Translate a batch of native `notify` events into LSP `FileEvent`s for
+    /// `*.qmd.md` files, de-duplicated per (path, change type). Non-QMD files and
+    /// event kinds we do not care about are dropped.
+    fn fs_events_to_changes(events: Vec<notify::Event>) -> Vec<FileEvent> {
+        use notify::event::{EventKind, ModifyKind};
+        use std::collections::HashSet;
+
+        let mut seen: HashSet<(String, i32)> = HashSet::new();
+        let mut changes = Vec::new();
+
+        for event in events {
+            // A rename shows up as Modify(Name(_)); treat it as structural so the
+            // downstream handler does a full rescan (the safe choice for moves).
+            let typ = match event.kind {
+                EventKind::Create(_) => FileChangeType::CREATED,
+                EventKind::Remove(_) => FileChangeType::DELETED,
+                EventKind::Modify(ModifyKind::Name(_)) => FileChangeType::CREATED,
+                EventKind::Modify(_) => FileChangeType::CHANGED,
+                _ => continue,
+            };
+
+            for path in event.paths {
+                if !path.to_string_lossy().ends_with(".qmd.md") {
+                    continue;
+                }
+                if let Ok(uri) = Url::from_file_path(&path) {
+                    let type_code = match typ {
+                        FileChangeType::CREATED => 1,
+                        FileChangeType::CHANGED => 2,
+                        FileChangeType::DELETED => 3,
+                        _ => 0,
+                    };
+                    if seen.insert((uri.to_string(), type_code)) {
+                        changes.push(FileEvent { uri, typ });
+                    }
+                }
+            }
+        }
+
+        changes
     }
 
     /// Find which workspace a file belongs to
@@ -1792,6 +1930,10 @@ impl LanguageServer for Backend {
         let ws_index = self.workspaces.read().await;
         let ws_count = ws_index.by_uri.len();
         drop(ws_index);
+
+        // Own an OS-level watcher so the index never depends on the client
+        // volunteering didChangeWatchedFiles for external/batch file ops. QMD-64.
+        self.start_fs_watcher().await;
 
         // Dynamically register a file-system watcher for QMD.md files so the client
         // reliably notifies us of create/change/delete events anywhere in the
