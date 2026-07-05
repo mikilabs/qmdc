@@ -185,9 +185,10 @@ pub fn resolve_root(path: &Path) -> Result<PathBuf, Value> {
 // ---------------------------------------------------------------------------
 
 /// Resolve a single workspace root for an MCP `path`, searching **down first,
-/// then up** (QMD-63). Shares the discovery primitives (`dir_is_workspace_root`,
-/// `find_nested_workspace_roots`, `find_workspace_root`) with the CLI and LSP —
-/// no MCP-specific resolver.
+/// then up** (QMD-63). Reuses the workspace-discovery primitives
+/// (`dir_is_workspace_root`, `find_nested_workspace_roots_bounded`,
+/// `find_workspace_root`) that the CLI resolver (`resolve_workspace`) also builds
+/// on — no MCP-specific discovery logic.
 ///
 /// 1. If `path` (or its parent, when a file) is itself a workspace root → it.
 /// 2. Else discover `__Workspace` roots below it:

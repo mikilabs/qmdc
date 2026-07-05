@@ -19,7 +19,7 @@ type ObjectLocation = (String, String, String, String, u32);
 /// for workspace-root detection (avoids divergent inline regexes), consistent
 /// with the resolver/indexer (which recognises a bare top-level marker and
 /// otherwise falls back to a virtual workspace).
-pub fn content_has_workspace_marker(content: &str) -> bool {
+fn content_has_workspace_marker(content: &str) -> bool {
     use std::sync::OnceLock;
     static WORKSPACE_MARKER_RE: OnceLock<Regex> = OnceLock::new();
     let re =
@@ -28,7 +28,7 @@ pub fn content_has_workspace_marker(content: &str) -> bool {
 }
 
 /// Does the directory's `readme.qmd.md` declare a `__Workspace`?
-/// The single primitive shared by core/MCP discovery and the LSP per-file lookup.
+/// Used by the core/MCP resolver (`resolve_root_bidirectional`) for its self-check.
 pub fn dir_is_workspace_root(dir: &Path) -> bool {
     let readme = dir.join("readme.qmd.md");
     if !readme.is_file() {
