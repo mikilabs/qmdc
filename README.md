@@ -1,6 +1,6 @@
 # QMDC — A Markdown-native context graph for humans and agents
 
-<!-- [![CI](https://github.com/mikilabs/qmdc/actions/workflows/ci.yml/badge.svg)](https://github.com/mikilabs/qmdc/actions/workflows/ci.yml) -->
+[![CI](https://github.com/mikilabs/qmdc/actions/workflows/ci.yml/badge.svg)](https://github.com/mikilabs/qmdc/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/qmdc?label=PyPI)](https://pypi.org/project/qmdc/)
 [![crates.io](https://img.shields.io/crates/v/qmdc?label=crates.io)](https://crates.io/crates/qmdc)
 [![npm](https://img.shields.io/npm/v/@qmdc/qmdc?label=npm)](https://www.npmjs.com/package/@qmdc/qmdc)
