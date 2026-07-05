@@ -6908,11 +6908,11 @@
       "id": "quickstart"
     },
     {
-      "label": "Parsing Algorithm",
-      "kind": "Algorithm",
-      "file": "architecture/algorithms.qmd.md",
-      "score": 0.71,
-      "id": "parsing_algorithm"
+      "label": "Write Your First QMD.md File",
+      "kind": "Tutorial",
+      "file": "tutorials/first-file.qmd.md",
+      "score": 0.717,
+      "id": "guide_first_file"
     }
   ],
   "field:the_resulting_graph@learn/markdown-to-graph.qmd.md": [
@@ -8625,6 +8625,13 @@
   ],
   "field:creating_objects@guides/qmdc-guide.qmd.md": [
     {
+      "label": "Write Your First QMD.md File",
+      "kind": "Tutorial",
+      "file": "tutorials/first-file.qmd.md",
+      "score": 0.817,
+      "id": "guide_first_file"
+    },
+    {
       "label": "Field Key",
       "kind": "CompletionContext",
       "file": "lsp/completion.qmd.md",
@@ -8637,13 +8644,6 @@
       "file": "format/headings.qmd.md",
       "score": 0.733,
       "id": "heading"
-    },
-    {
-      "label": "Write Your First QMD.md File",
-      "kind": "Tutorial",
-      "file": "tutorials/first-file.qmd.md",
-      "score": 0.726,
-      "id": "guide_first_file"
     }
   ],
   "field:data_types@guides/qmdc-guide.qmd.md": [
@@ -8954,6 +8954,13 @@
       "file": "format/references.qmd.md",
       "score": 0.668,
       "id": "reference"
+    },
+    {
+      "label": "Write Your First QMD.md File",
+      "kind": "Tutorial",
+      "file": "tutorials/first-file.qmd.md",
+      "score": 0.653,
+      "id": "guide_first_file"
     },
     {
       "label": "Validation Errors",
@@ -9632,6 +9639,13 @@
   ],
   "field:err_missing_id@guides/qmdc-guide.qmd.md": [
     {
+      "label": "Write Your First QMD.md File",
+      "kind": "Tutorial",
+      "file": "tutorials/first-file.qmd.md",
+      "score": 0.83,
+      "id": "guide_first_file"
+    },
+    {
       "label": "Heading",
       "kind": "SyntaxConcept",
       "file": "format/headings.qmd.md",
@@ -9644,13 +9658,6 @@
       "file": "format/validation-errors.qmd.md",
       "score": 0.747,
       "id": "validation_errors.err_broken_parent"
-    },
-    {
-      "label": "Formatting",
-      "kind": "LSPFeature",
-      "file": "lsp/formatting.qmd.md",
-      "score": 0.747,
-      "id": "lsp_formatting.formatting"
     }
   ],
   "field:err_invalid_key@guides/qmdc-guide.qmd.md": [
@@ -10164,25 +10171,25 @@
   ],
   "field:alice_alice@tutorials/first-file.qmd.md": [
     {
+      "label": "Common Errors",
+      "kind": "NarrativeDoc",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.83,
+      "id": "qmdc_guide.common_errors"
+    },
+    {
       "label": "Syntax",
       "kind": "Syntax",
       "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.782,
+      "score": 0.817,
       "id": "qmdc_guide.syntax"
     },
     {
-      "label": "Human Text, Machine Structure",
-      "kind": "Explanation",
-      "file": "learn/human-machine-readable.qmd.md",
-      "score": 0.748,
-      "id": "human_machine_readable"
-    },
-    {
-      "label": "Markdown to Graph",
-      "kind": "Explanation",
-      "file": "learn/markdown-to-graph.qmd.md",
-      "score": 0.747,
-      "id": "markdown_to_graph"
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.739,
+      "id": "qmdc_guide.validation"
     }
   ]
 }

@@ -39,9 +39,17 @@ jobs:
           lfs: true
       - uses: dtolnay/rust-toolchain@stable
       - uses: mlugg/setup-zig@v1
+        with:
+          # Pin a real stable release. The default `version: latest` resolved to
+          # dev build 0.16.0, whose tarball 404s on every community mirror →
+          # "Unable to locate executable file: zig" and the whole build fails.
+          # 0.15.2 is the current stable and is mirrored.
+          version: 0.15.2
       - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-zigbuild
+          # Pin for reproducibility — an unpinned `latest` is exactly what broke
+          # the zig setup above. 0.23.0 supports the pinned zig 0.15.2.
+          tool: cargo-zigbuild@0.23.0
       - uses: astral-sh/setup-uv@v5
       - uses: actions/setup-node@v4
         with:
