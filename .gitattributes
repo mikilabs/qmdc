@@ -1,1 +1,5 @@
 *.db filter=lfs diff=lfs merge=lfs -text
+
+# QMD sources/fixtures are LF-only. Without this, core.autocrlf=true on Windows
+# checks out CRLF, and the CRLF leaks into LSP hover content (QMD-65).
+*.qmd.md text eol=lf

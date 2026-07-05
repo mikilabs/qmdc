@@ -101,7 +101,7 @@ impl WorkspaceIndex {
             let relative_path = file_path.as_ref().and_then(|p| {
                 p.strip_prefix(&ws.project_root)
                     .ok()
-                    .map(|r| r.to_string_lossy().to_string())
+                    .map(crate::workspace::path_to_slash)
             });
 
             // STEP 1: Save namespace from OLD objects BEFORE removing them
