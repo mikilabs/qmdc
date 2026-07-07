@@ -527,9 +527,19 @@ impl Backend {
 
         let Some(folders) = folders else { return };
 
-        let mut ws_index = self.workspaces.write().await;
+        // Build the replacement index into a LOCAL value, holding no lock on the
+        // live index during the (potentially slow) filesystem scan. QMD-64: the
+        // native fs watcher can trigger rescans frequently while an external
+        // process is actively writing *.qmd.md files. If the live index were
+        // emptied/held during the rebuild (as the previous clear-then-repopulate
+        // did), a concurrent diagnostics pass would resolve cross-file refs
+        // against an empty index and publish false QMDC001 "not found" — which a
+        // restart could not heal while the writes continued. Building locally and
+        // swapping atomically means readers always see a COMPLETE index (either
+        // the old one or the new one), never an empty/partial one.
+        let mut fresh = WorkspaceIndex::new();
 
-        for folder in folders {
+        for folder in &folders {
             // Find all workspaces (including nested ones) in this folder
             let workspaces = self.find_all_workspaces(&folder.uri).await;
 
@@ -544,25 +554,35 @@ impl Backend {
                         ),
                     )
                     .await;
-                ws_index.add(info);
+                fresh.add(info);
             }
         }
 
-        // Report duplicate workspace IDs
-        for (id, workspaces) in ws_index.get_duplicates() {
-            let locations: Vec<String> = workspaces
-                .iter()
-                .map(|w| w.root_path.display().to_string())
-                .collect();
-
-            self.client.log_message(
-                MessageType::WARNING,
+        // Collect duplicate warnings before the move-swap (they borrow `fresh`).
+        let dup_warnings: Vec<String> = fresh
+            .get_duplicates()
+            .into_iter()
+            .map(|(id, workspaces)| {
+                let locations: Vec<String> = workspaces
+                    .iter()
+                    .map(|w| w.root_path.display().to_string())
+                    .collect();
                 format!(
                     "Duplicate workspace ID '{}' found in: {}. Cross-workspace references will not resolve.",
                     id,
                     locations.join(", ")
                 )
-            ).await;
+            })
+            .collect();
+
+        // Atomic swap of the whole index — no empty window for readers.
+        {
+            let mut ws_index = self.workspaces.write().await;
+            *ws_index = fresh;
+        }
+
+        for warning in dup_warnings {
+            self.client.log_message(MessageType::WARNING, warning).await;
         }
     }
 
@@ -592,21 +612,22 @@ impl Backend {
                 .collect()
         };
 
-        // Clear existing workspaces and documents cache
-        {
-            let mut ws_index = self.workspaces.write().await;
-            *ws_index = WorkspaceIndex::new();
-        }
         self.db_dirty
             .store(true, std::sync::atomic::Ordering::Release);
 
-        // Clear documents cache to avoid stale data
+        // Clear documents cache to avoid stale data (re-populated below from the
+        // open-buffer snapshot).
         {
             let mut docs = self.documents.write().await;
             docs.clear();
         }
 
-        // Re-initialize workspaces
+        // Rebuild the workspace index. init_workspaces now builds a fresh index
+        // and swaps it in atomically, so we must NOT pre-empty the live index
+        // here — doing so reintroduced the QMD-64 empty-window race under the
+        // native fs watcher (false QMDC001 that a restart could not heal while an
+        // external process kept writing *.qmd.md files). The old index stays
+        // live and complete until the new one is ready.
         self.init_workspaces(Some(folders)).await;
 
         // Sync SQLite after rescan
@@ -1283,19 +1304,38 @@ impl Backend {
             let ws_index = self.workspaces.read().await;
             let ws_opt = self.find_workspace_for_file(uri, &ws_index);
 
-            // Namespace for the open file, recovered from the indexed copy.
+            // The open file's path exactly as the indexer stores it (`__file` is
+            // project_root-relative, slash-normalized). Derive it straight from the
+            // URI — NOT by looking an id up in `ws.objects`. Object ids can be shared
+            // across files (e.g. a child `[[description: text]]` appears in many
+            // files), so an id lookup can return some OTHER file's copy and yield the
+            // wrong `__file`; the filter below would then drop the wrong file's objects
+            // from the resolution index, producing false QMDC001 for cross-file refs
+            // to that file (hover/CLI resolve fine because they don't use this filter).
+            let open_file: Option<String> = ws_opt.and_then(|ws| {
+                uri.to_file_path().ok().and_then(|p| {
+                    p.strip_prefix(&ws.project_root)
+                        .ok()
+                        .map(crate::workspace::path_to_slash)
+                })
+            });
+
+            // Namespace of the open file, recovered from its indexed copy — matched by
+            // `__file` (again, to avoid the shared-id ambiguity above).
             let doc_ns: String = ws_opt
-                .and_then(|ws| ws.file_to_ids.get(uri.as_str()))
-                .and_then(|ids| {
-                    ids.iter().find_map(|id| {
-                        ws_opt.and_then(|ws| ws.objects.get(id)).and_then(|objs| {
-                            objs.iter().find_map(|o| {
-                                o.get("__namespace")
-                                    .and_then(|v| v.as_str())
-                                    .filter(|s| !s.is_empty())
-                                    .map(|s| s.to_string())
-                            })
-                        })
+                .and_then(|ws| {
+                    ws.objects.values().flatten().find_map(|o| {
+                        let same_file = match &open_file {
+                            Some(f) => o.get("__file").and_then(|v| v.as_str()) == Some(f.as_str()),
+                            None => false,
+                        };
+                        if !same_file {
+                            return None;
+                        }
+                        o.get("__namespace")
+                            .and_then(|v| v.as_str())
+                            .filter(|s| !s.is_empty())
+                            .map(|s| s.to_string())
                     })
                 })
                 .unwrap_or_default();
@@ -1323,25 +1363,11 @@ impl Backend {
                 })
                 .collect();
 
-            // The open file's path as stored in the index (`__file` is project_root-
-            // relative). We rebuild this file's objects from the live buffer below, so the
-            // STALE indexed copy must be dropped first — otherwise every object defined in
-            // the open file appears twice in the resolution index (indexed + freshly
-            // parsed), and any same-file `[[#local_id]]` reference looks ambiguous (a false
-            // QMDC002). The CLI validator never hits this because it indexes each object once.
-            let open_file: Option<String> = ws_opt
-                .and_then(|ws| ws.file_to_ids.get(uri.as_str()))
-                .and_then(|ids| {
-                    ids.iter().find_map(|id| {
-                        ws_opt.and_then(|ws| ws.objects.get(id)).and_then(|objs| {
-                            objs.iter().find_map(|o| {
-                                o.get("__file")
-                                    .and_then(|v| v.as_str())
-                                    .map(|s| s.to_string())
-                            })
-                        })
-                    })
-                });
+            // We rebuild this file's objects from the live buffer below, so the STALE
+            // indexed copy (identified by `open_file` above) is dropped first —
+            // otherwise every object defined in the open file appears twice in the
+            // resolution index (indexed + freshly parsed) and any same-file
+            // `[[#local_id]]` reference looks ambiguous (a false QMDC002).
 
             // Resolution index = (whole workspace minus the open file's stale copy)
             //                     ∪ the open doc's freshly-parsed (namespace-backfilled) objects.

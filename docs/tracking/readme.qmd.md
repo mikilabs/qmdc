@@ -155,7 +155,7 @@ docs/tracking/
 
 Create a folder `docs/tracking/planned/{ID}/` with three files:
 
-**{ID}-task.qmd.md** — Feature object with the task description:
+**{ID}-task.qmd.md** — Feature object with the task description and Goal objects:
 
 ```markdown
 # {ID}: Task Name
@@ -168,15 +168,26 @@ Task description.
 - priority: medium
 - requires_changes: []
 
-## Checklist
+### Goals [[goals: [Goal]]]
 
-- [ ] Understood the task
-- [ ] Studied the code
-- [ ] Created a plan and prototypes in `artifacts/`
-- [ ] Tested the solution
-- [ ] Moved the code into the project
-- [ ] Created Result.md and Findings.md
+#### A1: First goal summary [[qmd{N}_goal_a1]]
+
+What exactly must be done and why. Operator decisions recorded here.
+
+- group: A_group_name
+- done: false
+
+#### B2: Second goal summary [[qmd{N}_goal_b2]]
+
+...
+
+- group: B_group_name
+- done: false
 ```
+
+Goals are structured objects, NOT markdown checkboxes — progress is tracked by
+flipping `done: false` → `done: true` and is queryable via SQL (`__kind = 'Goal'`).
+Goal IDs use the task prefix (`qmd{N}_goal_*`); `group` clusters related goals.
 
 **{ID}-findings.qmd.md** — empty file (filled in during work):
 
@@ -257,6 +268,33 @@ Description of the task execution result.
 - feature: [[#task_id]]
 - files_changed: [file1.ts, file2.ts]
 - tests_added: [test1.ts]
+```
+
+### Goal
+
+Child objects of a Feature/Bug under `### Goals [[goals: [Goal]]]` (see Task Structure above).
+
+```markdown example
+#### A1: Goal summary [[qmd17_goal_a1]]
+
+Full description: what must be done, acceptance criteria, operator decisions.
+
+- group: A_group_name
+- done: false
+```
+
+**Fields:**
+
+- `group` — clusters related goals (e.g. `A_remove_fiction`, `B_code_fixes`)
+- `done` — false | true; flipped to true as each goal is completed
+
+**Progress query:**
+
+```sql
+-- Remaining goals for a task
+SELECT __local_id FROM objects
+WHERE __kind = 'Goal' AND __id LIKE '%qmd17%'
+  AND json_extract(data, '$.done') = 0
 ```
 
 ## SQL Queries (examples)
