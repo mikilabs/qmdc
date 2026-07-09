@@ -89,6 +89,10 @@ pub enum Resolution {
     NotFound { hint: String },
     /// The reference resolves to multiple objects by `__local_id` in the same namespace.
     Ambiguous,
+    /// A dotted ref resolves BOTH as a full object `__id` AND as a field on the
+    /// prefix object — mirrors the CLI validator's `ambiguous_field_reference`.
+    /// `candidates` describes the two interpretations for the diagnostic message.
+    AmbiguousFieldRef { candidates: [String; 2] },
 }
 
 /// An index over parsed objects providing the same lookup power the LSP `WorkspaceInfo`
@@ -152,6 +156,20 @@ impl<'a> ObjectIndex<'a> {
         if raw_target.contains('.') && !raw_target.contains(':') {
             if let Some(obj) = self.get_by_id(raw_target) {
                 return Some(obj);
+            }
+        }
+
+        // Field reference (obj.field) — resolve to the PREFIX object, so that
+        // find_references counts the referrer and rename rewrites the prefix
+        // inside field-path refs like `[[#team.config.env]]`. Mirrors the
+        // field-ref branch in `resolve` (same precedence: hierarchical first).
+        if let Some((obj_prefix, field_part)) = split_field_ref(raw_target) {
+            if !field_part.starts_with("__") {
+                if let Some(obj) = self.get_by_id(obj_prefix) {
+                    if obj.get(field_part).is_some() {
+                        return Some(obj);
+                    }
+                }
             }
         }
 
@@ -231,6 +249,41 @@ impl<'a> ObjectIndex<'a> {
 
         // Hierarchical dotted id (e.g. `team.config`) resolving as a full id.
         if raw_target.contains('.') && !raw_target.contains(':') && self.contains_id(raw_target) {
+            // Mirror the CLI validator's `ambiguous_field_reference`: the same dotted
+            // ref may ALSO resolve as a field on the prefix object. Exemption: not
+            // ambiguous when the field value is exactly the parser-generated
+            // `[[#<full dotted id>]]` parent→child link (workspace.rs Phase 3).
+            if let Some((obj_prefix, field_part)) = split_field_ref(raw_target) {
+                if !field_part.starts_with("__") {
+                    if let Some(parent) = self.get_by_id(obj_prefix) {
+                        if let Some(field_val) = parent.get(field_part) {
+                            let expected_ref = format!("[[#{}]]", raw_target);
+                            if field_val.as_str() != Some(expected_ref.as_str()) {
+                                let field_val_repr = {
+                                    let s = field_val.to_string();
+                                    if s.chars().count() < 40 {
+                                        s
+                                    } else {
+                                        // char-boundary-safe truncation (byte slicing
+                                        // panics on multi-byte UTF-8 values)
+                                        let truncated: String = s.chars().take(37).collect();
+                                        format!("{}...", truncated)
+                                    }
+                                };
+                                return Resolution::AmbiguousFieldRef {
+                                    candidates: [
+                                        format!("object with __id '{}'", raw_target),
+                                        format!(
+                                            "field '{}' on object '{}' (value: {})",
+                                            field_part, obj_prefix, field_val_repr
+                                        ),
+                                    ],
+                                };
+                            }
+                        }
+                    }
+                }
+            }
             return Resolution::Resolved;
         }
 

@@ -202,18 +202,16 @@ The QMD.md specification defines only:
 
 It does not define: the navigation mechanism (that is up to the library/framework).
 
-Problem handling — all reference issues are warnings (the graph continues loading):
+Problem handling — reference issues are reported with `severity: error` but are non-fatal (the graph continues loading):
 
-- Object not found (by both `__id` and `__local_id`): `[[#missing]]` → reference remains a string, warning in logs
+- Object not found (by both `__id` and `__local_id`): `[[#missing]]` → reference remains a string, `broken_link` error reported
 - Object found via `__local_id` fallback (unambiguous): `[[#child]]` where `__id` is `parent.child` → resolves successfully
-- Multiple `__local_id` matches: `[[#name]]` where several objects have `__local_id: "name"` → unresolved reference, warning
-- ID collision without Kind: `[[#users]]` (both Table:users and Entity:users exist) → unresolved reference, warning
-- Query with 0 results: `[[#users.columns[name=unknown]]]` → may be interpreted as `null` or warning
-- Query with >1 result for a single ref: `[[#users.columns[type=bigint]]]` (3 found) → unresolved reference, warning
+- Multiple `__local_id` matches: `[[#name]]` where several objects have `__local_id: "name"` → unresolved reference, `ambiguous_reference` error reported
+- ID collision without Kind: `[[#users]]` (both Table:users and Entity:users exist) → unresolved reference, `ambiguous_reference` error reported
 
-Philosophy: reference problems must not break the entire graph. Validation produces warnings, the object loads, references remain as strings.
+There is no filter or wildcard reference syntax — forms like `[[#items[key=value]]]` and `[[#*items[key=value]]]` are not part of the format and do not resolve.
 
-Strict mode (optional): an implementation may provide a strict mode where warnings become errors.
+Philosophy: reference problems must not break the entire graph. Unlike syntax errors, they never abort loading — the object loads, references remain as strings, and validation collects the errors into a report.
 
 ## Examples [[examples: text]]
 
@@ -241,7 +239,7 @@ Database FK example:
 #### User FK [[fk_user]]
 
 - column: user_id
-- references: [[#users.columns[name=id]]]
+- references: [[#users.columns.id_col]]
 - on_delete: cascade
 ```
 

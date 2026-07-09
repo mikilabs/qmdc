@@ -1,0 +1,13 @@
+{
+  "diagnostics": [
+    {
+      "file": "input.qmd.md",
+      "line": 11,
+      "code": "QMDC009",
+      "message": "Reference '#team.score' cannot be unequivocally resolved to an object or a field: object with __id 'team.score'; field 'score' on object 'team' (value: 100)",
+      "severity": "error"
+    }
+  ],
+  "count": 1,
+  "success": true
+}

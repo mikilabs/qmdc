@@ -1012,10 +1012,14 @@ pub fn parse_workspace(root_path: &Path, format: OutputFormat) -> WorkspaceResul
                                         if *field_val != expected_ref {
                                             let field_val_repr = {
                                                 let s = field_val.to_string();
-                                                if s.len() < 40 {
+                                                if s.chars().count() < 40 {
                                                     s
                                                 } else {
-                                                    format!("{}...", &s[..37])
+                                                    // char-boundary-safe truncation (byte
+                                                    // slicing panics on multi-byte UTF-8)
+                                                    let truncated: String =
+                                                        s.chars().take(37).collect();
+                                                    format!("{}...", truncated)
                                                 }
                                             };
                                             errors.push(WorkspaceError {

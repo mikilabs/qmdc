@@ -1,0 +1,14 @@
+{
+  "_comment": "[[#team.score]] resolves BOTH as object __id team.score AND as field score on team (value 100, not the parser-generated link) — QMDC009",
+  "diagnostics": [
+    {
+      "range": {
+        "start": { "line": 10, "character": 7 },
+        "end": { "line": 10, "character": 22 }
+      },
+      "severity": 1,
+      "code": "QMDC009",
+      "message": "Reference '#team.score' cannot be unequivocally resolved to an object or a field: object with __id 'team.score'; field 'score' on object 'team' (value: 100)"
+    }
+  ]
+}

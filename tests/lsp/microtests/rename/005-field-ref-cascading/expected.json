@@ -1,0 +1,10 @@
+{
+  "_comment": "Renaming team to squad rewrites the prefix inside the FIELD-path ref [[#team.config.timeout]] (QMD-66 B5: resolve_object gained the field-ref branch) as well as the definition anchor and the plain object ref",
+  "changes": {
+    "input.qmd.md": [
+      { "range": { "start": {"line": 0, "character": 9}, "end": {"line": 0, "character": 13} }, "newText": "squad" },
+      { "range": { "start": {"line": 8, "character": 14}, "end": {"line": 8, "character": 18} }, "newText": "squad" },
+      { "range": { "start": {"line": 10, "character": 15}, "end": {"line": 10, "character": 19} }, "newText": "squad" }
+    ]
+  }
+}

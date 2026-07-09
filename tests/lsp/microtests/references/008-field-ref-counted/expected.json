@@ -1,0 +1,7 @@
+{
+  "_comment": "QMD-66 B5: find-references on the 'config' definition counts BOTH the object ref [[#team.config]] AND the field-path ref [[#team.config.timeout]] (resolve_object's field-ref branch resolves the prefix)",
+  "references": [
+    { "uri": "input.qmd.md", "range": { "start": {"line": 8, "character": 12}, "end": {"line": 8, "character": 28} } },
+    { "uri": "input.qmd.md", "range": { "start": {"line": 10, "character": 11}, "end": {"line": 10, "character": 35} } }
+  ]
+}

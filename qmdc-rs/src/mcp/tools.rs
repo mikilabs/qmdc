@@ -209,8 +209,8 @@ impl QmdcServer {
 
     #[tool(
         description = "Check the workspace (or one file) for broken or ambiguous references. \
-        Returns diagnostics, each with file, line, code (QMDC001 = not-found, QMDC002 = ambiguous), \
-        and a message."
+        Returns diagnostics, each with file, line, code (QMDC001 = not-found, QMDC002 = ambiguous, \
+        QMDC009 = ambiguous between object and field), and a message."
     )]
     async fn qmdc_validate_references(
         &self,

@@ -33,17 +33,36 @@ pub fn describe(index: &ResolvedIndex, ref_str: &str) -> Result<Value, Value> {
 
     let obj_index = ObjectIndex::build(index.objects());
 
-    // First, try resolving the whole ref as an object (handles exact id, namespaced
-    // `ns:id`, hierarchical `a.b.c`, and `__local_id`). This is the object card.
-    if let Some(obj) = obj_index.resolve_object(normalized, "") {
-        return Ok(object_card(obj));
+    // A dotted ref that is a real full `__id` gets the object card (hierarchical
+    // ids win over field-path interpretation, matching `resolve`'s precedence).
+    // Otherwise a field dot-path (`obj.field`) gets the FIELD descriptor — this
+    // must run before the general resolve_object call below, whose field-ref
+    // branch resolves field paths to the prefix object (would return the wrong
+    // card shape for `qmdc describe users.name`).
+    if let Some((obj_id, field_name)) = split_dot_path(normalized) {
+        if !obj_index.contains_id(normalized) {
+            if let Some(obj) = obj_index.resolve_object(obj_id, "") {
+                // The prefix must resolve to an object whose actual identity IS the
+                // prefix (exact `__id` or `__local_id`) — resolve_object's own
+                // field-ref branch could otherwise collapse a multi-segment path
+                // (`a.b.c` with no object `a.b`) onto object `a` and fabricate a
+                // field descriptor attributed to the nonexistent `a.b`.
+                let identity_matches = obj.get("__id").and_then(|v| v.as_str()) == Some(obj_id)
+                    || obj.get("__local_id").and_then(|v| v.as_str()) == Some(obj_id);
+                if identity_matches {
+                    // Delegate existence checking to describe_field so a missing
+                    // field reports the specific "field not found on object"
+                    // error instead of falling through to a generic not-found.
+                    return describe_field(obj, obj_id, field_name);
+                }
+            }
+        }
     }
 
-    // Otherwise, if it's a field dot-path (`obj.field`), describe the field.
-    if let Some((obj_id, field_name)) = split_dot_path(normalized) {
-        if let Some(obj) = obj_index.resolve_object(obj_id, "") {
-            return describe_field(obj, obj_id, field_name);
-        }
+    // Resolve the whole ref as an object (exact id, namespaced `ns:id`,
+    // hierarchical `a.b.c`, `__local_id`). This is the object card.
+    if let Some(obj) = obj_index.resolve_object(normalized, "") {
+        return Ok(object_card(obj));
     }
 
     Err(ErrorEnvelope::error(

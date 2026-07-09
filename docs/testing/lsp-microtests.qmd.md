@@ -81,11 +81,12 @@ cd qmdc-rs && cargo test --test lsp
 | Code | Severity | Description |
 |------|----------|-------------|
 | QMDC001 | Error | Object not found |
-| QMDC002 | Warning | Ambiguous reference |
+| QMDC002 | Error | Ambiguous reference |
 | QMDC003 | Error | Duplicate ID |
 | QMDC004 | Error | Invalid reference syntax |
 | QMDC005 | Hint | Orphan definition |
 | QMDC006 | Warning | Circular reference |
+| QMDC009 | Error | Ambiguous between object and field |
 
 ## Multi-File Tests
 

@@ -103,26 +103,6 @@ A `__Workspace` object is defined in a file other than `readme.qmd.md`.
 1. Move the `__Workspace` declaration to `readme.qmd.md`
 2. If the file is a namespace, use `__Namespace` instead of `__Workspace`
 
-## Type Mismatch [[err_type_mismatch: ValidationError]]
-
-The explicitly declared type `[[field: Kind]]` does not match the content structure.
-
-- code: type_mismatch
-- severity: error
-- status: planned
-
-### Cause [[cause: text]]
-
-- Declared `[[field: text]]`, but valid field lists are present (structure = object)
-- Declared `[[field: Kind]]`, but child subheadings with `[[id]]` exist (structure = array)
-- Declared `[[field: [Kind]]]`, but no child subheadings exist (structure = object)
-
-### Solution [[solution: text]]
-
-1. Fix the type in the heading: `[[field: text]]` → `[[field: Kind]]`
-2. Restructure the content to match the declared type
-3. Remove the explicit type and use auto-detection: `[[field]]`
-
 ## Structured In TextBlock [[err_structured_in_textblock: ValidationError]]
 
 Attempt to create a structured element (object/field) inside a `__TextBlock`.
@@ -426,6 +406,8 @@ A dot-path reference cannot be unequivocally resolved to an object or a field.
 
 A dot-path reference resolves both as an object ID and as a field-path on a parent object. The parser cannot determine whether the reference targets the object or the field.
 
+**Exemption:** the error is NOT raised when the parent's field value is exactly the parser-generated child link `[[#<full dotted id>]]`. Every nested child produces such a field on its parent (e.g. `svc` gets `config: "[[#svc.config]]"`), so without this exemption every hierarchical parent→child reference would be flagged. Only a field whose value is anything else (a scalar, a different reference) makes the dot-path genuinely ambiguous.
+
 ### Examples [[examples: text]]
 
 ```markdown example
@@ -490,3 +472,54 @@ Remove all content except the bullet list with `key: value` pairs:
 - host: localhost
 - port: 8080
 ```
+
+## Nested Subitems [[err_nested_subitems: ValidationError]]
+
+A nested list under an inline field (`- key:` followed by indented `- item` lines).
+
+- code: nested_subitems
+- severity: error
+
+### Cause [[cause: text]]
+
+Inline fields are flat — a list item cannot carry its own sub-list. The pattern `- key:` with indented `- item` children is rejected.
+
+### Solution [[solution: text]]
+
+Use a YAML array (`- items: [first, second]`) or heading-syntax (`### Items [[items: array]]` with a bullet list).
+
+## Mixed Field Keys [[err_mixed_field_keys: ValidationError]]
+
+An object's field list mixes valid and invalid keys.
+
+- code: mixed_field_keys
+- severity: error
+
+### Cause [[cause: text]]
+
+Valid keys match `[a-zA-Z][a-zA-Z0-9_]*`. When SOME items in one object's list are valid fields and others are not (spaces, hyphens, leading digits, markdown formatting in the key), the parser cannot decide whether the list is a field list or plain text.
+
+### Solution [[solution: text]]
+
+Fix the invalid keys (`First Name:` → `first_name:`), or convert the list to a text field if it is prose.
+
+## Invalid ID Character [[err_invalid_id_character: ValidationError]]
+
+A dot in a NESTED heading's explicit ID.
+
+- code: invalid_id_character
+- severity: error
+
+### Cause [[cause: text]]
+
+Dot-ID declarations (`[[parent.child]]`) are legal only on top-level headings. A nested child's hierarchical ID is composed automatically from its parent; an explicit dot in a nested `[[id]]` is a parsing error.
+
+```markdown example
+## Parent [[parent]]
+
+### Child [[child.invalid]]   ← error: dot in nested explicit ID
+```
+
+### Solution [[solution: text]]
+
+Use a simple local id for the nested heading (`[[child]]`); the dot-path (`parent.child`) is composed automatically.
