@@ -2,7 +2,7 @@
 
 Standard Operating Procedure for executing tasks with checkpoints.
 
-- version: 1.2
+- version: 1.3
 - commands: [do, approve, create, decline]
 
 ## Overview
@@ -76,6 +76,13 @@ cd qmdc-rs && cargo build && cd ..
 ```bash
 # After creating/changing a QMD file — MUST validate
 ./qmdc parse -i docs/tracking/planned/QMD-17/QMD-17-task.qmd.md > /dev/null && echo "✅ OK" || echo "❌ FAIL"
+```
+
+### Goal progress
+
+```bash
+# Progress on a task's goals (done flags are structured data, not markdown checkboxes)
+./qmdc query ./docs "SELECT __local_id, json_extract(data, '$.group') as grp, json_extract(data, '$.done') as done FROM objects WHERE __kind = 'Goal' AND __id LIKE 'qmd17%'"
 ```
 
 ### Finding tasks
@@ -209,6 +216,8 @@ Execute the task according to findings.
 
 - You MUST follow the plan from Finding objects
 - You MUST implement ALL goals listed in the task — partial completion is NOT done
+- **You MUST set `done: true` on each Goal object as you complete it — this is the progress tracking**
+- You MUST verify all Goals have `done: true` before setting done_review (query `__kind = 'Goal'`)
 - You MUST implement changes according to findings
 - You MUST create Result object in {ID}-result.qmd.md
 - You MUST validate created files with `./qmdc parse -i {file}`
@@ -243,19 +252,27 @@ Execute the task according to findings.
    a. Read existing test files in the affected area
    b. Explain to user why new tests are needed (or why existing don't fit)
    c. Wait for user approval before creating test files
-6. Create Result object with:
+6. **After completing each goal — flip its `done: false` → `done: true` in the task file, validate with `./qmdc parse`**
+7. Create Result object with:
    - files_changed: list of modified files
    - summary: brief description of changes
-7. Validate: `./qmdc parse -i {ID}-result.qmd.md > /dev/null`
-8. **Final test run: `make test-fast` — ALL tests MUST pass**
-9. **Code Review Gate:**
-   a. Run `/code-review` in a clean subagent on all uncommitted files
-   b. If the review finds BLOCKING/CRITICAL issues — fix them before proceeding
-   c. Re-run code review until no criticals remain
-   d. Only then proceed to set done_review
-10. Update Feature status: `in_progress` → `done_review`
-11. Validate: `./qmdc parse -i {ID}-task.qmd.md > /dev/null`
-12. STOP and report: "Work complete. Awaiting approval to finalize."
+8. Validate: `./qmdc parse -i {ID}-result.qmd.md > /dev/null`
+9. **Final test run: `make test-fast` — ALL tests MUST pass**
+10. **Verify goal completion: all Goal objects of the task have `done: true`**
+
+    ```bash
+    ./qmdc query ./docs "SELECT __local_id FROM objects WHERE __kind = 'Goal' AND __id LIKE '%qmd{id}%' AND json_extract(data, '$.done') = 0"
+    # Must return empty — otherwise the task is NOT complete
+    ```
+
+11. **Code Review Gate:**
+    a. Run `/code-review` in a clean subagent on all uncommitted files
+    b. If the review finds BLOCKING/CRITICAL issues — fix them before proceeding
+    c. Re-run code review until no criticals remain
+    d. Only then proceed to set done_review
+12. Update Feature status: `in_progress` → `done_review`
+13. Validate: `./qmdc parse -i {ID}-task.qmd.md > /dev/null`
+14. STOP and report: "Work complete. Awaiting approval to finalize."
 
 ### 5. Approve Result [[step_approve_result: Step]]
 
@@ -293,6 +310,9 @@ Create a new task.
 - You MUST determine next Task ID by scanning all folders
 - You MUST create folder structure in planned/
 - You MUST create all three files — task, findings, result
+- You MUST break the task into Goal objects under `### Goals [[goals: [Goal]]]` (see template in `docs/tracking/readme.qmd.md`)
+- **Goal IDs MUST have task prefix — `[[qmd{N}_goal_a1]]` — and fields `group` + `done: false`**
+- You MUST NOT write goals as a narrative text block or markdown checkboxes — they must be queryable objects
 - You MUST validate all created files with `./qmdc parse`
 - You MUST set initial status to planned
 

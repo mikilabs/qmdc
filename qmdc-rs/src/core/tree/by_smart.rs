@@ -55,14 +55,8 @@ pub fn get_tree_by_smart(db: &QmdcDatabase) -> Result<Option<serde_json::Value>>
                 .rows
                 .iter()
                 .map(|row| {
-                    let namespace_val =
-                        row[7]
-                            .as_str()
-                            .and_then(|s| if s.is_empty() { None } else { Some(s) });
-                    let parent_val =
-                        row[6]
-                            .as_str()
-                            .and_then(|s| if s.is_empty() { None } else { Some(s) });
+                    let namespace_val = row[7].as_str().filter(|s| !s.is_empty());
+                    let parent_val = row[6].as_str().filter(|s| !s.is_empty());
                     serde_json::json!({
                         "id": row[0].as_str().unwrap_or(""),
                         "kind": row[1].as_str().unwrap_or(""),

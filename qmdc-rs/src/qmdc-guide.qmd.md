@@ -2,7 +2,7 @@
 
 Practical guide to the QMD.md format for AI agents
 
-- version: 3.0
+- version: 1.0.2
 
 ⚠️ **Important:** In QMD.md, field and object order is strictly preserved as written (insertion order). All parsers guarantee this.
 
@@ -38,6 +38,8 @@ Keep anchor kinds coarse. 5–15 is the sweet spot. If you have 30 kinds, you're
 Use `depends` between anchors to show the dependency chain. Use `about` on narrative sections to say what they explain. If a section isn't `about` any anchor, ask yourself why it exists.
 
 IDs should be guessable — `rust_parser`, not `parser_001`. Types should be PascalCase domain nouns — `Module`, not `ModuleSection`. Text fields for anything longer than a line.
+
+Identity comes from Kind + position in the hierarchy, not from a bespoke globally-unique name. Top-level anchors get descriptive ids; nested children get simple, repeatable local ids (`description`, `constraints`) scoped by their parent's dot-path; homogeneous collections become `[Kind]` arrays instead of hand-named items.
 
 When you're unsure which things are anchors, what the right granularity is, or whether two concepts should be merged or split — stop and ask. Propose your anchor list and dependency chain to the human, get explicit approval before writing the document. A wrong metamodel is worse than no metamodel: it creates structure that actively misleads. Iterate on the anchors first, write content second.
 
@@ -173,10 +175,46 @@ exact file paths or object IDs.
 
 **Result:** two objects:
 
-1. `user` with field `address: "[[#address]]"` (reference)
-2. `address` with fields `street`, `city` and `__parent: "[[#user]]"`
+1. `user` with field `address: "[[#user.address]]"` (reference to the child's full ID)
+2. an object with `__id: "user.address"`, `__local_id: "address"`, fields `street`, `city`, and `__parent: "[[#user]]"`
 
 **Key distinction:** QMD.md has no nested JSON objects! Everything is flat, connections via references.
+
+**Hierarchical ID formation:** a child's effective `__id` is composed from its parent:
+
+- Single nested child → `parent.child` (e.g. `user.address`)
+- Object-array element → `parent.field.child` (e.g. `team.members.alice`)
+- Exception: children of `__Workspace` and `__Namespace` objects keep flat IDs
+
+**Reuse simple local ids under different parents.** Because a child's identity is parent-scoped, the same local id may — and should — repeat across parents. Prefer `[[description: text]]` and `[[constraints]]` under every object over hand-made globally-unique names:
+
+```markdown example
+## Run [[schema_run: KindSchema]]
+### Description [[description: text]]   ← id resolves as schema_run.description
+
+## Task [[schema_task: KindSchema]]
+### Description [[description: text]]   ← id resolves as schema_task.description
+```
+
+Do NOT write `run_desc`/`task_desc` or prefix children with the parent name (`schema_run_constraints`) — the dot-path already carries the parent. Parent-scoped children never trigger `duplicate_id` (which fires only on identical FULL hierarchical `__id`s — see Error Types).
+
+### Dot-ID Declarations [[dot_id_declarations: text]]
+
+A TOP-LEVEL heading may declare a hierarchical ID directly — attaching the object to a parent defined elsewhere (even in another file or namespace):
+
+```markdown example
+# Operations [[my_service.operations]]
+
+- count: 12
+```
+
+The workspace loader finds the parent by the ID prefix up to the last dot (`my_service`), injects `__parent: "[[#my_service]]"`, and the object behaves exactly like a nested child. If no object with the parent ID exists anywhere in the workspace, validation reports `broken_parent`.
+
+Rules:
+
+- Dot-IDs are legal **only on top-level headings**. A dot in a NESTED child's explicit ID is a parse error (`invalid_id_character`) — nested children get their dot-path composed automatically.
+- Only the prefix up to the LAST dot must exist as an object (`a.b.c` requires `a.b`, not `a`).
+- Works cross-file and cross-namespace.
 
 ### Arrays [[arrays: text]]
 
@@ -235,8 +273,10 @@ Syntax choice is preserved in `__syntax` for lossless round-trip.
 
 **Result:**
 
-- Object `team` with field `members: ["[[#alice]]", "[[#bob]]"]`
-- Two objects `alice` and `bob` with `__parent: "[[#team]]"` and `__parent_field: "members"`
+- Object `team` with field `members: ["[[#team.members.alice]]", "[[#team.members.bob]]"]`
+- Two objects with `__id: "team.members.alice"` / `"team.members.bob"`, `__parent: "[[#team]]"` and `__parent_field: "members"`
+
+**Prefer `[Kind]` arrays for homogeneous collections.** When many items share a Kind and don't need to be referenced individually (lint rules, steps, columns), use a `[Kind]` array with a table — ids are auto-generated; do NOT hand-name each item as a separate top-level object (`rule_a`, `rule_b`, ...). If items WILL be referenced, name them with **simple local names**: an array child's name is just the last dot-path segment (`svc_a.rules.timeout_rule`), so use `[[timeout_rule]]` — never a parent-prefixed `[[svc_a_timeout_rule]]`. The same local name under different parents is fine.
 
 ### Object Arrays via Tables [[object_arrays_tables: text]]
 
@@ -252,7 +292,7 @@ Syntax choice is preserved in `__syntax` for lossless round-trip.
 | Charlie | designer  | charlie@ex.com |
 ```
 
-**Result:** same thing — 3 objects with auto-generated IDs.
+**Result:** same thing — 3 objects with auto-generated positional IDs (`team.members.members_0`, `members_1`, `members_2`). These are the IDs to use when referencing a table row: `[[#team.members.members_0]]`. Positional ids shift if rows are reordered — name the item explicitly (subheading form) if it will be referenced.
 
 **When to use tables:**
 
@@ -409,7 +449,15 @@ References use full hierarchical dot-paths to target child objects and their fie
 
 **Syntax:** `[[#parent.field.child]]` — hierarchical dot-path to a child object. `[[#parent.field.child.field_name]]` — references a field on that object.
 
-For an array of results use `*`: `[[#*object.array[field=value]]]`
+**How resolution actually works:**
+
+- An object dot-path resolves by **exact whole-string match** against an object's full hierarchical `__id`. Intermediate segments are not walked or validated — `[[#a.b.c]]` resolves iff an object with `__id` exactly `a.b.c` exists. Depth is unlimited.
+- A field reference splits on the **last dot only**: everything before it must be a full object `__id`, and exactly one trailing segment names the field. Multi-segment field paths (`[[#obj.nested.deep_field]]` where `obj.nested` is not an object id) do not resolve.
+- System fields (`__id`, `__file`, ...) cannot be referenced.
+- Namespace-qualified field references (`[[#ns:obj.field]]`) are not supported — only local field refs.
+- If a dot-path resolves both as an object `__id` AND as a field on the prefix object, validation reports `ambiguous_field_reference` (see Error Types).
+
+There is no filter or wildcard syntax — forms like `[[#items[key=value]]]` are not part of the format and will not resolve. To reference a table row, use its auto-generated ID (`parent.field.field_<n>`, e.g. `[[#users.columns.columns_0]]`), or give the row an explicit name if it will be referenced.
 
 ### Kind-Qualified References [[kind_refs: text]]
 
@@ -449,15 +497,29 @@ All components are optional except `id`:
 - `[[#namespace:id]]` — different namespace
 - `[[#namespace:Kind:id]]` — full form for cross-namespace
 
+### Resolution Order and __local_id [[resolution_order: text]]
+
+Every object carries `__local_id` — the segment after the last dot of its hierarchical `__id` (for flat ids, the id itself). References resolve in this order:
+
+1. Exact match on the full `__id` (including hierarchical dot-paths)
+2. Field reference (last-dot split, prefix is a full `__id`)
+3. Fallback match on `__local_id`, filtered by namespace
+
+The `__local_id` fallback means `[[#alice]]` can resolve to `team.members.alice` when exactly one object with that local id exists in the namespace. If multiple objects share the local id, the reference is `ambiguous_reference` — fix it by using the full hierarchical ID (`[[#team.members.alice]]`).
+
+### Rename Cascade [[rename_cascade: text]]
+
+Renaming an object rewrites references to it AND to all its descendants: renaming `team` → `squad` rewrites `[[#team]]`, `[[#team.config]]`, `[[#team.members.alice]]`, and field refs like `[[#team.config.timeout]]`. Rewrites are token-bounded — `[[#teamwork]]` is never touched by renaming `team`. Descendant definitions themselves are not edited (they are anchored by `__local_id`).
+
 ### Reference Philosophy [[ref_philosophy: text]]
 
 - about: [[#validation]]
 
-Reference problems are **warnings**, not errors. The graph continues loading:
+Reference problems are reported with `severity: error`, but they are **non-fatal**: unlike syntax errors, they never prevent the graph from being built.
 
-- Object not found → reference remains a string, warning
-- ID collision without Kind → unresolved reference, warning
-- Broken links don't break the entire graph
+- Object not found → the object still loads; the reference remains a plain string; `broken_link` error reported
+- ID collision without Kind → unresolved reference; `ambiguous_reference` error reported
+- Broken links don't break the entire graph — validation collects them into a report instead of aborting
 
 ### Where References Are Not Parsed [[refs_not_parsed: text]]
 
@@ -698,18 +760,22 @@ done
 | Code | Description |
 |------|-------------|
 | `broken_link` | Reference `[[#id]]` to a non-existent object |
-| `duplicate_id` | Two objects with the same `Kind:Id` in one namespace |
+| `duplicate_id` | Two objects with the same FULL hierarchical `__id` (parent-scoped children with the same local id never collide) |
 | `ambiguous_reference` | Reference `[[#id]]` could point to multiple objects |
-| `broken_parent` | Parent object not found for dot-ID declaration |
-| `ambiguous_field_reference` | Dot-path resolves both as an object ID and as a field-path |
+| `broken_parent` | Parent object not found for a dot-ID declaration (see Dot-ID Declarations) |
+| `ambiguous_field_reference` | Dot-path resolves both as an object `__id` and as a field on the prefix object |
 | `nested_workspace` | Workspace inside another workspace (forbidden) |
-| `type_mismatch` | Explicit type `[[field: Kind]]` doesn't match content structure |
+| `workspace_in_wrong_file` | `__Workspace`/`__Namespace` declared outside `readme.qmd.md` |
 | `structured_in_textblock` | Structured element inside `__TextBlock` |
 | `multiple_definitions` | Heading contains more than one `[[...]]` |
 | `ordered_list_in_array` | Numbered list in heading-syntax array (bullet lists only) |
 | `nested_subitems` | Nested lists `- key:\n  - item` (forbidden) |
 | `explicit_system_type` | Explicit declaration of `[[id: __Document]]` or `[[id: __TextBlock]]` |
 | `mixed_field_keys` | Mix of valid and invalid keys in one object |
+| `invalid_id_character` | Dot in a NESTED heading's explicit ID (dot-IDs are legal only on top-level headings) |
+| `dangling_field` | Heading-syntax field (`text`, `array`, `yaml`, ...) with no parent object at a higher heading level |
+| `invalid_map_entry` | List item inside `[[field: map]]` that is not a valid `key: value` pair |
+| `invalid_map_content` | Content inside `[[field: map]]` that is not a bullet list of `key: value` items |
 
 ### Pre-Commit Checklist [[pre_commit_checklist: text]]
 
@@ -1064,9 +1130,11 @@ Tables with columns, indexes, and references:
 
 #### Email Index [[email_idx]]
 
-- columns: [[[#users.columns[name=email]]]]
+- columns: [[[#users.columns.columns_1]]]
 - unique: true
 ```
+
+Table rows get positional auto-IDs (`columns_0`, `columns_1`, ...). To make row references robust, use the subheading form and name each column instead.
 
 ### Microservice Architecture [[uc_microservices: text]]
 

@@ -152,6 +152,8 @@ pub fn collect_reference_issues(index_objects: &[Value], iter_objects: &[Value])
                     code: "QMDC001",
                     severity: SEVERITY_ERROR,
                 }),
+                // severity matches the CLI validators (rs/py/ts all emit
+                // `ambiguous_reference` as "error") and the format docs.
                 Resolution::Ambiguous => issues.push(RefIssue {
                     file: obj_file.to_string(),
                     line,
@@ -163,7 +165,22 @@ pub fn collect_reference_issues(index_objects: &[Value], iter_objects: &[Value])
                     ),
                     ref_id,
                     code: "QMDC002",
-                    severity: SEVERITY_WARNING,
+                    severity: SEVERITY_ERROR,
+                }),
+                // QMDC003-QMDC008 are reserved by the LSP layer (duplicate id,
+                // workspace-in-wrong-file, ...) — see docs/lsp/diagnostics.qmd.md.
+                Resolution::AmbiguousFieldRef { candidates } => issues.push(RefIssue {
+                    file: obj_file.to_string(),
+                    line,
+                    start_col,
+                    end_col,
+                    message: format!(
+                        "Reference '{}' cannot be unequivocally resolved to an object or a field: {}; {}",
+                        target, candidates[0], candidates[1]
+                    ),
+                    ref_id,
+                    code: "QMDC009",
+                    severity: SEVERITY_ERROR,
                 }),
             }
         }

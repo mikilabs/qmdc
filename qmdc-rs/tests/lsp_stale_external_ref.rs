@@ -46,6 +46,26 @@ fn build_notification(method: &'static str, params: Value) -> tower_lsp::jsonrpc
         .finish()
 }
 
+/// Poll `latest_broken_link_count` until it equals `expected` or `timeout`
+/// elapses, then return the last observed value. The native fs watcher + rescan
+/// are asynchronous and, under parallel test load, can take noticeably longer
+/// than a fixed sleep — polling keeps the test robust instead of flaky.
+async fn wait_for_broken_count(
+    captured: &Arc<Mutex<Vec<Value>>>,
+    suffix: &str,
+    expected: usize,
+    timeout: Duration,
+) -> Option<usize> {
+    let start = std::time::Instant::now();
+    loop {
+        let cur = latest_broken_link_count(captured, suffix);
+        if cur == Some(expected) || start.elapsed() >= timeout {
+            return cur;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
 /// Latest QMDC001 ("not found") count published for the file whose URI ends with
 /// `suffix`. Returns `None` if no diagnostics were ever published for that file.
 fn latest_broken_link_count(captured: &Arc<Mutex<Vec<Value>>>, suffix: &str) -> Option<usize> {
@@ -138,10 +158,8 @@ async fn qmd64_external_target_resolves_without_watched_file_event() {
         ))
         .await;
 
-    tokio::time::sleep(Duration::from_millis(300)).await;
-
     // Precondition: the bug's starting state — A has exactly one broken link.
-    let before = latest_broken_link_count(&captured, "a.qmd.md");
+    let before = wait_for_broken_count(&captured, "a.qmd.md", 1, Duration::from_secs(3)).await;
     assert_eq!(
         before,
         Some(1),
@@ -174,9 +192,9 @@ async fn qmd64_external_target_resolves_without_watched_file_event() {
         ))
         .await;
 
-    tokio::time::sleep(Duration::from_millis(400)).await;
-
-    let after = latest_broken_link_count(&captured, "a.qmd.md");
+    // Poll (not a fixed sleep): the native watcher + rescan are async and slower
+    // under parallel test load.
+    let after = wait_for_broken_count(&captured, "a.qmd.md", 0, Duration::from_secs(10)).await;
     assert_eq!(
         after,
         Some(0),

@@ -1,0 +1,4 @@
+{
+  "_comment": "svc has field config holding the parser-generated link [[#svc.config]] — the exemption applies, NOT ambiguous, no diagnostics",
+  "diagnostics": []
+}

@@ -2,7 +2,7 @@
 .PHONY: py-build py-test py-lint py-format py-install py-bump qmdc-py
 .PHONY: ts-build ts-test ts-lint ts-format ts-install ts-bump qmdc-ts
 .PHONY: rs-build rs-test rs-lint rs-format rs-bump qmdc-rs
-.PHONY: ext-build ext-install ext-bump ext-test ext-package ext-release mermaid-sync guide-sync
+.PHONY: ext-build ext-install ext-bump ext-test ext-package ext-release mermaid-sync guide-sync guide-budget
 .PHONY: site site-build site-serve site-regenerate site-build-strict site-deploy mkdocs-test
 .PHONY: mkdocs-bump mkdocs-bump-major mkdocs-bump-minor mkdocs-bump-patch mkdocs-release
 .PHONY: semantic-index semantic-audit semantic-test semantic-hints semantic-refresh
@@ -117,7 +117,7 @@ build: py-build ts-build rs-build
 	@echo ""
 	@echo "✅ All parsers built!"
 
-test: test-report validate-docs validate-compare md-lint
+test: test-report validate-docs validate-compare md-lint guide-budget
 	@echo ""
 	@echo "✅ All tests passed!"
 
@@ -606,6 +606,12 @@ guide-sync:
 	@echo "=== Syncing agent guide → qmdc crate ==="
 	cp $(GUIDE_SRC) $(GUIDE_DST)
 	@echo "✅ $(GUIDE_DST) is in sync"
+
+# Offline token-budget guard for the agent guide (no API calls — heuristic
+# estimate; hard/soft thresholds live in the script).
+guide-budget:
+	@echo "=== Checking agent guide token budget ==="
+	@uv run --no-project python scripts/guide-budget.py
 
 # ============================================================================
 # STATIC SITE

@@ -211,10 +211,14 @@ Available in all three parsers (Python, TypeScript, Rust).
 **Error types:**
 
 - `broken_link` — reference `[[#id]]` to a non-existent object (after both `__id` and `__local_id` fallback lookups fail)
-- `duplicate_id` — two objects with the same ID in one namespace
+- `duplicate_id` — two objects with the same full hierarchical `__id`
 - `ambiguous_reference` — reference that could point to multiple objects (by `__id` Kind collision or by multiple `__local_id` matches)
+- `broken_parent` — dot-ID declaration (`[[parent.child]]`) whose parent object does not exist in the workspace
+- `ambiguous_field_reference` — dot-path resolves both as an object `__id` and as a field on the prefix object
 - `nested_workspace` — workspace inside another workspace (forbidden)
 - `workspace_in_wrong_file` — workspace declaration in wrong file
+
+Parse-stage errors (`invalid_id_character`, `mixed_field_keys`, `nested_subitems`, ...) surface as `__ParsingError` objects — the full catalog is in the validation-errors reference.
 
 **Resolution order:** for each reference, the validator tries: (1) exact `__id` match, (2) `__local_id` fallback. A `broken_link` is only produced when both fail. An `ambiguous_reference` is produced when multiple candidates match at any step.
 

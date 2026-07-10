@@ -1,0 +1,7 @@
+{
+  "tool": "qmdc_describe_object",
+  "arguments": {
+    "path": "{{workspace}}",
+    "ref": "users.name"
+  }
+}

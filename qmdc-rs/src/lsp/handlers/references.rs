@@ -26,8 +26,15 @@ pub async fn handle(backend: &Backend, params: ReferenceParams) -> Result<Option
             .await;
     }
 
-    // First, find the target ID we're searching for
+    // First, find the target ID we're searching for. Keep the FULL raw target
+    // (when the cursor is on a reference) so canonicalization below resolves it
+    // the same way membership does — through `resolve_object`, including its
+    // field-ref branch. Canonicalizing only the extracted last segment would
+    // disagree with membership for field-path refs like `[[#a.b]]` (cursor side
+    // would target `b` while each ref resolves to the prefix object `a`).
+    let mut raw_target: Option<String> = None;
     let target_id = if let Some(parsed_ref) = backend.find_reference_at_position(&doc, position) {
+        raw_target = Some(parsed_ref.target.clone());
         backend.extract_id_from_target(&parsed_ref.target)
     } else {
         // Maybe cursor is on a definition - check if position is on a header line
@@ -67,8 +74,12 @@ pub async fn handle(backend: &Backend, params: ReferenceParams) -> Result<Option
     let obj_index = crate::core::resolve::ObjectIndex::build(&all_objects);
 
     // Canonicalise the search target to its `__id` so every comparison is identity-based.
-    let canonical_id = obj_index
-        .resolve_object(&target_id, "")
+    // Prefer resolving the full raw target (matches how each reference's membership is
+    // decided below); fall back to the extracted id for the definition-cursor case.
+    let canonical_id = raw_target
+        .as_deref()
+        .and_then(|t| obj_index.resolve_object(t, ""))
+        .or_else(|| obj_index.resolve_object(&target_id, ""))
         .and_then(|o| o.get("__id").and_then(|v| v.as_str()))
         .unwrap_or(&target_id)
         .to_string();

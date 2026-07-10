@@ -24,6 +24,7 @@ Red and yellow underlines in the editor for errors and warnings.
 - [[#rule_broken_link]] (QMDC001) — reference to a non-existent object
 - [[#rule_duplicate_id]] (QMDC003) — duplicate IDs
 - [[#rule_workspace_wrong_file]] (QMDC004) — workspace in wrong file
+- [[#rule_ambiguous_field_ref]] (QMDC009) — reference is ambiguous between a hierarchical object `__id` and a field on the prefix object
 
 **Planned errors (not yet implemented):**
 
@@ -318,4 +319,37 @@ Workspace '{id}' must be defined in readme.qmd.md, not here
 ```markdown
 # My Project [[myproject: __Workspace]]
   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ← Error: Workspace 'myproject' must be defined in readme.qmd.md
+```
+
+## Ambiguous Field Reference [[rule_ambiguous_field_ref: DiagnosticRule]]
+
+A dotted reference resolves both as a hierarchical object `__id` and as a field on the prefix object.
+
+- code: QMDC009
+- severity: error
+- validates: [[#format:validation_errors.err_ambiguous_field_reference]]
+
+### Description [[description: text]]
+
+**Pattern:** `[[#a.b]]` where an object with `__id: "a.b"` exists AND object `a` has a field `b` whose value is not the parser-generated child link `[[#a.b]]`.
+
+**Message:**
+
+```text
+Reference '{target}' cannot be unequivocally resolved to an object or a field: object with __id '{a.b}'; field '{b}' on object '{a}' (value: {...})
+```
+
+**Range:** the entire reference is underlined in red.
+
+**Example:**
+
+```markdown example
+## Team [[team]]
+
+- score: 100
+
+## Score Details [[team.score]]
+
+- ref: [[#team.score]]
+       ^^^^^^^^^^^^^^^  ← Error: ambiguous between object 'team.score' and field 'score' on 'team'
 ```

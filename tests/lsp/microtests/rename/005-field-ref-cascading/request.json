@@ -1,0 +1,5 @@
+{
+  "method": "textDocument/rename",
+  "position": { "line": 10, "character": 15 },
+  "newName": "squad"
+}

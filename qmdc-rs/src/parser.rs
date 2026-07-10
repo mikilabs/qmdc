@@ -150,7 +150,7 @@ fn create_table_child_objects(
         let (obj_id, local_id_out) = if is_system_parent {
             (format!("{}_{}_{}", arr_parent_id, arr_field, row_idx), None)
         } else {
-            let composed = format!("{}.{}.{}", parent_full_id, arr_field, &local_id);
+            let composed = format!("{}.{}.{}", parent_full_id, arr_field, local_id);
             (composed, Some(local_id.clone()))
         };
         let mut element = IndexMap::new();

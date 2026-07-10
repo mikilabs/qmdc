@@ -1,0 +1,5 @@
+{
+  "method": "textDocument/references",
+  "position": { "line": 4, "character": 12 },
+  "context": { "includeDeclaration": false }
+}
