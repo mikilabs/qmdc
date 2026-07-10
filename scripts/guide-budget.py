@@ -12,6 +12,7 @@ Exit 1 when the estimate exceeds BUDGET_TOKENS; warn (exit 0) above the soft
 threshold so growth is visible before it blocks.
 """
 
+import math
 import re
 import sys
 from pathlib import Path
@@ -30,7 +31,8 @@ FENCE_RE = re.compile(r"^```.*?^```", re.S | re.M)
 def estimate_tokens(text: str) -> tuple[int, int, int]:
     code_chars = sum(len(m) for m in FENCE_RE.findall(text))
     prose_chars = len(text) - code_chars
-    tokens = round(prose_chars / PROSE_CHARS_PER_TOKEN + code_chars / CODE_CHARS_PER_TOKEN)
+    # ceil, not round: the guard promises to err high, never low
+    tokens = math.ceil(prose_chars / PROSE_CHARS_PER_TOKEN + code_chars / CODE_CHARS_PER_TOKEN)
     return tokens, prose_chars, code_chars
 
 

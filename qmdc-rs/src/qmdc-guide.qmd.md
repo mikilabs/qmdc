@@ -2,7 +2,7 @@
 
 Practical guide to the QMD.md format for AI agents
 
-- version: 3.0
+- version: 1.0.2
 
 ⚠️ **Important:** In QMD.md, field and object order is strictly preserved as written (insertion order). All parsers guarantee this.
 
