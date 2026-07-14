@@ -48,11 +48,11 @@ For some errors, related information is shown:
 - user: [[#alice]]
         ^^^^^^^^^^^  ← Error (QMDC001): Object 'alice' not found
 
-## Users [[users: Table]]
+## Users [[users]]
 ...
-## Users [[users: Table]]
-   ^^^^^^^^^^^^^^^^^^^^^  ← Error (QMDC003): Duplicate 'Table:users'
-                             First defined at line 5
+## Users [[users]]
+         ^^^^^^^^^  ← Error (QMDC003): Duplicate ID 'users'
+                     (first defined on line 5)
 ```
 
 ## Broken Link [[rule_broken_link: DiagnosticRule]]
@@ -135,7 +135,8 @@ Ambiguous reference '{id}', found in: {locations}
 
 ## Duplicate ID [[rule_duplicate_id: DiagnosticRule]]
 
-Two objects with the same Kind:Id in one namespace.
+Two objects with the same FULL hierarchical `__id` in one namespace. Parent-scoped
+children with the same local id do not collide.
 
 - code: QMDC003
 - severity: error
@@ -143,27 +144,27 @@ Two objects with the same Kind:Id in one namespace.
 
 ### Description [[description: text]]
 
-**Pattern:** two headings with the same `[[id]]` or `[[id: Kind]]` in one namespace.
+**Pattern:** two headings resolve to the same full hierarchical `__id` in one
+namespace. Kind is not part of duplicate identity.
 
 **Message:**
 
 ```text
-Duplicate '{kind}:{id}' in namespace '{namespace}'
+Duplicate ID '{id}' (first defined on line {line})
 ```
 
-**Range:** the heading of the second object is underlined in red.
+**Range:** the ID definition of the second object is underlined in red.
 
-**Related information:** shows the location of the first object.
+**First definition:** its line number is included in the diagnostic message.
 
 **Example:**
 
 ```markdown
-## Users [[users: Table]]
+## Users [[users]]
 ...
 
-## Users [[users: Table]]
-   ^^^^^^^^^^^^^^^^^^^^^  ← Error: Duplicate 'Table:users' in namespace 'storage'
-                             First defined at line 5
+## Users [[users]]
+         ^^^^^^^^^  ← Error: Duplicate ID 'users' (first defined on line 5)
 ```
 
 ## Unknown Kind [[rule_unknown_kind: DiagnosticRule]]
