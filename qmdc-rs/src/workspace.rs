@@ -14,6 +14,12 @@ use crate::{parse, OutputFormat, ParseOptions};
 /// (file, kind, namespace, id, line) — location tuple for indexed objects.
 type ObjectLocation = (String, String, String, String, u32);
 
+/// (file, kind, namespace, line) — location tuple used by duplicate detection.
+type DupLocation = (String, String, String, u32);
+
+/// Duplicate-detection index keyed by (namespace, full __id) — QMD-67.
+type ObjectsByNsId = HashMap<(String, String), Vec<DupLocation>>;
+
 /// Normalise OS path separators to `/` for logical output (`__file`, `files`,
 /// `uri`, `error.file`) so QMD's logical paths are portable and identical across
 /// platforms and parsers (QMD-65). Replaces **only the platform separator**
@@ -660,7 +666,26 @@ pub fn parse_workspace(root_path: &Path, format: OutputFormat) -> WorkspaceResul
 
     // Check for duplicate IDs (same id, different files or same file)
     // Skip system objects (__Document, __TextBlock) as they are auto-generated per file
+    //
+    // QMD-67: duplicate identity is scoped by namespace. Two objects with the same
+    // full `__id` in DIFFERENT namespaces are distinct (they are distinct rows in the
+    // DB, keyed by (__workspace, __namespace, __id), and distinct reference targets).
+    // We therefore group by (namespace, id) here. This is a SEPARATE grouping from the
+    // `objects_by_id` (bare-id) index above, which must stay bare-id-keyed because
+    // reference resolution / __local_id fallback / cross-namespace hints depend on it.
+    // Dropping __workspace from the key is safe because validation runs per-workspace.
+    let mut objects_by_ns_id: ObjectsByNsId = HashMap::new();
     for (id, locations) in &objects_by_id {
+        for loc in locations {
+            let (_file, _kind, namespace, _line) = loc;
+            objects_by_ns_id
+                .entry((namespace.clone(), id.clone()))
+                .or_default()
+                .push(loc.clone());
+        }
+    }
+
+    for ((_namespace, id), locations) in &objects_by_ns_id {
         // Skip system objects with auto-generated IDs
         let is_system_object = locations.iter().any(|(_, kind, _, _)| {
             kind == "__Document" || kind == "__TextBlock" || kind == "__ParsingError"

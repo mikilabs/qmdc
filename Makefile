@@ -368,7 +368,13 @@ speedtest: build
 
 py-build:
 	@echo "=== Python: build ==="
-	cd qmdc-py && uv sync >/dev/null 2>&1
+# Sync WITH the dev extra so this is the single authoritative writer of the
+# qmdc-py venv. A plain `uv sync` (base, exact) would UNINSTALL dev packages and,
+# under `make -j`, race destructively with the dev `uv run` in py-format/py-lint/
+# py-test (which reinstall them) — a flaky, empty "Error 1". Syncing the superset
+# once means every later `uv run` (dev runs here, base runs via bin/qmdc-py) is a
+# pure, non-mutating read. `uv run` never uninstalls already-present extras.
+	cd qmdc-py && uv sync --extra dev >/dev/null 2>&1
 
 py-test: reports-clean py-format py-lint py-build
 	@echo "=== Python: test ==="
@@ -379,7 +385,10 @@ py-lint: py-format
 	@echo "=== Python: lint ==="
 	cd qmdc-py && uv run --extra dev ruff check qmdc/ tests/
 
-py-format:
+# Depends on py-build so the authoritative `uv sync --extra dev` completes before
+# this (and py-lint/py-test, transitively) touches the venv — no concurrent env
+# mutation under `make -j`.
+py-format: py-build
 	@echo "=== Python: format ==="
 	cd qmdc-py && uv run --extra dev ruff format qmdc/ tests/
 	cd qmdc-py && uv run --extra dev ruff check --select I --fix qmdc/ tests/

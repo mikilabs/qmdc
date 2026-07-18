@@ -40,6 +40,42 @@ depend on seeing all namespace candidates. Preserve exclusions for parser errors
 auto-generated system objects, and preserve parser ownership of same-file duplicate
 diagnostics.
 
+### Why This Bug Survived [[qmd67_why_survived: text]]
+
+- about: [[#qmd67_ns_dup]]
+
+Duplicate detection was the only place that keyed identity on the bare `__id`. The
+SQLite schema already uses `PRIMARY KEY (__workspace, __namespace, __id)` with a
+generated unique `__global_id`, and reference resolution already filters candidates by
+namespace — so `r1:foo` and `r2:foo` were always distinct rows and distinct reference
+targets, yet the validator alone called them duplicates. The gap went unnoticed
+because no fixture and none of the 15 namespaces in the dogfooded `docs/` workspace
+ever place the same bare top-level id in two namespaces: everything is disambiguated
+by hierarchy (dot-ids) or unique names. Namespace-aware machinery (`__local_id`,
+`by_local_id`) was layered in later while the duplicate check kept the namespace field
+in its tuple unused.
+
+### Implementation Guardrails [[qmd67_guardrails: text]]
+
+- about: [[#qmd67_ns_dup]]
+
+1. Add a SEPARATE map for duplicate detection keyed by `(namespace, full __id)`. Do
+   NOT re-key the shared `objects_by_id` — reference resolution, `__local_id`
+   fallback, cross-namespace "Did you mean" hints, and `ambiguous_reference` all read
+   the bare-id index and filter by namespace in-loop.
+2. Key on the full hierarchical `__id`, never the bare leaf, or `parent_a.config` and
+   `parent_b.config` would collapse.
+3. Root/no-namespace objects use empty-string namespace; two root files with the same
+   id must still collide (`validation-parser-consistency`).
+4. `__workspace` is intentionally absent from the key; this is safe only because
+   validation runs per-workspace. Do not pool objects across workspaces into one
+   duplicate pass.
+5. Preserve current exclusions: `__ParsingError` (Rust), `__Document`/`__TextBlock`,
+   and the parser-owned same-file branch. Leave the same-file/different-kind branch
+   byte-for-byte — no Kind changes here.
+6. TypeScript must use a collision-safe composite key (nested map or encoded tuple),
+   not a naive delimiter string.
+
 ### Test Plan [[test_plan: text]]
 
 **Existing tests:** the shared, currently untracked
