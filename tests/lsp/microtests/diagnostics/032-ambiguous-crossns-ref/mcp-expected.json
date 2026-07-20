@@ -1,0 +1,14 @@
+{
+  "diagnostics": [
+    {
+      "file": "consumer.qmd.md",
+      "line": 3,
+      "code": "QMDC002",
+      "message": "Ambiguous reference '#foo' - multiple objects match",
+      "severity": "error"
+    }
+  ],
+  "count": 1,
+  "truncated": false,
+  "success": true
+}

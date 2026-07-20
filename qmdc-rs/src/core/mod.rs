@@ -14,6 +14,7 @@ pub mod log;
 // Layer 2: index seam
 pub mod index_seam;
 pub mod nesting;
+pub mod reference_scan;
 pub mod resolve;
 pub mod resolved_index;
 pub mod tree;
