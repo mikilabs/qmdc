@@ -31,6 +31,39 @@ pub fn byte_offset_to_utf16_offset(line: &str, byte_offset: usize) -> u32 {
         .sum()
 }
 
+/// UTF-16 `(start, end)` character span of an object's definition marker on `line_content`.
+///
+/// Handles both `[[id]]` and `[[id: Kind]]` definition forms — searching for the opening
+/// `[[id` and extending through the next `]]` (a plain `[[id]]` search misses kinded
+/// definitions and would fall back to underlining the whole line). Falls back to the full
+/// line when no marker is found.
+fn definition_span_utf16(line_content: &str, id: &str) -> (u32, u32) {
+    let full_line = (
+        0,
+        byte_offset_to_utf16_offset(line_content, line_content.len()),
+    );
+    let open = format!("[[{}", id);
+    let Some(byte_start) = line_content.find(&open) else {
+        return full_line;
+    };
+    // The char right after the id must terminate it (`]` for `[[id]]`, `:` for
+    // `[[id: Kind]]`) — otherwise this is a longer id sharing the prefix (`[[idX]]`).
+    let after_id = &line_content[byte_start + open.len()..];
+    if !after_id.starts_with(']') && !after_id.starts_with(':') {
+        return full_line;
+    }
+    match after_id.find("]]") {
+        Some(rel_close) => {
+            let byte_end = byte_start + open.len() + rel_close + 2;
+            (
+                byte_offset_to_utf16_offset(line_content, byte_start),
+                byte_offset_to_utf16_offset(line_content, byte_end),
+            )
+        }
+        None => full_line,
+    }
+}
+
 use crate::db::QmdcDatabase;
 use crate::workspace::{is_ignored, load_qmdcignore};
 use crate::{parse, OutputFormat, ParseOptions};
@@ -1208,23 +1241,9 @@ impl Backend {
                     let lines: Vec<&str> = doc.content.lines().collect();
                     let line_content = lines.get(line as usize).unwrap_or(&"");
 
-                    // Find the [[id]] span in the line for precise highlighting
-                    let (start_char, end_char) = {
-                        let pattern = format!("[[{}]]", id);
-                        if let Some(byte_start) = line_content.find(&pattern) {
-                            let byte_end = byte_start + pattern.len();
-                            (
-                                byte_offset_to_utf16_offset(line_content, byte_start),
-                                byte_offset_to_utf16_offset(line_content, byte_end),
-                            )
-                        } else {
-                            // Fallback: highlight full line
-                            (
-                                0,
-                                byte_offset_to_utf16_offset(line_content, line_content.len()),
-                            )
-                        }
-                    };
+                    // Find the definition span in the line for precise highlighting
+                    // (handles both `[[id]]` and `[[id: Kind]]`).
+                    let (start_char, end_char) = definition_span_utf16(line_content, id);
 
                     diagnostics.push(Diagnostic {
                         range: Range {
@@ -1528,21 +1547,7 @@ impl Backend {
                         let line = (obj.line().max(1) as u32) - 1; // parser 1-based → LSP 0-based
                         let lines: Vec<&str> = doc.content.lines().collect();
                         let line_content = lines.get(line as usize).unwrap_or(&"");
-                        let (start_char, end_char) = {
-                            let pattern = format!("[[{}]]", id);
-                            if let Some(byte_start) = line_content.find(&pattern) {
-                                let byte_end = byte_start + pattern.len();
-                                (
-                                    byte_offset_to_utf16_offset(line_content, byte_start),
-                                    byte_offset_to_utf16_offset(line_content, byte_end),
-                                )
-                            } else {
-                                (
-                                    0,
-                                    byte_offset_to_utf16_offset(line_content, line_content.len()),
-                                )
-                            }
-                        };
+                        let (start_char, end_char) = definition_span_utf16(line_content, id);
                         diagnostics.push(Diagnostic {
                             range: Range {
                                 start: Position {

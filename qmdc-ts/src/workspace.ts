@@ -721,9 +721,18 @@ export function validateWorkspace(
   // keyed), which must stay bare-id-keyed for reference resolution / __local_id
   // fallback / cross-namespace hints. Dropping __workspace is safe: validation runs
   // per-workspace. A nested Map gives a collision-safe composite key (no delimiter).
+  // Exclude system objects (__Document/__TextBlock/__ParsingError) PER LOCATION while
+  // building the duplicate index, rather than skipping a whole (namespace, id) group if
+  // any member is a system object. A group-level skip would mask a genuine user-object
+  // duplicate whenever a system object happens to share the id in the same namespace.
+  // (objectsById itself stays complete — reference resolution depends on it.)
+  const SYSTEM_KINDS = new Set(['__Document', '__TextBlock', '__ParsingError']);
   const objectsByNsId = new Map<string, Map<string, Array<[string, string, string, number]>>>();
   for (const [objId, locations] of Object.entries(objectsById)) {
     for (const loc of locations) {
+      if (SYSTEM_KINDS.has(loc[1])) {
+        continue;
+      }
       const namespace = loc[2];
       let byId = objectsByNsId.get(namespace);
       if (!byId) {
@@ -741,14 +750,6 @@ export function validateWorkspace(
 
   for (const byId of objectsByNsId.values()) {
     for (const [objId, locations] of byId) {
-      // Skip system objects with auto-generated IDs
-      const isSystemObject = locations.some(
-        ([, kind]) => kind === '__Document' || kind === '__TextBlock' || kind === '__ParsingError'
-      );
-      if (isSystemObject) {
-        continue;
-      }
-
       if (locations.length > 1) {
         // Check if duplicates are in different files
         const files = new Set(locations.map(([file]) => file));

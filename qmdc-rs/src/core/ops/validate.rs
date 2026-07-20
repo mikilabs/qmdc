@@ -105,10 +105,14 @@ pub fn validate(index: &ResolvedIndex, path: Option<&str>) -> Result<Value, Valu
     // duplicate_id are excluded here because they are produced by the shared scans above.
     for err in &index.workspace.errors {
         match err.error_type.as_str() {
-            "broken_link"
-            | "ambiguous_reference"
-            | "ambiguous_field_reference"
-            | "duplicate_id" => continue,
+            "broken_link" | "ambiguous_reference" | "ambiguous_field_reference" => continue,
+            // duplicate_id: the validator-produced findings carry `candidates` and were
+            // already emitted above via `collect_duplicate_issues`; skip only those to
+            // avoid double-reporting. Parser-owned same-file/same-kind duplicates are
+            // emitted by the parser as `__ParsingError` with `candidates == None` and are
+            // NOT covered by `collect_duplicate_issues`, so let them through — otherwise
+            // MCP silently misses them (QMD-68 CR #1).
+            "duplicate_id" if err.candidates.is_some() => continue,
             _ => {}
         }
         if let Some(f) = scope_file {
@@ -118,6 +122,7 @@ pub fn validate(index: &ResolvedIndex, path: Option<&str>) -> Result<Value, Valu
         }
         let code = match err.error_type.as_str() {
             "workspace_in_wrong_file" => "QMDC004",
+            "duplicate_id" => "QMDC003",
             other => other,
         };
         diagnostics.push(json!({

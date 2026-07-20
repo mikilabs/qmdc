@@ -803,21 +803,21 @@ def validate_workspace(
     # keyed), which must stay bare-id-keyed for reference resolution / __local_id
     # fallback / cross-namespace hints. Dropping __workspace is safe: validation runs
     # per-workspace.
+    # Exclude system objects (__Document/__TextBlock/__ParsingError) PER LOCATION while
+    # building the duplicate index, rather than skipping a whole (namespace, id) group if
+    # any member is a system object. A group-level skip would mask a genuine user-object
+    # duplicate whenever a system object happens to share the id in the same namespace.
+    # (objects_by_id itself stays complete — reference resolution depends on it.)
+    system_kinds = ("__Document", "__TextBlock", "__ParsingError")
     objects_by_ns_id: dict[tuple[str, str], list[tuple[str, str, str, int]]] = {}
     for obj_id, locations in objects_by_id.items():
         for loc in locations:
-            _file, _kind, namespace, _line = loc
+            _file, kind, namespace, _line = loc
+            if kind in system_kinds:
+                continue
             objects_by_ns_id.setdefault((namespace, obj_id), []).append(loc)
 
     for (_namespace, obj_id), locations in objects_by_ns_id.items():
-        # Skip system objects with auto-generated IDs
-        is_system_object = any(
-            kind == "__Document" or kind == "__TextBlock" or kind == "__ParsingError"
-            for _, kind, _, _ in locations
-        )
-        if is_system_object:
-            continue
-
         if len(locations) > 1:
             # Check if duplicates are in different files
             files = {file for file, _, _, _ in locations}

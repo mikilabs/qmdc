@@ -359,8 +359,9 @@ Reference '{target}' cannot be unequivocally resolved to an object or a field: o
 
 Which surface emits which diagnostic. CLI = `qmdc workspace validate`; LSP = editor
 diagnostics; MCP = `qmdc_validate_references` + `qmdc://diagnostics`. Reference
-diagnostics for LSP and MCP share one resolver (`core::ops::validate`); duplicate
-detection is namespace-scoped per QMD-67 (`core::ops::validate::collect_duplicate_issues`).
+diagnostics for the CLI, LSP, and MCP all come from one shared engine
+(`core::reference_scan::reference_scan`); duplicate detection is namespace-scoped per
+QMD-67 (`core::ops::validate::collect_duplicate_issues`), shared by all three surfaces.
 
 ### Matrix [[surface_matrix: text]]
 
