@@ -1,0 +1,14 @@
+{
+  "_comment": "QMD-68: opening a.qmd.md flags its [[dup]] because the same id exists in b.qmd.md (cross-file, namespace-scoped duplicate).",
+  "diagnostics": [
+    {
+      "message": "Duplicate ID 'dup' found in multiple files",
+      "range": {
+        "start": { "line": 0, "character": 6 },
+        "end": { "line": 0, "character": 13 }
+      },
+      "severity": 1,
+      "code": "QMDC003"
+    }
+  ]
+}

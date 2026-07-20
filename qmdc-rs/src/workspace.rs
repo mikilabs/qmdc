@@ -11,9 +11,6 @@ use walkdir::WalkDir;
 
 use crate::{parse, OutputFormat, ParseOptions};
 
-/// (file, kind, namespace, id, line) — location tuple for indexed objects.
-type ObjectLocation = (String, String, String, String, u32);
-
 /// Normalise OS path separators to `/` for logical output (`__file`, `files`,
 /// `uri`, `error.file`) so QMD's logical paths are portable and identical across
 /// platforms and parsers (QMD-65). Replaces **only the platform separator**
@@ -59,32 +56,6 @@ pub fn dir_is_workspace_root(dir: &Path) -> bool {
         Ok(content) => content_has_workspace_marker(&content),
         Err(_) => false,
     }
-}
-
-/// Check if position is inside backticks (inline code).
-/// Handles both single backticks (`) and double backticks (``).
-fn is_inside_backticks(line: &str, pos: usize) -> bool {
-    let bytes = line.as_bytes();
-    let mut in_backtick = false;
-    let mut i = 0;
-
-    while i < bytes.len() && i < pos {
-        if bytes[i] == b'`' {
-            // Check for triple backticks (code fence) - treat entire line as code
-            if i + 2 < bytes.len() && bytes[i + 1] == b'`' && bytes[i + 2] == b'`' {
-                return true;
-            }
-            // Check for double backticks (``) - treat as single backtick pair
-            if i + 1 < bytes.len() && bytes[i + 1] == b'`' {
-                i += 1; // Skip second backtick
-                in_backtick = !in_backtick;
-            } else {
-                in_backtick = !in_backtick;
-            }
-        }
-        i += 1;
-    }
-    in_backtick
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -576,160 +547,27 @@ pub fn parse_workspace(root_path: &Path, format: OutputFormat) -> WorkspaceResul
         }
     }
 
-    // Build index of all objects by id, kind, and namespace for validation
-    let mut objects_by_id: HashMap<String, Vec<(String, String, String, u32)>> = HashMap::new(); // id -> [(file, kind, namespace, line), ...]
-
-    for obj in &all_objects {
-        // Skip __ParsingError objects - they are handled separately and shouldn't participate in duplicate_id validation
-        if let Some(kind) = obj.get("__kind").and_then(|v| v.as_str()) {
-            if kind == "__ParsingError" {
-                continue;
-            }
-        }
-
-        if let (Some(id), Some(file), Some(line)) = (
-            obj.get("__id").and_then(|v| v.as_str()),
-            obj.get("__file").and_then(|v| v.as_str()),
-            obj.get("__line").and_then(|v| v.as_u64()),
-        ) {
-            let kind = obj
-                .get("__kind")
-                .and_then(|v| v.as_str())
-                .unwrap_or("__Object");
-            let namespace = obj
-                .get("__namespace")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()) // Already plain ID
-                .unwrap_or_default();
-            let line = line as u32;
-
-            objects_by_id.entry(id.to_string()).or_default().push((
-                file.to_string(),
-                kind.to_string(),
-                namespace,
-                line,
-            ));
-        }
-    }
-
-    // Build index of objects by __local_id for fallback resolution
-    // local_id -> [(file, kind, namespace, id, line), ...]
-    let mut by_local_id: HashMap<String, Vec<ObjectLocation>> = HashMap::new();
-
-    for obj in &all_objects {
-        if let Some(kind) = obj.get("__kind").and_then(|v| v.as_str()) {
-            // Skip non-user-facing system kinds (match Python/TypeScript filtering)
-            let user_facing = ["__Workspace", "__Namespace", "__Document", "__Object"];
-            if kind.starts_with("__") && !user_facing.contains(&kind) {
-                continue;
-            }
-        }
-
-        if let (Some(local_id), Some(file), Some(line)) = (
-            obj.get("__local_id").and_then(|v| v.as_str()),
-            obj.get("__file").and_then(|v| v.as_str()),
-            obj.get("__line").and_then(|v| v.as_u64()),
-        ) {
-            if !local_id.is_empty() {
-                let kind = obj
-                    .get("__kind")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("__Object");
-                let namespace = obj
-                    .get("__namespace")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .unwrap_or_default();
-                let id = obj
-                    .get("__id")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let line = line as u32;
-
-                by_local_id.entry(local_id.to_string()).or_default().push((
-                    file.to_string(),
-                    kind.to_string(),
-                    namespace,
-                    id,
-                    line,
-                ));
-            }
-        }
-    }
-
-    // Check for duplicate IDs (same id, different files or same file)
-    // Skip system objects (__Document, __TextBlock) as they are auto-generated per file
-    for (id, locations) in &objects_by_id {
-        // Skip system objects with auto-generated IDs
-        let is_system_object = locations.iter().any(|(_, kind, _, _)| {
-            kind == "__Document" || kind == "__TextBlock" || kind == "__ParsingError"
-        });
-        if is_system_object {
-            continue;
-        }
-
-        if locations.len() > 1 {
-            // Check if duplicates are in different files
-            let files: std::collections::HashSet<&String> =
-                locations.iter().map(|(f, _, _, _)| f).collect();
-            if files.len() > 1 {
-                // Duplicate ID across files
-                for location in locations.iter().skip(1) {
-                    errors.push(WorkspaceError {
-                        error_type: "duplicate_id".to_string(),
-                        message: format!("Duplicate ID '{}' found in multiple files", id),
-                        file: Some(location.0.clone()),
-                        line: Some(location.3),
-                        object: Some(id.clone()),
-                        field_name: None,
-                        reference: None,
-                        candidates: Some(
-                            locations
-                                .iter()
-                                .map(|(f, _, _, l)| format!("{}:{}", f, l))
-                                .collect(),
-                        ),
-                        severity: "error".to_string(),
-                    });
-                }
+    // Duplicate IDs (QMDC003) — namespace-scoped per QMD-67. Produced by the SINGLE
+    // shared detector (`core::ops::validate::collect_duplicate_issues`), the exact same
+    // one the MCP `validate` op and the LSP consume, so the three surfaces cannot drift
+    // (QMD-68). Cross-file duplicates and same-file/different-kind duplicates are emitted
+    // here; same-file/same-kind is intentionally left to the parser (`__ParsingError`).
+    for dup in crate::core::ops::validate::collect_duplicate_issues(&all_objects) {
+        errors.push(WorkspaceError {
+            error_type: "duplicate_id".to_string(),
+            message: dup.message,
+            file: Some(dup.file),
+            line: Some(dup.line as u32),
+            object: Some(dup.id),
+            field_name: None,
+            reference: None,
+            candidates: if dup.candidates.is_empty() {
+                None
             } else {
-                // Same file - check if different kinds
-                let kinds: std::collections::HashSet<&String> =
-                    locations.iter().map(|(_, k, _, _)| k).collect();
-                if kinds.len() > 1 {
-                    // Same ID, different kinds - ambiguous
-                    let first_kind = &locations[0].1;
-                    for location in locations.iter().skip(1) {
-                        errors.push(WorkspaceError {
-                            error_type: "duplicate_id".to_string(),
-                            message: format!(
-                                "Duplicate ID '{}' with different kinds: {} and {}",
-                                id, first_kind, location.1
-                            ),
-                            file: Some(location.0.clone()),
-                            line: Some(location.3),
-                            object: Some(id.clone()),
-                            field_name: None,
-                            reference: None,
-                            candidates: Some(
-                                locations
-                                    .iter()
-                                    .map(|(f, k, _, l)| format!("{}:{}:{}", f, k, l))
-                                    .collect(),
-                            ),
-                            severity: "error".to_string(),
-                        });
-                    }
-                } else {
-                    // Same file, same kind — parser already detects these
-                    // (emits __ParsingError with type=duplicate_id).
-                    // No need to re-detect here; doing so would also
-                    // false-positive on skeleton objects the parser emits
-                    // for object-array children.
-                }
-            }
-        }
+                Some(dup.candidates)
+            },
+            severity: "error".to_string(),
+        });
     }
 
     // Build file content cache from already-parsed files
@@ -741,356 +579,30 @@ pub fn parse_workspace(root_path: &Path, format: OutputFormat) -> WorkspaceResul
         );
     }
 
-    // Create regex once for double backticks check
-    let double_backtick_re = Regex::new(r"``").unwrap();
-
-    // Check for broken links and ambiguous references using already-parsed __references
-    for obj in &all_objects {
-        let obj_id = obj.get("__id").and_then(|v| v.as_str()).unwrap_or("");
-        let file_path = obj
-            .get("__file")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-
-        // Determine current namespace for the file (used for objects without explicit __namespace)
-        let file_dir = Path::new(&file_path)
-            .parent()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_default();
-        let current_namespace = resolve_namespace_for_dir(&file_dir);
-
-        let obj_namespace = obj
-            .get("__namespace")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-            .or_else(|| current_namespace.clone());
-
-        if let Some(refs) = obj.get("__references").and_then(|v| v.as_array()) {
-            for r in refs {
-                if let (Some(target), Some(line)) = (
-                    r.get("target").and_then(|v| v.as_str()),
-                    r.get("line").and_then(|v| v.as_u64()),
-                ) {
-                    let line = line as u32;
-
-                    let (ref_namespace, ref_kind, ref_id) = parse_reference_target(target);
-
-                    let matching_objects: Vec<_> = objects_by_id
-                        .get(&ref_id)
-                        .map(|candidates| {
-                            candidates
-                                .iter()
-                                .filter(|(_, kind, ns, _)| {
-                                    if let Some(ref_ns) = &ref_namespace {
-                                        return ns == ref_ns;
-                                    }
-                                    if let Some(ref_k) = &ref_kind {
-                                        if kind != ref_k {
-                                            return false;
-                                        }
-                                    }
-                                    true
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default();
-
-                    let resolved_objects: Vec<_> = if ref_namespace.is_none() {
-                        if let Some(obj_ns) = &obj_namespace {
-                            let same_ns: Vec<_> = matching_objects
-                                .iter()
-                                .filter(|(_, _, ns, _)| ns == obj_ns)
-                                .copied()
-                                .collect();
-                            if !same_ns.is_empty() {
-                                same_ns
-                            } else {
-                                matching_objects.to_vec()
-                            }
-                        } else {
-                            matching_objects.to_vec()
-                        }
-                    } else {
-                        matching_objects.to_vec()
-                    };
-
-                    if resolved_objects.is_empty() {
-                        // Check if reference is inside backticks (inline code) - skip validation
-                        let mut skip_validation = false;
-
-                        // Get file content from cache (already parsed)
-                        if let Some(file_lines) = file_content_cache.get(&file_path) {
-                            if line > 0 && line <= file_lines.len() as u32 {
-                                let orig_line = &file_lines[(line - 1) as usize];
-                                // Find position of reference in line
-                                let raw_ref =
-                                    r.get("raw").and_then(|v| v.as_str()).unwrap_or(target);
-                                if let Some(ref_pos) = orig_line.find(raw_ref) {
-                                    // Check if reference is inside backticks
-                                    if is_inside_backticks(orig_line, ref_pos) {
-                                        skip_validation = true;
-                                    }
-                                    // Also check if reference is between double backticks (``...``)
-                                    if !skip_validation {
-                                        let matches: Vec<_> = double_backtick_re
-                                            .find_iter(orig_line)
-                                            .map(|m| m.start())
-                                            .collect();
-                                        for i in (0..matches.len()).step_by(2) {
-                                            if i + 1 < matches.len() {
-                                                let start_pos = matches[i];
-                                                let end_pos = matches[i + 1];
-                                                if start_pos < ref_pos && ref_pos < end_pos {
-                                                    skip_validation = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if skip_validation {
-                            continue;
-                        }
-
-                        // __local_id fallback resolution
-                        let mut local_resolved = false;
-                        if let Some(local_candidates) = by_local_id.get(&ref_id) {
-                            // Filter by target namespace (ref_ns if explicit, else source obj namespace)
-                            let target_ns: Option<&str> = if ref_namespace.is_some() {
-                                ref_namespace.as_deref()
-                            } else {
-                                obj_namespace.as_deref()
-                            };
-                            let filtered: Vec<_> = local_candidates
-                                .iter()
-                                .filter(|(_, _, ns, _, _)| {
-                                    if let Some(tns) = target_ns {
-                                        ns == tns
-                                    } else {
-                                        ns.is_empty()
-                                    }
-                                })
-                                .collect();
-
-                            if filtered.len() == 1 {
-                                // Resolved via __local_id — no error
-                                local_resolved = true;
-                            } else if filtered.len() > 1 {
-                                // Ambiguous by __local_id
-                                errors.push(WorkspaceError {
-                                    error_type: "ambiguous_reference".to_string(),
-                                    message: format!(
-                                        "Ambiguous reference '{}' - multiple objects match by __local_id",
-                                        target
-                                    ),
-                                    file: Some(file_path.clone()),
-                                    line: Some(line),
-                                    object: Some(obj_id.to_string()),
-                                    field_name: None,
-                                    reference: Some(format!("[[{}]]", target)),
-                                    candidates: Some(
-                                        filtered
-                                            .iter()
-                                            .map(|(_, k, ns, id, _)| {
-                                                if ns.is_empty() {
-                                                    format!("{}:{}", k, id)
-                                                } else {
-                                                    format!("{}:{}:{}", ns, k, id)
-                                                }
-                                            })
-                                            .collect(),
-                                    ),
-                                    severity: "error".to_string(),
-                                });
-                                local_resolved = true; // Skip further processing
-                            }
-                            // else: filtered is empty, fall through to existing logic
-                        }
-
-                        if !local_resolved {
-                            // Field-level reference resolution: if ref_id contains a dot,
-                            // check if prefix.field resolves to a field on an object
-                            let mut is_field_ref = false;
-                            if ref_id.contains('.') {
-                                let last_dot = ref_id.rfind('.').unwrap();
-                                let obj_prefix = &ref_id[..last_dot];
-                                let field_part = &ref_id[last_dot + 1..];
-                                if objects_by_id.contains_key(obj_prefix) {
-                                    // Check if the object actually has this field
-                                    let candidate_obj = all_objects.iter().find(|o| {
-                                        o.get("__id").and_then(|v| v.as_str()) == Some(obj_prefix)
-                                    });
-                                    if let Some(cand) = candidate_obj {
-                                        if cand.get(field_part).is_some()
-                                            && !field_part.starts_with("__")
-                                        {
-                                            is_field_ref = true;
-                                        }
-                                    }
-                                }
-                            }
-                            if !is_field_ref {
-                                // Check if the object exists in a different namespace
-                                // (cross-namespace hint for better error messages)
-                                let mut hint = String::new();
-                                if let Some(other_ns_candidates) = by_local_id.get(&ref_id) {
-                                    // Found by __local_id in another namespace
-                                    let other_ns: Vec<_> = other_ns_candidates
-                                        .iter()
-                                        .filter(|(_, _, ns, _, _)| {
-                                            if let Some(obj_ns) = &obj_namespace {
-                                                ns != obj_ns
-                                            } else {
-                                                !ns.is_empty()
-                                            }
-                                        })
-                                        .collect();
-                                    if !other_ns.is_empty() {
-                                        let (_, _, ns, id, _) = other_ns[0];
-                                        hint = format!(". Did you mean [[#{}:{}]]?", ns, id);
-                                    }
-                                }
-                                if hint.is_empty() {
-                                    // Check by __id in other namespaces
-                                    if let Some(id_candidates) = objects_by_id.get(&ref_id) {
-                                        let other_ns: Vec<_> = id_candidates
-                                            .iter()
-                                            .filter(|(_, _, ns, _)| {
-                                                if let Some(obj_ns) = &obj_namespace {
-                                                    ns != obj_ns
-                                                } else {
-                                                    !ns.is_empty()
-                                                }
-                                            })
-                                            .collect();
-                                        if !other_ns.is_empty() {
-                                            let (_, _, ns, _) = other_ns[0];
-                                            hint =
-                                                format!(". Did you mean [[#{}:{}]]?", ns, ref_id);
-                                        }
-                                    }
-                                }
-
-                                errors.push(WorkspaceError {
-                                    error_type: "broken_link".to_string(),
-                                    message: format!("Object '{}' not found{}", ref_id, hint),
-                                    file: Some(file_path.clone()),
-                                    line: Some(line),
-                                    object: Some(obj_id.to_string()),
-                                    field_name: None,
-                                    reference: Some(format!("[[{}]]", target)),
-                                    candidates: None,
-                                    severity: "error".to_string(),
-                                });
-                            }
-                        }
-                    } else if resolved_objects.len() == 1 {
-                        // Object found — check for ambiguous_field_reference
-                        // If ref_id contains a dot, check if the field-path interpretation
-                        // also resolves to a scalar field (not a reference to this object)
-                        if ref_id.contains('.') {
-                            let last_dot = ref_id.rfind('.').unwrap();
-                            let obj_prefix = &ref_id[..last_dot];
-                            let field_part = &ref_id[last_dot + 1..];
-                            if objects_by_id.contains_key(obj_prefix) {
-                                // Find the object with obj_prefix to check its fields
-                                let candidate_obj = all_objects.iter().find(|o| {
-                                    o.get("__id").and_then(|v| v.as_str()) == Some(obj_prefix)
-                                });
-                                if let Some(cand) = candidate_obj {
-                                    let has_field = cand.get(field_part).is_some()
-                                        && !field_part.starts_with("__");
-                                    if has_field {
-                                        let field_val = cand.get(field_part).unwrap();
-                                        // Ambiguous if field value is NOT a reference to the resolved object
-                                        let expected_ref =
-                                            Value::String(format!("[[#{}]]", ref_id));
-                                        if *field_val != expected_ref {
-                                            let field_val_repr = {
-                                                let s = field_val.to_string();
-                                                if s.chars().count() < 40 {
-                                                    s
-                                                } else {
-                                                    // char-boundary-safe truncation (byte
-                                                    // slicing panics on multi-byte UTF-8)
-                                                    let truncated: String =
-                                                        s.chars().take(37).collect();
-                                                    format!("{}...", truncated)
-                                                }
-                                            };
-                                            errors.push(WorkspaceError {
-                                                error_type: "ambiguous_field_reference"
-                                                    .to_string(),
-                                                message: format!(
-                                                    "Reference '{}' cannot be unequivocally resolved to an object or a field",
-                                                    target
-                                                ),
-                                                file: Some(file_path.clone()),
-                                                line: Some(line),
-                                                object: Some(obj_id.to_string()),
-                                                field_name: None,
-                                                reference: Some(format!("[[{}]]", target)),
-                                                candidates: Some(vec![
-                                                    format!("object with __id '{}'", ref_id),
-                                                    format!(
-                                                        "field '{}' on object '{}' (value: {})",
-                                                        field_part, obj_prefix, field_val_repr
-                                                    ),
-                                                ]),
-                                                severity: "error".to_string(),
-                                            });
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else if resolved_objects.len() > 1 {
-                        let kinds: std::collections::HashSet<&String> =
-                            resolved_objects.iter().map(|(_, k, _, _)| k).collect();
-                        let namespaces: std::collections::HashSet<&String> =
-                            resolved_objects.iter().map(|(_, _, ns, _)| ns).collect();
-
-                        let is_ambiguous = if ref_kind.is_some() && ref_namespace.is_some() {
-                            false
-                        } else {
-                            kinds.len() > 1 || namespaces.len() > 1
-                        };
-
-                        if is_ambiguous {
-                            errors.push(WorkspaceError {
-                                error_type: "ambiguous_reference".to_string(),
-                                message: format!(
-                                    "Ambiguous reference '{}' - multiple objects match",
-                                    target
-                                ),
-                                file: Some(file_path.clone()),
-                                line: Some(line),
-                                object: Some(obj_id.to_string()),
-                                field_name: None,
-                                reference: Some(format!("[[{}]]", target)),
-                                candidates: Some(
-                                    resolved_objects
-                                        .iter()
-                                        .map(|(f, k, ns, l)| {
-                                            if ns.is_empty() {
-                                                format!("{}:{}:{}", f, k, l)
-                                            } else {
-                                                format!("{}:{}:{}:{}", ns, f, k, l)
-                                            }
-                                        })
-                                        .collect(),
-                                ),
-                                severity: "error".to_string(),
-                            });
-                        }
-                    }
-                }
-            }
-        }
+    // QMD-68: broken_link / ambiguous_reference / ambiguous_field_reference are produced
+    // by the SINGLE shared engine (`core::reference_scan`) — the same algorithm the LSP and
+    // MCP use, so the three surfaces can never drift. The CLI passes file content so the
+    // historical double-backtick inline-code suppression is preserved.
+    for f in crate::core::reference_scan::reference_scan(
+        &all_objects,
+        &all_objects,
+        Some(&file_content_cache),
+    ) {
+        errors.push(WorkspaceError {
+            error_type: f.kind.type_str().to_string(),
+            message: f.message,
+            file: Some(f.file),
+            line: Some(f.line),
+            object: Some(f.object),
+            field_name: None,
+            reference: Some(f.reference),
+            candidates: if f.candidates.is_empty() {
+                None
+            } else {
+                Some(f.candidates)
+            },
+            severity: "error".to_string(),
+        });
     }
 
     // If no explicit workspace found but we have QMD.md files, create virtual workspace
@@ -1196,49 +708,6 @@ pub fn parse_workspace(root_path: &Path, format: OutputFormat) -> WorkspaceResul
 }
 
 /// Parse reference target into (namespace, kind, id)
-/// Handles: #id, Kind:id, namespace:id, namespace:Kind:id
-fn parse_reference_target(target: &str) -> (Option<String>, Option<String>, String) {
-    let s = target.strip_prefix('#').unwrap_or(target);
-
-    // Handle file#id (cross-file reference) - extract just the id part
-    let s = if let Some((_, id_part)) = s.split_once('#') {
-        id_part
-    } else {
-        s
-    };
-
-    // Handle namespace:Kind:id or namespace:id
-    if let Some((first_part, rest)) = s.split_once(':') {
-        if let Some((kind_part, id_part)) = rest.split_once(':') {
-            // namespace:Kind:id
-            return (
-                Some(first_part.to_string()),
-                Some(kind_part.to_string()),
-                id_part.to_string(),
-            );
-        } else {
-            // Could be namespace:id or Kind:id - check if first_part looks like a namespace
-            // For now, assume it's Kind:id if it's capitalized, namespace:id otherwise
-            // This is a heuristic - in practice, we'd need to check against actual namespace list
-            if first_part
-                .chars()
-                .next()
-                .map(|c| c.is_uppercase())
-                .unwrap_or(false)
-            {
-                // Likely Kind:id
-                return (None, Some(first_part.to_string()), rest.to_string());
-            } else {
-                // Likely namespace:id
-                return (Some(first_part.to_string()), None, rest.to_string());
-            }
-        }
-    }
-
-    // Just #id - no namespace or kind specified
-    (None, None, s.to_string())
-}
-
 /// Find all workspace directories (directories containing readme.qmd.md with __Workspace).
 /// Respects .qmdcignore patterns.
 pub fn find_all_workspace_dirs(root_path: &Path) -> Vec<PathBuf> {

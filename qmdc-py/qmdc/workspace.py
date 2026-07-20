@@ -795,14 +795,29 @@ def validate_workspace(
 
     # Check for duplicate IDs (same id, different files or same file)
     # Skip system objects (__Document, __TextBlock) as they are auto-generated per file
+    #
+    # QMD-67: duplicate identity is scoped by namespace. Two objects with the same
+    # full __id in DIFFERENT namespaces are distinct (distinct rows in the DB, keyed
+    # by (__workspace, __namespace, __id), and distinct reference targets). We group
+    # by (namespace, id) here. This is a SEPARATE grouping from objects_by_id (bare-id
+    # keyed), which must stay bare-id-keyed for reference resolution / __local_id
+    # fallback / cross-namespace hints. Dropping __workspace is safe: validation runs
+    # per-workspace.
+    # Exclude system objects (__Document/__TextBlock/__ParsingError) PER LOCATION while
+    # building the duplicate index, rather than skipping a whole (namespace, id) group if
+    # any member is a system object. A group-level skip would mask a genuine user-object
+    # duplicate whenever a system object happens to share the id in the same namespace.
+    # (objects_by_id itself stays complete — reference resolution depends on it.)
+    system_kinds = ("__Document", "__TextBlock", "__ParsingError")
+    objects_by_ns_id: dict[tuple[str, str], list[tuple[str, str, str, int]]] = {}
     for obj_id, locations in objects_by_id.items():
-        # Skip system objects with auto-generated IDs
-        is_system_object = any(
-            kind == "__Document" or kind == "__TextBlock" for _, kind, _, _ in locations
-        )
-        if is_system_object:
-            continue
+        for loc in locations:
+            _file, kind, namespace, _line = loc
+            if kind in system_kinds:
+                continue
+            objects_by_ns_id.setdefault((namespace, obj_id), []).append(loc)
 
+    for (_namespace, obj_id), locations in objects_by_ns_id.items():
         if len(locations) > 1:
             # Check if duplicates are in different files
             files = {file for file, _, _, _ in locations}

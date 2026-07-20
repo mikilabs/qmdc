@@ -713,51 +713,80 @@ export function validateWorkspace(
 
   // Check for duplicate IDs (same id, different files or same file)
   // Skip system objects (__Document, __TextBlock) as they are auto-generated per file
+  //
+  // QMD-67: duplicate identity is scoped by namespace. Two objects with the same full
+  // __id in DIFFERENT namespaces are distinct (distinct rows in the DB, keyed by
+  // (__workspace, __namespace, __id), and distinct reference targets). We group by
+  // (namespace, id) here. This is a SEPARATE grouping from objectsById (bare-id
+  // keyed), which must stay bare-id-keyed for reference resolution / __local_id
+  // fallback / cross-namespace hints. Dropping __workspace is safe: validation runs
+  // per-workspace. A nested Map gives a collision-safe composite key (no delimiter).
+  // Exclude system objects (__Document/__TextBlock/__ParsingError) PER LOCATION while
+  // building the duplicate index, rather than skipping a whole (namespace, id) group if
+  // any member is a system object. A group-level skip would mask a genuine user-object
+  // duplicate whenever a system object happens to share the id in the same namespace.
+  // (objectsById itself stays complete — reference resolution depends on it.)
+  const SYSTEM_KINDS = new Set(['__Document', '__TextBlock', '__ParsingError']);
+  const objectsByNsId = new Map<string, Map<string, Array<[string, string, string, number]>>>();
   for (const [objId, locations] of Object.entries(objectsById)) {
-    // Skip system objects with auto-generated IDs
-    const isSystemObject = locations.some(
-      ([, kind]) => kind === '__Document' || kind === '__TextBlock'
-    );
-    if (isSystemObject) {
-      continue;
-    }
-
-    if (locations.length > 1) {
-      // Check if duplicates are in different files
-      const files = new Set(locations.map(([file]) => file));
-      if (files.size > 1) {
-        // Duplicate ID across files
-        for (const location of locations.slice(1)) {
-          const [file, , , line] = location;
-          const candidates = locations.map(([f, , , l]) => `${f}:${l}`);
-          errors.push({
-            type: 'duplicate_id',
-            message: `Duplicate ID '${objId}' found in multiple files`,
-            file,
-            line,
-            objectId: objId,
-            candidates,
-            severity: 'error',
-          });
-        }
+    for (const loc of locations) {
+      if (SYSTEM_KINDS.has(loc[1])) {
+        continue;
+      }
+      const namespace = loc[2];
+      let byId = objectsByNsId.get(namespace);
+      if (!byId) {
+        byId = new Map();
+        objectsByNsId.set(namespace, byId);
+      }
+      const bucket = byId.get(objId);
+      if (bucket) {
+        bucket.push(loc);
       } else {
-        // Same file - check if different kinds
-        const kinds = new Set(locations.map(([, kind]) => kind));
-        if (kinds.size > 1) {
-          // Same ID, different kinds - ambiguous
-          const firstKind = locations[0]?.[1];
-          if (!firstKind) continue;
-          for (const [file, kind, , line] of locations.slice(1)) {
-            const candidates = locations.map(([f, k, , l]) => `${f}:${k}:${l}`);
+        byId.set(objId, [loc]);
+      }
+    }
+  }
+
+  for (const byId of objectsByNsId.values()) {
+    for (const [objId, locations] of byId) {
+      if (locations.length > 1) {
+        // Check if duplicates are in different files
+        const files = new Set(locations.map(([file]) => file));
+        if (files.size > 1) {
+          // Duplicate ID across files
+          for (const location of locations.slice(1)) {
+            const [file, , , line] = location;
+            const candidates = locations.map(([f, , , l]) => `${f}:${l}`);
             errors.push({
               type: 'duplicate_id',
-              message: `Duplicate ID '${objId}' with different kinds: ${firstKind} and ${kind}`,
+              message: `Duplicate ID '${objId}' found in multiple files`,
               file,
               line,
               objectId: objId,
               candidates,
               severity: 'error',
             });
+          }
+        } else {
+          // Same file - check if different kinds
+          const kinds = new Set(locations.map(([, kind]) => kind));
+          if (kinds.size > 1) {
+            // Same ID, different kinds - ambiguous
+            const firstKind = locations[0]?.[1];
+            if (!firstKind) continue;
+            for (const [file, kind, , line] of locations.slice(1)) {
+              const candidates = locations.map(([f, k, , l]) => `${f}:${k}:${l}`);
+              errors.push({
+                type: 'duplicate_id',
+                message: `Duplicate ID '${objId}' with different kinds: ${firstKind} and ${kind}`,
+                file,
+                line,
+                objectId: objId,
+                candidates,
+                severity: 'error',
+              });
+            }
           }
         }
       }

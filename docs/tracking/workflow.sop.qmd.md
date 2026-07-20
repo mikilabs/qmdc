@@ -2,7 +2,7 @@
 
 Standard Operating Procedure for executing tasks with checkpoints.
 
-- version: 1.3
+- version: 1.4
 - commands: [do, approve, create, decline]
 
 ## Overview
@@ -15,16 +15,30 @@ The workflow manages the task lifecycle through a state machine with two checkpo
 - "Approve QMD-17" — confirm a checkpoint and continue
 - "Create task: description" — create a new task
 
-**CRITICAL RULE:**
+**CRITICAL TEST RULE:**
 
-🚨 **CANNOT change task status if tests are failing!**
+🚨 **No unexplained test failure may cross a checkpoint.**
 
-- Run `make test-fast` (or `make test`) after EVERY code change
-- `make test-fast` — recommended option, runs tests in parallel (~2x faster)
-- If tests fail — this is YOUR problem, fix them immediately
-- NEVER move a task to `triage_review` or `done_review` with failing tests
-- If tests broke on you — fix the tests
-- Failing tests block any status transition
+- Run `make test-fast` (or `make test`) after EVERY code change.
+- For Features and for transitions to `done_review` or `done`, ALL tests MUST pass.
+- If an unrelated test fails, fix it immediately; it blocks every status transition.
+
+**Bug triage exception (supersedes generic triage wording below):**
+
+- During triage of a `Bug`, inspect existing tests before adding coverage.
+- If no existing test reproduces the exact bug, add the smallest non-duplicative,
+  preferably data-driven regression test during triage. Separate operator approval
+  is not required for this mandatory Bug regression test.
+- Run the regression test and `make test-fast` before setting `triage_review`.
+- The new regression test SHOULD fail before implementation for the documented
+  reason. This expected failure is reproduction evidence, not a triage blocker.
+- A Bug may move from `planned` to `triage_review` with failing tests ONLY when every
+  failure is caused by the newly added regression test and matches the documented
+  bug. Record the expected failures in the Finding.
+- Any pre-existing, unrelated, or differently failing test still blocks the
+  transition.
+- After implementation, the regression test and the entire suite MUST pass. There is
+  no exception for `done_review` or `done`.
 
 ## Prerequisites [[prerequisites: Section]]
 
@@ -51,8 +65,10 @@ cd qmdc-rs && cargo build && cd ..
 - You MUST use templates from readme for Feature, Finding, Result objects
 - You MUST NOT invent your own file formats or ID naming conventions
 - **You MUST run `make test-fast` (or `make test`) before changing task status**
-- **You MUST fix ALL failing tests before proceeding to next step**
-- **NEVER change task status if tests are failing**
+- **For Bug triage, only documented failures from the new mandatory regression test
+  may remain when moving to `triage_review`**
+- **All unrelated failures block every transition; ALL tests must pass before
+  `done_review` or `done`**
 
 ## Tools [[tools_section: Section]]
 
@@ -150,7 +166,11 @@ Technical analysis of the task. Create findings with an implementation and testi
 - You MUST document approach and test cases
 - **You MUST include test_plan in findings (existing tests + new tests if needed)**
 - **You MUST prefer data-driven tests over code tests**
-- You MUST set status to `triage_review` after creating findings
+- **For a Bug without exact existing coverage, you MUST add the smallest
+  non-duplicative regression test during triage**
+- **You MUST record whether that regression fails for the documented reason**
+- You MUST set status to `triage_review` after creating findings and verifying either
+  a green suite or only documented failures from the new Bug regression
 - You MUST stop execution after setting triage_review
 - You MUST NOT proceed to implementation
 - You MUST NOT change status to in_progress
@@ -171,12 +191,18 @@ Technical analysis of the task. Create findings with an implementation and testi
    - Existing tests — which tests already cover this (or "none")
    - New tests needed — test type (parser microtests, workspace tests, lsp microtests, sql tests), location, test cases
    - How to verify — brief description of validation process
-6. Validate: `./qmdc parse -i {ID}-findings.qmd.md > /dev/null`
-7. **Run tests: `make test-fast` — ALL tests MUST pass before proceeding**
-8. Update Feature status: `planned` → `triage_review`
-9. Validate: `./qmdc parse -i {ID}-task.qmd.md > /dev/null`
-10. STOP and report: "Triage complete. Awaiting approval to start work."
+6. For a Bug with no exact regression coverage, add the smallest non-duplicative,
+   preferably data-driven regression test and confirm it fails for the documented
+   reason before implementation
+7. Validate: `./qmdc parse -i {ID}-findings.qmd.md > /dev/null`
+8. **Run tests: `make test-fast`**
+   - Features: all tests must pass
+   - Bugs: all tests except the documented new regression must pass
+9. Update Feature/Bug status: `planned` → `triage_review`
+10. Validate: `./qmdc parse -i {ID}-task.qmd.md > /dev/null`
+11. STOP and report: "Triage complete. Awaiting approval to start work."
     - If open questions exist — list them and ask for clarification
+    - If a Bug regression is red — list the exact expected failures
 
 ### 3. Approve Triage [[step_approve_triage: Step]]
 

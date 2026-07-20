@@ -1,0 +1,14 @@
+{
+  "diagnostics": [
+    {
+      "file": "doc.qmd.md",
+      "line": 1,
+      "code": "multiple_definitions",
+      "message": "multiple_definitions: definitions: [\"[[a]]\",\"[[b]]\"], object: [[#a]]",
+      "severity": "error"
+    }
+  ],
+  "count": 1,
+  "truncated": false,
+  "success": true
+}

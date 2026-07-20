@@ -6,6 +6,16 @@
 
 use serde_json::Value;
 
+/// Auto-generated / parser-internal kinds excluded from **duplicate detection** (they
+/// are not user-addressable, uniquely-owned objects). Single source of truth for the
+/// duplicate-detection "system object" skip that was previously hardcoded in several
+/// places. NOTE: reference indexing in [`crate::core::reference_scan`] deliberately keeps
+/// `__Document`/`__TextBlock` resolvable and skips only `__ParsingError`, so it does NOT
+/// use this helper.
+pub fn is_system_kind(kind: &str) -> bool {
+    matches!(kind, "__Document" | "__TextBlock" | "__ParsingError")
+}
+
 /// Convenience accessors for QMD.md object system fields on a `serde_json::Value`.
 pub trait QmdcObject {
     /// String system field, or `""` if absent/non-string.

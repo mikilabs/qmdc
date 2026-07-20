@@ -1,0 +1,14 @@
+{
+  "_comment": "QMD-68: unqualified [[#foo]] matches foo in two namespaces (r1, r2) -> ambiguous. LSP + MCP now detect this (converged onto the single engine).",
+  "diagnostics": [
+    {
+      "message": "Ambiguous reference '#foo' - multiple objects match",
+      "range": {
+        "start": { "line": 2, "character": 7 },
+        "end": { "line": 2, "character": 15 }
+      },
+      "severity": 1,
+      "code": "QMDC002"
+    }
+  ]
+}

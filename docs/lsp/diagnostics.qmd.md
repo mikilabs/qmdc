@@ -48,11 +48,11 @@ For some errors, related information is shown:
 - user: [[#alice]]
         ^^^^^^^^^^^  ← Error (QMDC001): Object 'alice' not found
 
-## Users [[users: Table]]
+## Users [[users]]
 ...
-## Users [[users: Table]]
-   ^^^^^^^^^^^^^^^^^^^^^  ← Error (QMDC003): Duplicate 'Table:users'
-                             First defined at line 5
+## Users [[users]]
+         ^^^^^^^^^  ← Error (QMDC003): Duplicate ID 'users'
+                     (first defined on line 5)
 ```
 
 ## Broken Link [[rule_broken_link: DiagnosticRule]]
@@ -135,7 +135,8 @@ Ambiguous reference '{id}', found in: {locations}
 
 ## Duplicate ID [[rule_duplicate_id: DiagnosticRule]]
 
-Two objects with the same Kind:Id in one namespace.
+Two objects with the same FULL hierarchical `__id` in one namespace. Parent-scoped
+children with the same local id do not collide.
 
 - code: QMDC003
 - severity: error
@@ -143,27 +144,27 @@ Two objects with the same Kind:Id in one namespace.
 
 ### Description [[description: text]]
 
-**Pattern:** two headings with the same `[[id]]` or `[[id: Kind]]` in one namespace.
+**Pattern:** two headings resolve to the same full hierarchical `__id` in one
+namespace. Kind is not part of duplicate identity.
 
 **Message:**
 
 ```text
-Duplicate '{kind}:{id}' in namespace '{namespace}'
+Duplicate ID '{id}' (first defined on line {line})
 ```
 
-**Range:** the heading of the second object is underlined in red.
+**Range:** the ID definition of the second object is underlined in red.
 
-**Related information:** shows the location of the first object.
+**First definition:** its line number is included in the diagnostic message.
 
 **Example:**
 
 ```markdown
-## Users [[users: Table]]
+## Users [[users]]
 ...
 
-## Users [[users: Table]]
-   ^^^^^^^^^^^^^^^^^^^^^  ← Error: Duplicate 'Table:users' in namespace 'storage'
-                             First defined at line 5
+## Users [[users]]
+         ^^^^^^^^^  ← Error: Duplicate ID 'users' (first defined on line 5)
 ```
 
 ## Unknown Kind [[rule_unknown_kind: DiagnosticRule]]
@@ -353,3 +354,39 @@ Reference '{target}' cannot be unequivocally resolved to an object or a field: o
 - ref: [[#team.score]]
        ^^^^^^^^^^^^^^^  ← Error: ambiguous between object 'team.score' and field 'score' on 'team'
 ```
+
+## Surface Coverage [[surface_coverage: Section]]
+
+Which surface emits which diagnostic. CLI = `qmdc workspace validate`; LSP = editor
+diagnostics; MCP = `qmdc_validate_references` + `qmdc://diagnostics`. Reference
+diagnostics for the CLI, LSP, and MCP all come from one shared engine
+(`core::reference_scan::reference_scan`); duplicate detection is namespace-scoped per
+QMD-67 (`core::ops::validate::collect_duplicate_issues`), shared by all three surfaces.
+
+### Matrix [[surface_matrix: text]]
+
+| Diagnostic | code | CLI | LSP | MCP |
+| --- | --- | --- | --- | --- |
+| broken_link | QMDC001 | yes | yes | yes |
+| ambiguous_reference | QMDC002 | yes | yes | yes |
+| duplicate_id (same-file) | QMDC003 | yes | yes | yes |
+| duplicate_id (cross-file / namespace-scoped) | QMDC003 | yes | yes | yes |
+| workspace_in_wrong_file | QMDC004 | yes | yes | yes |
+| ambiguous_field_reference | QMDC009 | yes | yes | yes |
+| broken_parent | broken_parent | yes | no | yes |
+| nested_workspace | nested_workspace | yes | no | yes |
+| parser structural (dangling_field, mixed_field_keys, multiple_definitions, structured_in_textblock, invalid_id_character, explicit_system_type, nested_subitems, ordered_list_in_array, invalid_map_entry, invalid_map_content) | (type) | yes | yes | yes |
+
+### Notes [[surface_notes: text]]
+
+- LSP same-file `duplicate_id` comes from a per-document scan (works with no workspace);
+  cross-file/namespace-scoped `duplicate_id` comes from the shared detector. The two do
+  not double-report.
+- `broken_parent` and `nested_workspace` are workspace-level and are not surfaced by the
+  single-document LSP path; they appear in CLI and MCP.
+- Single engine: broken_link / ambiguous_reference / ambiguous_field_reference are all
+  produced by one shared implementation, `core::reference_scan::reference_scan`, used by
+  the CLI, the LSP, and MCP — so the three surfaces cannot drift. The CLI and LSP pass
+  file content so inline-code (double-backtick) references stay suppressed; MCP relies on
+  the parser's single-backtick stripping (double-backtick suppression on the MCP path is a
+  known minor gap with no test coverage).

@@ -1,0 +1,15 @@
+{
+  "workspace_id": "nested_dup_ns",
+  "files": [
+    "outer/inner_a/readme.qmd.md",
+    "outer/inner_b/readme.qmd.md",
+    "outer/readme.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["nested_dup_ns"],
+    "__Namespace": ["inner_a", "inner_b", "outer"],
+    "Thing": ["foo", "foo"]
+  },
+  "errors": []
+}

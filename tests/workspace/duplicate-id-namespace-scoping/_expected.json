@@ -1,0 +1,14 @@
+{
+  "workspace_id": "dup_id_ns_scoping",
+  "files": [
+    "ns_a/readme.qmd.md",
+    "ns_b/readme.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["dup_id_ns_scoping"],
+    "__Namespace": ["ns_a", "ns_b"],
+    "Thing": ["foo", "foo"]
+  },
+  "errors": []
+}
