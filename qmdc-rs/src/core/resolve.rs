@@ -79,22 +79,6 @@ pub fn parse_ref_namespace(target: &str) -> Option<String> {
     }
 }
 
-/// Outcome of resolving a reference target against the object set.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Resolution {
-    /// The reference resolves to exactly one object (or a field, or a hierarchical id).
-    Resolved,
-    /// The reference does not resolve. `hint` is a possibly-empty did-you-mean suffix
-    /// (e.g. `". Did you mean [[#ns:id]]?"`).
-    NotFound { hint: String },
-    /// The reference resolves to multiple objects by `__local_id` in the same namespace.
-    Ambiguous,
-    /// A dotted ref resolves BOTH as a full object `__id` AND as a field on the
-    /// prefix object — mirrors the CLI validator's `ambiguous_field_reference`.
-    /// `candidates` describes the two interpretations for the diagnostic message.
-    AmbiguousFieldRef { candidates: [String; 2] },
-}
-
 /// An index over parsed objects providing the same lookup power the LSP `WorkspaceInfo`
 /// had: by `__id`, by `__local_id`, and direct access for field checks.
 pub struct ObjectIndex<'a> {
@@ -128,17 +112,6 @@ impl<'a> ObjectIndex<'a> {
     /// Look up the first object with this exact `__id`.
     pub fn get_by_id(&self, id: &str) -> Option<&'a Value> {
         self.by_id.get(id).and_then(|v| v.first().copied())
-    }
-
-    /// Check whether `obj_prefix` has a non-system field named `field_part`.
-    fn field_ref_resolves(&self, obj_prefix: &str, field_part: &str) -> bool {
-        if field_part.starts_with("__") {
-            return false;
-        }
-        if let Some(obj) = self.get_by_id(obj_prefix) {
-            return obj.get(field_part).is_some();
-        }
-        false
     }
 
     /// Resolve a reference `target` (from an object in namespace `from_namespace`) to the
@@ -236,117 +209,6 @@ impl<'a> ObjectIndex<'a> {
         }
         candidates.first().copied()
     }
-
-    /// Resolve a reference `target` made from an object in namespace `from_namespace`.
-    ///
-    /// This mirrors the resolution chain in `Backend::compute_diagnostics`:
-    /// hierarchical dotted id → field-ref → by `__id` → by `__local_id` (namespace-filtered,
-    /// with cross-namespace hint / ambiguity).
-    pub fn resolve(&self, target: &str, from_namespace: &str) -> Resolution {
-        let raw_target = target.strip_prefix('#').unwrap_or(target);
-        let ref_id = extract_id_from_target(target);
-        let ref_namespace = parse_ref_namespace(target);
-
-        // Hierarchical dotted id (e.g. `team.config`) resolving as a full id.
-        if raw_target.contains('.') && !raw_target.contains(':') && self.contains_id(raw_target) {
-            // Mirror the CLI validator's `ambiguous_field_reference`: the same dotted
-            // ref may ALSO resolve as a field on the prefix object. Exemption: not
-            // ambiguous when the field value is exactly the parser-generated
-            // `[[#<full dotted id>]]` parent→child link (workspace.rs Phase 3).
-            if let Some((obj_prefix, field_part)) = split_field_ref(raw_target) {
-                if !field_part.starts_with("__") {
-                    if let Some(parent) = self.get_by_id(obj_prefix) {
-                        if let Some(field_val) = parent.get(field_part) {
-                            let expected_ref = format!("[[#{}]]", raw_target);
-                            if field_val.as_str() != Some(expected_ref.as_str()) {
-                                let field_val_repr = {
-                                    let s = field_val.to_string();
-                                    if s.chars().count() < 40 {
-                                        s
-                                    } else {
-                                        // char-boundary-safe truncation (byte slicing
-                                        // panics on multi-byte UTF-8 values)
-                                        let truncated: String = s.chars().take(37).collect();
-                                        format!("{}...", truncated)
-                                    }
-                                };
-                                return Resolution::AmbiguousFieldRef {
-                                    candidates: [
-                                        format!("object with __id '{}'", raw_target),
-                                        format!(
-                                            "field '{}' on object '{}' (value: {})",
-                                            field_part, obj_prefix, field_val_repr
-                                        ),
-                                    ],
-                                };
-                            }
-                        }
-                    }
-                }
-            }
-            return Resolution::Resolved;
-        }
-
-        // Field reference (obj.field).
-        if let Some((obj_prefix, field_part)) = split_field_ref(raw_target) {
-            if self.field_ref_resolves(obj_prefix, field_part) {
-                return Resolution::Resolved;
-            }
-        }
-
-        // Exact `__id` match.
-        if self.contains_id(&ref_id) {
-            return Resolution::Resolved;
-        }
-
-        // `__local_id` match, filtered by namespace.
-        let target_namespace: Option<&str> =
-            ref_namespace.as_deref().or(if from_namespace.is_empty() {
-                None
-            } else {
-                Some(from_namespace)
-            });
-
-        if let Some(candidates) = self.by_local_id.get(ref_id.as_str()) {
-            let filtered: Vec<&&Value> = candidates
-                .iter()
-                .filter(|obj| {
-                    let obj_ns = obj
-                        .get("__namespace")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("");
-                    match target_namespace {
-                        Some(ns) => obj_ns == ns,
-                        None => obj_ns.is_empty(),
-                    }
-                })
-                .collect();
-
-            match filtered.len() {
-                0 => {
-                    // Exists in another namespace — build a did-you-mean hint.
-                    let hint = candidates
-                        .iter()
-                        .find_map(|obj| {
-                            let ns = obj
-                                .get("__namespace")
-                                .and_then(|v| v.as_str())
-                                .filter(|s| !s.is_empty())?;
-                            let id = obj.get("__id").and_then(|v| v.as_str()).unwrap_or(&ref_id);
-                            Some(format!(". Did you mean [[#{}:{}]]?", ns, id))
-                        })
-                        .unwrap_or_default();
-                    Resolution::NotFound { hint }
-                }
-                1 => Resolution::Resolved,
-                _ => Resolution::Ambiguous,
-            }
-        } else {
-            Resolution::NotFound {
-                hint: String::new(),
-            }
-        }
-    }
 }
 
 #[cfg(test)]
@@ -366,6 +228,6 @@ mod namespaced_localid_tests {
         ];
         let idx = ObjectIndex::build(&objects);
         // from_namespace = "" — the readme file that holds the ref only has the __Namespace decl.
-        assert_eq!(idx.resolve("#lsp:completion", ""), Resolution::Resolved);
+        assert!(idx.resolve_object("#lsp:completion", "").is_some());
     }
 }

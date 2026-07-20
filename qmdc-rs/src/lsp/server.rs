@@ -1202,7 +1202,7 @@ impl Backend {
                 obj.get("__line").and_then(|v| v.as_u64()),
             ) {
                 let label = obj.get("__label").and_then(|v| v.as_str()).unwrap_or(id);
-                let line = line as u32 - 1; // Parser uses 1-based, LSP uses 0-based
+                let line = (line.max(1) as u32) - 1; // Parser uses 1-based, LSP uses 0-based
 
                 if let Some((first_line, _)) = seen_ids.get(id) {
                     let lines: Vec<&str> = doc.content.lines().collect();
@@ -1253,6 +1253,60 @@ impl Backend {
             }
         }
 
+        // QMD-68 (B3): surface parser structural errors (__ParsingError) as editor
+        // diagnostics. These are single-document, workspace-independent (dangling_field,
+        // mixed_field_keys, multiple_definitions, structured_in_textblock,
+        // invalid_id_character, explicit_system_type, nested_subitems,
+        // ordered_list_in_array, invalid_map_*). `duplicate_id` is EXCLUDED here — the
+        // per-document `seen_ids` pass above already owns same-file duplicates, so we do
+        // not double-report.
+        for obj in &doc.objects {
+            if obj.get("__kind").and_then(|v| v.as_str()) != Some("__ParsingError") {
+                continue;
+            }
+            let err_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
+            if err_type.is_empty() || err_type == "duplicate_id" {
+                continue;
+            }
+            let line = obj.get("line").and_then(|v| v.as_u64()).unwrap_or(1);
+            let line = (line.max(1) as u32) - 1; // parser 1-based → LSP 0-based
+            let lines: Vec<&str> = doc.content.lines().collect();
+            let line_content = lines.get(line as usize).unwrap_or(&"");
+            // Build a message from the non-system detail fields, matching the CLI.
+            let mut detail_parts: Vec<String> = Vec::new();
+            if let Some(map) = obj.as_object() {
+                for (k, v) in map {
+                    if k.starts_with("__") || k == "type" || k == "line" {
+                        continue;
+                    }
+                    let v_str = match v {
+                        serde_json::Value::String(s) => s.clone(),
+                        _ => v.to_string(),
+                    };
+                    detail_parts.push(format!("{}: {}", k, v_str));
+                }
+            }
+            let message = if detail_parts.is_empty() {
+                err_type.to_string()
+            } else {
+                format!("{}: {}", err_type, detail_parts.join(", "))
+            };
+            diagnostics.push(Diagnostic {
+                range: Range {
+                    start: Position { line, character: 0 },
+                    end: Position {
+                        line,
+                        character: byte_offset_to_utf16_offset(line_content, line_content.len()),
+                    },
+                },
+                severity: Some(DiagnosticSeverity::ERROR),
+                code: Some(NumberOrString::String(err_type.to_string())),
+                source: Some("qmdc".to_string()),
+                message,
+                ..Default::default()
+            });
+        }
+
         // Check for __Workspace in wrong file (must be in readme.qmd.md)
         if let Ok(path) = uri.to_file_path() {
             if let Some(file_name) = path.file_name() {
@@ -1261,7 +1315,7 @@ impl Backend {
                     for obj in &doc.objects {
                         if obj.get("__kind").and_then(|v| v.as_str()) == Some("__Workspace") {
                             if let Some(line) = obj.get("__line").and_then(|v| v.as_u64()) {
-                                let line = line as u32 - 1; // Parser uses 1-based, LSP uses 0-based
+                                let line = (line.max(1) as u32) - 1; // Parser uses 1-based, LSP uses 0-based
                                 let lines: Vec<&str> = doc.content.lines().collect();
                                 let line_content = lines.get(line as usize).unwrap_or(&"");
                                 let ws_id = obj.get("__id").and_then(|v| v.as_str()).unwrap_or("");
@@ -1293,8 +1347,8 @@ impl Backend {
             }
         }
 
-        // Broken / ambiguous links — delegate to the SINGLE shared resolver that the
-        // CLI and MCP `validate` use (core::ops::validate::collect_reference_issues),
+        // Broken / ambiguous links — delegate to the SINGLE shared engine that the
+        // CLI and MCP `validate` use (core::reference_scan::reference_scan),
         // so the LSP and the validator can never disagree again. We diagnose the OPEN
         // doc's freshly-parsed objects (always current), resolving against the whole
         // workspace. The open doc's single-file parse has no namespace, so we backfill
@@ -1358,6 +1412,19 @@ impl Backend {
                         if needs {
                             map.insert("__namespace".to_string(), serde_json::json!(doc_ns));
                         }
+                        // Backfill __file too (the open buffer parses without it). The
+                        // duplicate detector keys on file, so an empty __file would drop
+                        // the open doc's objects from cross-file grouping (QMD-68).
+                        if let Some(f) = open_file.as_deref() {
+                            let needs_file = map
+                                .get("__file")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.is_empty())
+                                .unwrap_or(true);
+                            if needs_file {
+                                map.insert("__file".to_string(), serde_json::json!(f));
+                            }
+                        }
                     }
                     o
                 })
@@ -1386,33 +1453,115 @@ impl Backend {
                 .unwrap_or_default();
             index_objects.extend(iter_objects.iter().cloned());
 
-            for issue in
-                crate::core::ops::validate::collect_reference_issues(&index_objects, &iter_objects)
-            {
-                let line = (issue.line.max(1) as u32) - 1; // parser 1-based → LSP 0-based
+            // Shared reference engine (QMD-68). Pass the open doc's lines so inline-code
+            // (double-backtick) suppression matches the CLI for this file's references.
+            let mut ref_file_lines: HashMap<String, Vec<String>> = HashMap::new();
+            if let Some(of) = open_file.as_deref() {
+                ref_file_lines.insert(
+                    of.to_string(),
+                    doc.content.lines().map(|s| s.to_string()).collect(),
+                );
+            }
+            for f in crate::core::reference_scan::reference_scan(
+                &index_objects,
+                &iter_objects,
+                Some(&ref_file_lines),
+            ) {
+                let line = f.line.max(1) - 1; // parser 1-based → LSP 0-based
                 diagnostics.push(Diagnostic {
                     range: Range {
                         start: Position {
                             line,
-                            character: issue.start_col,
+                            character: f.start_col,
                         },
                         end: Position {
                             line,
-                            character: issue.end_col,
+                            character: f.end_col,
                         },
                     },
-                    severity: Some(
-                        if issue.severity == crate::core::ops::validate::SEVERITY_WARNING {
-                            DiagnosticSeverity::WARNING
-                        } else {
-                            DiagnosticSeverity::ERROR
-                        },
-                    ),
-                    code: Some(NumberOrString::String(issue.code.to_string())),
+                    severity: Some(DiagnosticSeverity::ERROR),
+                    code: Some(NumberOrString::String(f.kind.code().to_string())),
                     source: Some("qmdc".to_string()),
-                    message: issue.message,
+                    message: f.message,
                     ..Default::default()
                 });
+            }
+
+            // QMD-68: cross-file / namespace-scoped duplicate ids (QMDC003).
+            // The per-document `seen_ids` pass above already flags SAME-file duplicates
+            // (single-doc scope, no workspace needed). Here we add the CROSS-FILE cases:
+            // for every object in the OPEN doc whose (namespace, id) also occurs in a
+            // different file, emit QMDC003 on THIS file. Using the shared
+            // `cross_file_duplicate_keys` set (computed over the whole workspace index)
+            // guarantees the open file is flagged regardless of group anchor position,
+            // and never double-reports with the same-file `seen_ids` pass.
+            // Compute over the workspace's own indexed objects (all carry the correct
+            // `__file`, populated by the initialize scan). Attributing to the open file
+            // via `open_file` is robust — unlike the freshly-parsed open-doc objects,
+            // which parse without a `__file` and would drop out of cross-file grouping.
+            if let (Some(ws), Some(of)) = (ws_opt, open_file.as_deref()) {
+                use crate::core::fields::QmdcObject;
+                let ws_objs: Vec<serde_json::Value> =
+                    ws.objects.values().flatten().cloned().collect();
+                let cross_file_keys =
+                    crate::core::ops::validate::cross_file_duplicate_keys(&ws_objs);
+                if !cross_file_keys.is_empty() {
+                    // Emit the cross-file QMDC003 only on the FIRST occurrence of each
+                    // key in the open file. The same-file `seen_ids` pass above already
+                    // flags the 2nd+ occurrences of an in-file duplicate, so anchoring
+                    // here on the first occurrence guarantees we never double-report the
+                    // same span when an id is BOTH same-file and cross-file duplicated.
+                    let mut emitted_keys: std::collections::HashSet<(String, String)> =
+                        std::collections::HashSet::new();
+                    for obj in ws_objs.iter().filter(|o| o.file() == of) {
+                        let id = obj.id();
+                        if id.is_empty() {
+                            continue;
+                        }
+                        let key = (obj.namespace_id().to_string(), id.to_string());
+                        if !cross_file_keys.contains(&key) {
+                            continue;
+                        }
+                        if !emitted_keys.insert(key.clone()) {
+                            continue;
+                        }
+                        let line = (obj.line().max(1) as u32) - 1; // parser 1-based → LSP 0-based
+                        let lines: Vec<&str> = doc.content.lines().collect();
+                        let line_content = lines.get(line as usize).unwrap_or(&"");
+                        let (start_char, end_char) = {
+                            let pattern = format!("[[{}]]", id);
+                            if let Some(byte_start) = line_content.find(&pattern) {
+                                let byte_end = byte_start + pattern.len();
+                                (
+                                    byte_offset_to_utf16_offset(line_content, byte_start),
+                                    byte_offset_to_utf16_offset(line_content, byte_end),
+                                )
+                            } else {
+                                (
+                                    0,
+                                    byte_offset_to_utf16_offset(line_content, line_content.len()),
+                                )
+                            }
+                        };
+                        diagnostics.push(Diagnostic {
+                            range: Range {
+                                start: Position {
+                                    line,
+                                    character: start_char,
+                                },
+                                end: Position {
+                                    line,
+                                    character: end_char,
+                                },
+                            },
+                            severity: Some(DiagnosticSeverity::ERROR),
+                            code: Some(NumberOrString::String("QMDC003".to_string())),
+                            source: Some("qmdc".to_string()),
+                            message: format!("Duplicate ID '{}' found in multiple files", id),
+                            ..Default::default()
+                        });
+                    }
+                }
             }
         }
 

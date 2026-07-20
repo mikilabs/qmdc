@@ -1,0 +1,3 @@
+# Consumer [[consumer]]
+
+- ref: [[#foo]]

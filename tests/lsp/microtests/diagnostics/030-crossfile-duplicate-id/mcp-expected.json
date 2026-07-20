@@ -1,0 +1,14 @@
+{
+  "diagnostics": [
+    {
+      "file": "b.qmd.md",
+      "line": 1,
+      "code": "QMDC003",
+      "message": "Duplicate ID 'dup' found in multiple files",
+      "severity": "error"
+    }
+  ],
+  "count": 1,
+  "truncated": false,
+  "success": true
+}

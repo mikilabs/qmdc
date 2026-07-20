@@ -6,6 +6,13 @@
 
 use serde_json::Value;
 
+/// Auto-generated / parser-internal kinds that are excluded from duplicate detection
+/// and reference indexing (they are not user-addressable objects). Single source of
+/// truth for the "system object" skip that was previously hardcoded in several places.
+pub fn is_system_kind(kind: &str) -> bool {
+    matches!(kind, "__Document" | "__TextBlock" | "__ParsingError")
+}
+
 /// Convenience accessors for QMD.md object system fields on a `serde_json::Value`.
 pub trait QmdcObject {
     /// String system field, or `""` if absent/non-string.

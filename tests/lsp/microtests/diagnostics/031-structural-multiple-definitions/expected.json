@@ -1,0 +1,13 @@
+{
+  "diagnostics": [
+    {
+      "message": "multiple_definitions: definitions: [\"[[a]]\",\"[[b]]\"], object: [[#a]]",
+      "range": {
+        "start": { "line": 0, "character": 0 },
+        "end": { "line": 0, "character": 17 }
+      },
+      "severity": 1,
+      "code": "multiple_definitions"
+    }
+  ]
+}

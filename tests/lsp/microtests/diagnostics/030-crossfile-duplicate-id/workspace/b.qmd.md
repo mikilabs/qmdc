@@ -1,0 +1,3 @@
+# Foo [[dup]]
+
+- name: B
