@@ -44,6 +44,8 @@ init:
 	@echo ""
 	@echo "--- VS Code Extension ---"
 	cd qmdc-vscode && npm ci
+	@echo "  Installing Playwright Chromium (needed by vscode-test / make test)..."
+	cd qmdc-vscode && npx --yes playwright install chromium
 	@echo "✅ Extension deps ready"
 	@echo ""
 	@echo "--- Running tests ---"
