@@ -23,7 +23,8 @@ export interface WorkspaceError {
     | 'mixed_field_keys'
     | 'nested_subitems'
     | 'ordered_list_in_array'
-    | 'table_in_array';
+    | 'table_in_array'
+    | 'extra_table_in_array';
   message: string;
   file?: string;
   line?: number;

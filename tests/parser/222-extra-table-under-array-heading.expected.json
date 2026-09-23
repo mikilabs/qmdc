@@ -1,5 +1,17 @@
 [
   {
+    "__id": "team.members.members_0",
+    "__local_id": "members_0",
+    "__label": "Alice",
+    "__kind": "User",
+    "__parent": "[[#team]]",
+    "__parent_field": "members",
+    "name": "Alice",
+    "__types": {
+      "name": "string"
+    }
+  },
+  {
     "__id": "team",
     "__label": "Team",
     "__kind": "Group",
@@ -26,15 +38,11 @@
     }
   },
   {
-    "__id": "team.members.members_0",
-    "__local_id": "members_0",
-    "__label": "Alice",
-    "__kind": "User",
-    "__parent": "[[#team]]",
-    "__parent_field": "members",
-    "name": "Alice",
-    "__types": {
-      "name": "string"
-    }
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "extra_table_in_array",
+    "field": "members",
+    "object": "[[#team]]",
+    "line": 11
   }
 ]

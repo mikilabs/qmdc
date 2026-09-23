@@ -272,6 +272,11 @@ def parse(
     # Track pending object array from [[field: [Kind]]] heading
     # (parent_id, field_name, array_kind, level)
     pending_object_array: tuple[str, str, str, int] | None = None
+    # QMD-70: (parent_id, field_name) of an object array whose own table has already been
+    # consumed, so a SECOND table under the same heading can be reported instead of silently
+    # becoming prose. Cleared at the next heading: a heading either opens an element (the table
+    # then belongs to that element) or leaves the array altogether.
+    array_table_consumed: tuple[str, str] | None = None
 
     # Track pending YAML field from [[field: yaml]] heading
     pending_yaml_field: tuple[str, str, str] | None = None  # (parent_id, field_name, label)
@@ -448,6 +453,9 @@ def parse(
                     _, paf_field_name = pending_array_field
                     comment_anchor = paf_field_name
                     pending_array_field = None
+
+                # QMD-70: a heading ends the container's own content — see the declaration.
+                array_table_consumed = None
 
                 # Check if we're exiting an object array context
                 if pending_object_array:
@@ -1623,7 +1631,51 @@ def parse(
                 objects[obj_id] = obj
                 objects[arr_parent_id][arr_field].append(f"[[#{obj_id}]]")
 
+            array_table_consumed = (arr_parent_id, arr_field)
             pending_object_array = None
+        elif (
+            token.type == "table_open"
+            and array_table_consumed
+            and get_current_object_id() == array_table_consumed[0]
+        ):
+            # A SECOND table under one object-array heading. The array's own table has already
+            # been consumed, so this one describes nothing: its rows cannot extend the array
+            # (they would collide on the generated local ids) and the heading declares an array,
+            # not prose. Until now it silently became the parent's comment, which also made the
+            # document impossible to rebuild faithfully -- the comment anchors on the field
+            # BEFORE the array heading, so the table moved above that heading on rebuild.
+            #
+            # Same treatment as `table_in_array` and `ordered_list_in_array`: preserve the
+            # content verbatim in `__comments` for a lossless round trip and emit an error.
+            parent_id_e, field_name_e = array_table_consumed
+
+            scan_j = i + 1
+            while scan_j < len(tokens) and tokens[scan_j].type != "table_close":
+                scan_j += 1
+            if token.map:
+                raw_end = (
+                    tokens[scan_j].map[1]
+                    if scan_j < len(tokens) and tokens[scan_j].map
+                    else token.map[1]
+                )
+                raw_table = block_tree.get_lines_raw(token.map[0], raw_end).strip()
+                if raw_table:
+                    append_comment(parent_id_e, comment_anchor, raw_table, merge=True)
+
+            error_line = token.map[0] + 1 if token.map else None
+            parsing_errors.append(
+                {
+                    "__id": f"error_{len(parsing_errors)}",
+                    "__kind": "__ParsingError",
+                    "type": "extra_table_in_array",
+                    "field": field_name_e,
+                    "object": f"[[#{parent_id_e}]]",
+                    "line": error_line,
+                }
+            )
+
+            array_table_consumed = None
+            i = scan_j + 1  # skip past table_close
         elif token.type == "fence" and pending_yaml_field:
             # YAML fence after [[field: yaml]] heading
             yaml_parent_id, yaml_field_name, yaml_label = pending_yaml_field

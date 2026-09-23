@@ -374,7 +374,7 @@ QMD-67 (`core::ops::validate::collect_duplicate_issues`), shared by all three su
 | ambiguous_field_reference | QMDC009 | yes | yes | yes |
 | broken_parent | broken_parent | yes | no | yes |
 | nested_workspace | nested_workspace | yes | no | yes |
-| parser structural (dangling_field, mixed_field_keys, multiple_definitions, structured_in_textblock, invalid_id_character, explicit_system_type, nested_subitems, ordered_list_in_array, table_in_array, invalid_map_entry, invalid_map_content) | (type) | yes | yes | yes |
+| parser structural (dangling_field, mixed_field_keys, multiple_definitions, structured_in_textblock, invalid_id_character, explicit_system_type, nested_subitems, ordered_list_in_array, table_in_array, extra_table_in_array, invalid_map_entry, invalid_map_content) | (type) | yes | yes | yes |
 
 ### Notes [[surface_notes: text]]
 

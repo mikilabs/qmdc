@@ -300,6 +300,55 @@ If each row is meant to be an object, declare an object array and give it a Kind
 | one  | red    |
 ```
 
+## Extra Table In Array [[err_extra_table_in_array: ValidationError]]
+
+A second Markdown table appears under one object-array heading.
+
+- code: extra_table_in_array
+- severity: error
+
+### Cause [[cause: text]]
+
+The array heading's own table is what feeds the array — each data row becomes one object, with a
+positional id derived from the row's index. A second table under the same heading cannot extend the
+array, because its rows would generate the same ids as the first table's, and the heading declares an
+array rather than prose, so the table describes nothing.
+
+The table content is preserved in `__comments` for lossless round-trip, but the parser generates an
+error.
+
+Note this applies only to the array CONTAINER's own content. A table inside an array ELEMENT is that
+element's content and is perfectly valid — see the Arrays section.
+
+### Examples [[examples: text]]
+
+```markdown example
+## Team [[team: Group]]
+
+### Members [[members: [User]]]
+
+| name  |
+| ----- |
+| Alice |
+
+| name |
+| ---- |
+| Bob  |
+```
+
+### Solution [[solution: text]]
+
+Put every row in one table:
+
+```markdown example
+### Members [[members: [User]]]
+
+| name  |
+| ----- |
+| Alice |
+| Bob   |
+```
+
 ## Explicit System Type [[err_explicit_system_type: ValidationError]]
 
 Explicit declaration of a system type `__Document`, `__TextBlock`, or `__Object` in a heading.

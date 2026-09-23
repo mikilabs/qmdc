@@ -785,6 +785,8 @@ done
 | `structured_in_textblock` | Structured element inside `__TextBlock` |
 | `multiple_definitions` | Heading contains more than one `[[...]]` |
 | `ordered_list_in_array` | Numbered list in heading-syntax array (bullet lists only) |
+| `table_in_array` | Markdown table under a primitive array field (use a bullet list, or declare an object array) |
+| `extra_table_in_array` | A second Markdown table under one object-array heading (only the first feeds the array) |
 | `nested_subitems` | Nested lists `- key:\n  - item` (forbidden) |
 | `explicit_system_type` | Explicit declaration of `[[id: __Document]]` or `[[id: __TextBlock]]` |
 | `mixed_field_keys` | Mix of valid and invalid keys in one object |

@@ -118,8 +118,9 @@ Here the table belongs to `alice` and is carried as its comment content; `member
 one element.
 
 Only the FIRST table under an array heading feeds the array. A second table under the same heading
-is no longer the container's own content, so it too is captured verbatim in the container's
-`__comments` rather than adding more rows. To attach a table to an element deliberately and have it land in a named field,
+describes nothing — its rows cannot extend the array, since they would collide on the generated
+positional ids — so it produces an `extra_table_in_array` error. Its content is still preserved
+verbatim in the container's `__comments`. To attach a table to an element deliberately and have it land in a named field,
 declare a text field for it (`#### Details [[details: text]]`) — text fields are covered in
 `docs/format/fields.qmd.md`.
 

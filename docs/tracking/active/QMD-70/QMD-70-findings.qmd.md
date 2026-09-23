@@ -571,15 +571,19 @@ Raised by both code-review passes with an in-repo precedent. A design question, 
 
 - category: parser
 - related_to: [[#qmd70_finding_two_tables]]
-- solution: Its own ticket — a new error type is a cross-surface addition with a documentation cascade.
+- solution: RESOLVED — the diagnostic exists now (`extra_table_in_array`). The cross-surface cost was real but paid: three parsers, the LSP and MCP matrix, and five documentation files.
 
 ### The precedent [[qmd70_finding_no_diagnostic_detail: text]]
 
 - about: [[#qmd70_finding_no_diagnostic]]
 
-A second table under one array heading is now preserved as comment content and nothing is reported
-on any surface: `workspace validate` returns `[]` in all three parsers, and the LSP and MCP are
-silent. The row the author almost certainly meant as an array element is quietly reclassified as
+**Resolved (2026-09-23).** The operator decided the construct is an error, so the silence is gone —
+see [[#qmd70_finding_extra_table]]. The original text of this finding is kept below because the
+reasoning is what led to the decision.
+
+A second table under one array heading was preserved as comment content and nothing was reported on
+any surface: `workspace validate` returned `[]` in all three parsers, and the LSP and MCP were
+silent. The row the author almost certainly meant as an array element was quietly reclassified as
 prose.
 
 `docs/format/validation-errors.qmd.md` documents the opposite treatment for the closest analogue: a
@@ -600,7 +604,7 @@ has no way to say "after the array's table", so no anchor value gives a faithful
 - category: rebuild
 - related_to: [[#qmd70_finding_two_tables]]
 - affected_files: [qmdc-rs/src/parser.rs, qmdc-py/qmdc/parser.py, qmdc-ts/src/parser.ts]
-- solution: Its own ticket. Needs a representation for content that follows a heading-declared array, which is a format decision, not a bug fix. Pinned as a deliberately failing test: `tests/parser/222-rebuild-content-after-array-table`, red in ALL THREE implementations because the defect is shared.
+- solution: RESOLVED by removing the construct rather than the limitation — a second table under one array heading is now an `extra_table_in_array` error, so there is no such content left to place. See [[#qmd70_finding_extra_table]].
 
 ### What was measured [[qmd70_finding_rebuild_anchor_detail: text]]
 
@@ -698,6 +702,56 @@ knowingly stale: `docs/.qmdc-semantic/hints.json` does not contain the new `err_
 object, because hints are derived from `embeddings.db`, whose refresh needs an embedding provider and
 is a release-time step per `RELEASING.md`.
 
+## A second table under one array heading is now an error [[qmd70_finding_extra_table: Finding]]
+
+The operator's decision, and it dissolved [[#qmd70_finding_rebuild_anchor]] instead of working
+around it. FIXED in all three.
+
+- category: parser
+- related_to: [[#qmd70_finding_two_tables]], [[#qmd70_finding_rebuild_anchor]], [[#qmd70_finding_table_in_array]]
+- affected_files: [qmdc-py/qmdc/parser.py, qmdc-rs/src/parser.rs, qmdc-ts/src/parser.ts, qmdc-ts/src/workspace.ts, docs/format/validation-errors.qmd.md, docs/format/arrays.qmd.md, docs/guides/qmdc-guide.qmd.md]
+- solution: Fixed — new `extra_table_in_array` error, same shape as `table_in_array`. Pinned by `tests/parser/222-extra-table-under-array-heading`.
+
+### Why an error dissolves the rebuild problem [[qmd70_finding_extra_table_detail: text]]
+
+- about: [[#qmd70_finding_extra_table]]
+
+The second table could not be placed on rebuild under ANY anchor: `lead` (the field before the array
+heading) moved it above that heading, `members` made rebuild drop it outright, and the anchor model
+cannot express "after the array's own table". Three implementations agreed on the wrong layout, so it
+was not a parity defect but a gap in the format.
+
+Making the construct an error removes the content that had nowhere to go. The mechanism is the
+corpus's own rule, not a workaround: both the Rust and Python microtest harnesses skip the round-trip
+check for a document that has parsing errors — "rebuild of invalid docs is undefined". So the fixture
+that used to pin the motion now passes by being invalid, which is the honest reading.
+
+The rule is scoped to the array CONTAINER's own content. Four neighbouring shapes were measured after
+the change and all three parsers agree on every one:
+
+| shape | result |
+| --- | --- |
+| one table under the array heading | converts, no error |
+| **two tables under the array heading** | **first converts, second is an error** |
+| table inside an array element | the element's comment content — the main QMD-70 case, untouched |
+| prose, then a table under the heading | converts, prose kept as comment — settled earlier |
+| container table, then an element with its own table | both valid |
+
+Detection needed a new piece of state in each parser: the array context is cleared as soon as the
+container's table is consumed, so "a second table" is not visible from it. Each now records
+`(parent_id, field_name)` when the container's table converts, and clears that at the next heading —
+a heading either opens an element, in which case a following table belongs to the element, or leaves
+the array.
+
+One pre-existing behaviour surfaced while writing the fixture and is worth knowing: once a document
+has any parsing error, Python sorts the output by `__line`, and a table-fed child has no `__line`, so
+it sorts BEFORE its parent. Rust and TypeScript match. Odd, but committed and intended, with a
+comment saying so.
+
+`tests/cli/016-parse-two-tables-under-array-heading` was deleted: it existed only because the parser
+corpus tripped on the rebuild motion, which no longer happens, so the microtest covers the shape and
+the CLI case was a duplicate input.
+
 ## The suite is deliberately red [[qmd70_finding_red_suite: Finding]]
 
 Five failing tests were added ON PURPOSE, at the operator's instruction, to pin defects this task
@@ -721,7 +775,7 @@ Two of the five were fixed rather than left red, once the discussion settled whi
 | --- | --- | --- |
 | `cli/020-parse-prose-between-array-heading-and-table` | — FIXED | py and ts swallowed the table into the container's comment and left the array empty; see [[#qmd70_finding_prose_gap]] |
 | `parser/221`, `223`, `224` (blockquotes) | — FIXED | Rust rebuilt blockquote comments instead of slicing them; see [[#qmd70_finding_blockquote]] |
-| `parser/222-rebuild-content-after-array-table` | **all three** | `parse` agrees, but `rebuild` moves the trailing table above the array heading — the content-motion check catches it |
+| `parser/222-extra-table-under-array-heading` | — FIXED | a second table under one array heading is now an error, which removes the unplaceable content entirely; see [[#qmd70_finding_extra_table]] |
 | `cli/018-parse-yaml-field-then-prose` | rs | a paragraph after a `yaml` field heading OVERWRITES the field's value, so the YAML data is lost too |
 | `cli/019-parse-indented-block-under-list-field` | rs | rs anchors an indented block on the wrong field and keeps its raw source |
 
@@ -732,10 +786,9 @@ for an unrelated second reason — the rebuild motion already pinned by case 222
 CLI corpus, which is parse-only and leaves exactly one reason for the failure. Both defects it
 exposed are now fixed, so it is green.
 
-**Three cases remain red.** `018` and `019` need the shared field accessor described in
-[[#qmd70_finding_rs_other_paths]]; `222` needs the format to gain a way to express content after an
-array's own table, per [[#qmd70_finding_rebuild_anchor]]. Neither is a small fix, and both were left
-deliberately.
+**Two cases remain red.** `018` and `019` need the shared field accessor described in
+[[#qmd70_finding_rs_other_paths]], which is a refactor of the most-tested path in the Rust parser and
+belongs in its own change.
 
 **Case 222 is red everywhere, so it is not a parity defect.** All three parse identically and all
 three rebuild the same wrong layout. It pins a shared limitation, which is why no implementation can

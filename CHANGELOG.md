@@ -27,6 +27,11 @@ file is maintained by hand.
   an object array (`[[field: [Kind]]]`), where one row becomes one object. Surfaced by the CLI, the
   LSP and MCP (QMD-70).
 
+- New `extra_table_in_array` parsing error: only the FIRST Markdown table under an object-array
+  heading feeds the array. A second one cannot extend it — its rows would collide on the generated
+  positional ids — so it is now reported instead of silently becoming the container's prose. This also
+  removes a construct that could not be rebuilt faithfully under any anchor (QMD-70).
+
 ### Fixed
 
 - A Markdown table written inside an object-array *element* is now that element's own content,
@@ -36,11 +41,9 @@ file is maintained by hand.
   three parsers now agree on every shape an element can take, and on what follows the array's own
   table. **Behaviour change:** a document that relied on the old reading to add rows parses to a
   different graph, silently (QMD-70).
-- A second Markdown table under one object-array heading no longer loses a row. Rust converted
-  both tables, both children took the same local id, the second overwrote the first, and the array
-  held the same reference twice; the leftover table is now preserved verbatim as the parent's
-  comment, as in Python and TypeScript. **Behaviour change:** the second table's row is no longer
-  an array element (QMD-70).
+- A second Markdown table under one object-array heading no longer loses a row. Rust converted both
+  tables, both children took the same local id, and the second overwrote the first; the construct is
+  now an `extra_table_in_array` error with the content preserved in `__comments` (QMD-70).
 - Rust no longer discards content that follows an object array's own table. A trailing paragraph was
   dropped and a trailing `- field: value` was lost entirely, because the array's parent object was
   closed at the array heading and the paths that write fields and comments had nothing left to write

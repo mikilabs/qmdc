@@ -42,7 +42,7 @@ Parse a file and check for syntax errors:
 qmdc parse -i myfile.qmd.md > /dev/null
 ```
 
-Exit code `0` means the file is valid. Non-zero means errors — they print to stderr. This catches per-file problems like `structured_in_textblock`, `dangling_field`, `multiple_definitions`, `ordered_list_in_array`, and `table_in_array`.
+Exit code `0` means the file is valid. Non-zero means errors — they print to stderr. This catches per-file problems like `structured_in_textblock`, `dangling_field`, `multiple_definitions`, `ordered_list_in_array`, `table_in_array`, and `extra_table_in_array`.
 
 ## Validate an entire workspace
 

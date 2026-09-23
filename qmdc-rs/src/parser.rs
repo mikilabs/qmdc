@@ -236,6 +236,11 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     // Pending states
     let mut pending_text_field: Option<(String, String, u8, String)> = None; // (parent_id, field_name, level, field_type)
     let mut pending_object_array: Option<(String, String, String, u8)> = None; // (parent_id, field_name, kind, level)
+                                                                               // QMD-70: (parent_id, field_name) of an object array whose own table has already been consumed,
+                                                                               // so a SECOND table under the same heading can be reported instead of silently becoming prose.
+                                                                               // Cleared at the next heading: a heading either opens an element (the table then belongs to that
+                                                                               // element) or leaves the array altogether.
+    let mut array_table_consumed: Option<(String, String)> = None;
 
     // Parser state
     let mut in_heading = false;
@@ -459,6 +464,8 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
 
         match event {
             Event::Start(Tag::Heading { level, .. }) => {
+                // QMD-70: a heading ends the container's own content — see the declaration.
+                array_table_consumed = None;
                 in_heading = true;
                 heading_text.clear();
                 heading_start_offset = range.start;
@@ -2808,7 +2815,75 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // array ended up holding the same reference twice. Clearing it lets any
                     // following table fall through to the comment path and be preserved verbatim,
                     // the same treatment a table gets in any other prose position.
+                    array_table_consumed = Some((arr_parent_id.clone(), arr_field.clone()));
                     pending_object_array = None;
+                    table_rows.clear();
+                    i += 1;
+                    continue;
+                }
+
+                // A SECOND table under one object-array heading. The array's own table has already
+                // been consumed, so this one describes nothing: its rows cannot extend the array
+                // (they would collide on the generated local ids) and the heading declares an array,
+                // not prose. Until now it silently became the parent's comment, which also made the
+                // document impossible to rebuild faithfully — the comment anchors on the field
+                // BEFORE the array heading, so the table moved above that heading on rebuild.
+                //
+                // Same treatment as `table_in_array` and `ordered_list_in_array`: preserve the
+                // content verbatim in `__comments` for a lossless round trip and emit an error.
+                let extra_table_target = array_table_consumed.as_ref().filter(|(pid, _)| {
+                    current_obj
+                        .as_ref()
+                        .map(|o| o.id == *pid)
+                        .unwrap_or_else(|| {
+                            object_stack
+                                .last()
+                                .map(|(id, _)| id == pid)
+                                .unwrap_or(false)
+                        })
+                });
+                if let Some((ref err_parent, ref err_field)) = extra_table_target {
+                    if !table_rows.is_empty() {
+                        let table_md =
+                            raw_table_slice(&block_tree.source, table_start_offset, range.end);
+                        let error_line = get_line(table_start_offset);
+                        let parent = err_parent.clone();
+                        let field = err_field.clone();
+
+                        if let Some(ref mut obj) = current_obj {
+                            let anchor = obj.comment_anchor.clone();
+                            let should_append = obj
+                                .comments
+                                .last()
+                                .map(|c| c.get("after") == Some(&anchor))
+                                .unwrap_or(false);
+                            if should_append {
+                                if let Some(last) = obj.comments.last_mut() {
+                                    if let Some(existing) = last.get_mut("content") {
+                                        *existing = format!("{}\n\n{}", existing, table_md);
+                                    }
+                                }
+                            } else {
+                                let mut comment = IndexMap::new();
+                                comment.insert("after".to_string(), anchor);
+                                comment.insert("content".to_string(), table_md.clone());
+                                obj.comments.push(comment);
+                            }
+                        }
+
+                        let mut error = IndexMap::new();
+                        error.insert(
+                            "__id".to_string(),
+                            json!(format!("error_{}", parsing_errors.len())),
+                        );
+                        error.insert("__kind".to_string(), json!("__ParsingError"));
+                        error.insert("type".to_string(), json!("extra_table_in_array"));
+                        error.insert("field".to_string(), json!(field));
+                        error.insert("object".to_string(), json!(format!("[[#{}]]", parent)));
+                        error.insert("line".to_string(), json!(error_line));
+                        parsing_errors.push(error);
+                    }
+                    array_table_consumed = None;
                     table_rows.clear();
                     i += 1;
                     continue;

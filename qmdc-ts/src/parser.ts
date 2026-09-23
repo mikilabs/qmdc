@@ -222,6 +222,11 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
   // Track pending object array from [[field: [Kind]]] heading
   // [parent_id, field_name, array_kind, level]
   let pendingObjectArray: [string, string, string, number] | null = null;
+  // QMD-70: [parent_id, field_name] of an object array whose own table has already been consumed,
+  // so a SECOND table under the same heading can be reported instead of silently becoming prose.
+  // Cleared at the next heading: a heading either opens an element (the table then belongs to that
+  // element) or leaves the array altogether.
+  let arrayTableConsumed: [string, string] | null = null;
 
   // Track pending YAML field from [[field: yaml]] heading
   // [parent_id, field_name, field_label]
@@ -564,6 +569,9 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           commentAnchor = pafFieldName;
           pendingArrayField = null;
         }
+
+        // QMD-70: a heading ends the container's own content — see the declaration.
+        arrayTableConsumed = null;
 
         // Check if we're exiting an object array context
         if (pendingObjectArray) {
@@ -1993,7 +2001,62 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
         }
       }
 
+      arrayTableConsumed = [arrParentId, arrField];
       pendingObjectArray = null;
+    } else if (
+      token.type === 'table_open' &&
+      arrayTableConsumed &&
+      getCurrentObjectId() === arrayTableConsumed[0]
+    ) {
+      // A SECOND table under one object-array heading. The array's own table has already been
+      // consumed, so this one describes nothing: its rows cannot extend the array (they would
+      // collide on the generated local ids) and the heading declares an array, not prose. Until now
+      // it silently became the parent's comment, which also made the document impossible to rebuild
+      // faithfully -- the comment anchors on the field BEFORE the array heading, so the table moved
+      // above that heading on rebuild.
+      //
+      // Same treatment as `table_in_array` and `ordered_list_in_array`: preserve the content
+      // verbatim in `__comments` for a lossless round trip and emit an error.
+      const [errParentId, errFieldName] = arrayTableConsumed;
+      const errParentObj = objects[errParentId];
+
+      let scanJ = i + 1;
+      while (scanJ < tokens.length && tokens[scanJ]?.type !== 'table_close') {
+        scanJ++;
+      }
+      if (errParentObj && token.map) {
+        const rawEnd =
+          scanJ < tokens.length && tokens[scanJ]?.map ? tokens[scanJ]!.map![1] : token.map[1];
+        const rawTable = blockTree.getLinesRaw(token.map[0], rawEnd).trim();
+        if (rawTable) {
+          if (!errParentObj.__comments) {
+            errParentObj.__comments = [];
+          }
+          const existingComments = errParentObj.__comments as Array<{
+            after: string;
+            content: string;
+          }>;
+          const existing = existingComments.find((c) => c.after === commentAnchor);
+          if (existing) {
+            existing.content = existing.content + '\n\n' + rawTable;
+          } else {
+            existingComments.push({ after: commentAnchor, content: rawTable });
+          }
+        }
+      }
+
+      const errorLine = token.map ? token.map[0] + 1 : null;
+      parsingErrors.push({
+        __id: `error_${parsingErrors.length}`,
+        __kind: '__ParsingError',
+        type: 'extra_table_in_array',
+        field: errFieldName,
+        object: `[[#${errParentId}]]`,
+        line: errorLine,
+      });
+
+      arrayTableConsumed = null;
+      i = scanJ + 1; // skip past table_close
     } else if (token.type === 'fence' && pendingYamlField) {
       // YAML fence after [[field: yaml]] heading
       const [yamlParentId, yamlFieldName, yamlFieldLabel] = pendingYamlField;
