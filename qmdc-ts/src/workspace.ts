@@ -22,7 +22,8 @@ export interface WorkspaceError {
     | 'explicit_system_type'
     | 'mixed_field_keys'
     | 'nested_subitems'
-    | 'ordered_list_in_array';
+    | 'ordered_list_in_array'
+    | 'table_in_array';
   message: string;
   file?: string;
   line?: number;

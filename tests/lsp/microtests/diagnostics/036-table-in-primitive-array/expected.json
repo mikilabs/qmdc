@@ -1,0 +1,20 @@
+{
+  "_comment": "QMD-70: a table under a PRIMITIVE array field has no defined mapping onto the field, so it is a parsing error. The editor must show it; the surfacing is generic over __ParsingError, so no LSP change was needed.",
+  "diagnostics": [
+    {
+      "message": "table_in_array: field: tags, object: [[#doc]]",
+      "range": {
+        "start": {
+          "line": 4,
+          "character": 0
+        },
+        "end": {
+          "line": 4,
+          "character": 5
+        }
+      },
+      "severity": 1,
+      "code": "table_in_array"
+    }
+  ]
+}

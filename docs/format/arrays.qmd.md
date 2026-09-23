@@ -263,6 +263,7 @@ Table syntax with references in cells:
 ## Rules [[rules: text]]
 
 - Only bullet lists are allowed in heading-syntax primitive arrays. Numbered lists (`1. item`) produce an `ordered_list_in_array` error.
+- A Markdown table is not allowed under a primitive array field either — a primitive array holds scalars and a table has columns, so there is no mapping. It produces a `table_in_array` error. Tables ARE valid under an object array (`[[field: [Kind]]]`), where one row becomes one object.
 - Parent-child auto-links: objects inside array sections (`[[field: [Kind]]]` or `[[field: array]]`) automatically receive `__parent` (reference to the parent object) and `__parent_field` (field name in the parent). Independent objects outside array sections do not get `__parent`.
 - Syntax choice is preserved in `__syntax` for lossless round-trip: `yaml_array`, `yaml_multiline_array`, `markdown_list`, `headers`, `table`.
 - Table syntax is equivalent to subheading syntax but more compact. The same data can be expressed either way.

@@ -649,6 +649,55 @@ no data rows is `table_open [4,6]` while its `thead_open` and `tr_open` are `[4,
 assignment SHRANK the slice and cut the separator row off. Taking the maximum fixes it. Rust and
 Python were never affected because neither re-derives the end from child tokens this way.
 
+## A table under a primitive array field is now an error [[qmd70_finding_table_in_array: Finding]]
+
+Found while laying out the open decisions: a Markdown table under `[[field: array]]` was silently
+dropped by all three parsers, which also disagreed about whether the field existed. Operator decided
+it must be an error. FIXED.
+
+- category: parser
+- affected_files: [qmdc-py/qmdc/parser.py, qmdc-rs/src/parser.rs, qmdc-ts/src/parser.ts, qmdc-ts/src/workspace.ts, docs/format/validation-errors.qmd.md, docs/format/arrays.qmd.md]
+- solution: Fixed — new `table_in_array` error type, modelled on `ordered_list_in_array`. Pinned by `tests/parser/225-table-in-primitive-array` and `tests/lsp/microtests/diagnostics/036-table-in-primitive-array` (LSP + MCP).
+
+### The decision and what it cost [[qmd70_finding_table_in_array_detail: text]]
+
+- about: [[#qmd70_finding_table_in_array]]
+
+Before: the table vanished with no diagnostic, and the three did not even agree on the object —
+Rust produced `tags: []` while Python and TypeScript produced no `tags` field at all.
+
+The operator's reason for erroring rather than picking a reading: it is not possible to say what
+object a table should become under a primitive array. A primitive array holds scalars, a table has
+columns, and nothing defines the mapping. Under an OBJECT array (`[[field: [Kind]]]`) it IS defined —
+one row is one object — so the distinction is the declared field type, not the table.
+
+The operator's first instruction was to forbid tables in array fields "altogether", which reads two
+ways. The wider one would have deleted the table-to-object-array feature, which is documented in
+`docs/format/arrays.qmd.md` and `docs/guides/qmdc-guide.qmd.md`, pinned by shipped fixtures
+`032-table`, `042-table-one-row`, `065-text-table-in-array` and `089-comments-preserve-tables`, and
+released in 1.0.2 — every existing document using it would start erroring. Measuring that blast
+radius before writing anything is what surfaced the ambiguity; the narrow reading was confirmed.
+
+Modelled on `ordered_list_in_array`, the only other construct forbidden in an array field: the array
+stays empty, the content is preserved verbatim in `__comments` so the round trip is lossless, and a
+`__ParsingError` carries `type`, `field`, `object` and `line`.
+
+The three implementations needed different edits because they represent a primitive array field
+differently. Python and TypeScript hold a `pending_array_field` and create the field only when a
+list arrives. Rust creates the field eagerly at the heading and routes the rest through
+`pending_text_field` with type `"array"` — which is why its table was consumed by the text-field
+branch and dropped there rather than never reaching a handler.
+
+No LSP or MCP change was needed: both surface `__ParsingError` generically, filtering only
+`duplicate_id`. That was verified by measurement, not assumed — the new error appears in
+`workspace validate` in all three parsers, in LSP diagnostics, and in `qmdc_validate_references`.
+
+The documentation cascade was five files: the error definition, the arrays spec, the guide's error
+table, the LSP surface matrix, and the per-document validation guide. One further artifact is
+knowingly stale: `docs/.qmdc-semantic/hints.json` does not contain the new `err_table_in_array`
+object, because hints are derived from `embeddings.db`, whose refresh needs an embedding provider and
+is a release-time step per `RELEASING.md`.
+
 ## The suite is deliberately red [[qmd70_finding_red_suite: Finding]]
 
 Five failing tests were added ON PURPOSE, at the operator's instruction, to pin defects this task

@@ -1490,6 +1490,54 @@ def parse(
                 i = scan_j + 1
             else:
                 i += 1
+        elif token.type == "table_open" and pending_array_field:
+            # A table is forbidden under a PRIMITIVE array field. A primitive array holds
+            # scalars and a table has columns, so there is no defined mapping onto the field --
+            # unlike an OBJECT array (`[[field: [Kind]]]`), where one row becomes one object.
+            # Until now the table was silently dropped and the three parsers disagreed about
+            # whether the field existed at all.
+            #
+            # Handled exactly like `ordered_list_in_array`, the other construct forbidden in an
+            # array field: keep the array empty, preserve the content verbatim in `__comments`
+            # so the round trip stays lossless, and emit a `__ParsingError`.
+            parent_id, field_name = pending_array_field
+
+            # Initialize empty array and syntax (normally done by parse_array_items_from_list)
+            objects[parent_id][field_name] = []
+            if "__syntax" not in objects[parent_id]:
+                objects[parent_id]["__syntax"] = {}
+            objects[parent_id]["__syntax"][field_name] = "markdown_list"
+
+            # Capture raw content as __comments for lossless round-trip
+            scan_j = i + 1
+            while scan_j < len(tokens) and tokens[scan_j].type != "table_close":
+                scan_j += 1
+            if token.map:
+                raw_end = (
+                    tokens[scan_j].map[1]
+                    if scan_j < len(tokens) and tokens[scan_j].map
+                    else token.map[1]
+                )
+                raw_table = block_tree.get_lines_raw(token.map[0], raw_end).strip()
+                if raw_table:
+                    append_comment(parent_id, field_name, raw_table, merge=True)
+
+            # Emit table_in_array error
+            error_line = token.map[0] + 1 if token.map else None
+            parsing_errors.append(
+                {
+                    "__id": f"error_{len(parsing_errors)}",
+                    "__kind": "__ParsingError",
+                    "type": "table_in_array",
+                    "field": field_name,
+                    "object": f"[[#{parent_id}]]",
+                    "line": error_line,
+                }
+            )
+
+            pending_array_field = None
+            comment_anchor = field_name
+            i = scan_j + 1  # skip past table_close
         elif (
             token.type == "table_open"
             and pending_object_array

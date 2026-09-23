@@ -2814,6 +2814,72 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     continue;
                 }
 
+                // A table is forbidden under a PRIMITIVE array field. A primitive array holds
+                // scalars and a table has columns, so there is no defined mapping onto the field —
+                // unlike an OBJECT array (`[[field: [Kind]]]`), where one row becomes one object.
+                // An `[[field: array]]` heading arrives here as a `pending_text_field` of type
+                // "array", and the text branch below cannot write a string into an array, so the
+                // table used to be dropped without a word.
+                //
+                // Handled exactly like `ordered_list_in_array`, the other construct forbidden in
+                // an array field: keep the array empty, preserve the content verbatim in
+                // `__comments` so the round trip stays lossless, and emit a `__ParsingError`.
+                if let Some((ref parent_id, ref field_name, _, ref field_type)) = pending_text_field
+                {
+                    if field_type == "array" {
+                        if !table_rows.is_empty() {
+                            let table_md =
+                                raw_table_slice(&block_tree.source, table_start_offset, range.end);
+                            let error_line = get_line(table_start_offset);
+                            let anchor = field_name.clone();
+                            let parent = parent_id.clone();
+
+                            if let Some(ref mut obj) = current_obj {
+                                let should_append = obj
+                                    .comments
+                                    .last()
+                                    .map(|c| c.get("after") == Some(&anchor))
+                                    .unwrap_or(false);
+                                if should_append {
+                                    if let Some(last) = obj.comments.last_mut() {
+                                        if let Some(existing) = last.get_mut("content") {
+                                            *existing = format!("{}\n\n{}", existing, table_md);
+                                        }
+                                    }
+                                } else {
+                                    let mut comment = IndexMap::new();
+                                    comment.insert("after".to_string(), anchor.clone());
+                                    comment.insert("content".to_string(), table_md.clone());
+                                    obj.comments.push(comment);
+                                }
+                            } else if let Some(parent_map) = objects_map.get_mut(&parent) {
+                                let comments = parent_map
+                                    .entry("__comments".to_string())
+                                    .or_insert_with(|| json!([]));
+                                if let Some(arr) = comments.as_array_mut() {
+                                    arr.push(json!({"after": anchor, "content": table_md}));
+                                }
+                            }
+
+                            let mut error = IndexMap::new();
+                            error.insert(
+                                "__id".to_string(),
+                                json!(format!("error_{}", parsing_errors.len())),
+                            );
+                            error.insert("__kind".to_string(), json!("__ParsingError"));
+                            error.insert("type".to_string(), json!("table_in_array"));
+                            error.insert("field".to_string(), json!(field_name));
+                            error.insert("object".to_string(), json!(format!("[[#{}]]", parent)));
+                            error.insert("line".to_string(), json!(error_line));
+                            parsing_errors.push(error);
+                        }
+                        pending_text_field = None;
+                        table_rows.clear();
+                        i += 1;
+                        continue;
+                    }
+                }
+
                 // Convert table to markdown and add to text field
                 if let Some((ref parent_id, ref field_name, _, _)) = pending_text_field {
                     if !table_rows.is_empty() {

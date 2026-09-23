@@ -18,6 +18,15 @@ file is maintained by hand.
   qualified; an ambiguous qualified reference produces no edge rather than an arbitrary one
   (QMD-69).
 
+### Added
+
+- New `table_in_array` parsing error: a Markdown table under a primitive array field
+  (`[[field: array]]`) is now reported instead of being silently dropped. A primitive array holds
+  scalars and a table has columns, so there is no defined mapping; the table content is preserved in
+  `__comments` for a lossless round trip, as with `ordered_list_in_array`. Tables remain valid under
+  an object array (`[[field: [Kind]]]`), where one row becomes one object. Surfaced by the CLI, the
+  LSP and MCP (QMD-70).
+
 ### Fixed
 
 - A Markdown table written inside an object-array *element* is now that element's own content,

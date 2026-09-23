@@ -248,6 +248,58 @@ Or use YAML notation:
 - steps: [First step, Second step, Third step]
 ```
 
+## Table In Array [[err_table_in_array: ValidationError]]
+
+A Markdown table is used under a primitive array field (`[[field: array]]`).
+
+- code: table_in_array
+- severity: error
+
+### Cause [[cause: text]]
+
+A primitive array holds scalar values, and a table has columns — there is no defined mapping from
+one onto the other, so the parser cannot decide what a row should become.
+
+This differs from an OBJECT array (`[[field: [Kind]]]`), where a table IS valid: each data row
+becomes one object and the column names become its fields. The distinction is the declared field
+type, not the table.
+
+The table content is preserved in `__comments` for lossless round-trip, but the parser generates an
+error.
+
+### Examples [[examples: text]]
+
+```markdown example
+## Doc [[doc]]
+
+### Tags [[tags: array]]
+
+| a |
+|---|
+| 1 |
+```
+
+### Solution [[solution: text]]
+
+If the values are scalars, use a bullet list:
+
+```markdown example
+### Tags [[tags: array]]
+
+- one
+- two
+```
+
+If each row is meant to be an object, declare an object array and give it a Kind:
+
+```markdown example
+### Tags [[tags: [Tag]]]
+
+| name | colour |
+| ---- | ------ |
+| one  | red    |
+```
+
 ## Explicit System Type [[err_explicit_system_type: ValidationError]]
 
 Explicit declaration of a system type `__Document`, `__TextBlock`, or `__Object` in a heading.

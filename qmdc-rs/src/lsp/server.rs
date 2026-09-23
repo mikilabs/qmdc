@@ -1276,7 +1276,8 @@ impl Backend {
         // diagnostics. These are single-document, workspace-independent (dangling_field,
         // mixed_field_keys, multiple_definitions, structured_in_textblock,
         // invalid_id_character, explicit_system_type, nested_subitems,
-        // ordered_list_in_array, invalid_map_*). `duplicate_id` is EXCLUDED here — the
+        // ordered_list_in_array, table_in_array, invalid_map_*). `duplicate_id` is EXCLUDED
+        // here — the
         // per-document `seen_ids` pass above already owns same-file duplicates, so we do
         // not double-report.
         for obj in &doc.objects {

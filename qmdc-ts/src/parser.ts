@@ -1830,6 +1830,67 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
       }
 
       i = scanIdx;
+    } else if (token.type === 'table_open' && pendingArrayField) {
+      // A table is forbidden under a PRIMITIVE array field. A primitive array holds scalars and a
+      // table has columns, so there is no defined mapping onto the field -- unlike an OBJECT array
+      // (`[[field: [Kind]]]`), where one row becomes one object. Until now the table was silently
+      // dropped and the three parsers disagreed about whether the field existed at all.
+      //
+      // Handled exactly like `ordered_list_in_array`, the other construct forbidden in an array
+      // field: keep the array empty, preserve the content verbatim in `__comments` so the round
+      // trip stays lossless, and emit a `__ParsingError`.
+      const [parentId, fieldName] = pendingArrayField;
+      const parentObj = objects[parentId];
+
+      // Initialize empty array and syntax (normally done by parseArrayItemsFromList)
+      if (parentObj) {
+        parentObj[fieldName] = [];
+        if (!parentObj.__syntax) {
+          parentObj.__syntax = {};
+        }
+        (parentObj.__syntax as Record<string, string>)[fieldName] = 'markdown_list';
+      }
+
+      // Capture raw content as __comments for lossless round-trip
+      let scanJ = i + 1;
+      while (scanJ < tokens.length && tokens[scanJ]?.type !== 'table_close') {
+        scanJ++;
+      }
+      if (parentObj && token.map) {
+        const rawEnd =
+          scanJ < tokens.length && tokens[scanJ]?.map ? tokens[scanJ]!.map![1] : token.map[1];
+        const rawTable = blockTree.getLinesRaw(token.map[0], rawEnd).trim();
+        if (rawTable) {
+          if (!parentObj.__comments) {
+            parentObj.__comments = [];
+          }
+          const existingComments = parentObj.__comments as Array<{
+            after: string;
+            content: string;
+          }>;
+          const existing = existingComments.find((c) => c.after === fieldName);
+          if (existing) {
+            existing.content = existing.content + '\n\n' + rawTable;
+          } else {
+            existingComments.push({ after: fieldName, content: rawTable });
+          }
+        }
+      }
+
+      // Emit table_in_array error
+      const errorLine = token.map ? token.map[0] + 1 : null;
+      parsingErrors.push({
+        __id: `error_${parsingErrors.length}`,
+        __kind: '__ParsingError',
+        type: 'table_in_array',
+        field: fieldName,
+        object: `[[#${parentId}]]`,
+        line: errorLine,
+      });
+
+      pendingArrayField = null;
+      commentAnchor = fieldName;
+      i = scanJ + 1; // skip past table_close
     } else if (
       token.type === 'table_open' &&
       pendingObjectArray &&
