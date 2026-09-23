@@ -14,6 +14,30 @@ _REF_VALUE_RE = re.compile(r"^\[\[#[^\]]+\]\]$")
 _MULTI_REF_RE = re.compile(r"^\[\[#[^\]]+\]\](?:\s*,\s*\[\[#[^\]]+\]\])+$")
 
 
+def _parse_reference_target(target: str) -> tuple[str | None, str | None, str]:
+    """Parse a reference target into (workspace, namespace, id).
+
+    QMD-69: a reference target is a right-aligned suffix of the ``__global_id`` grammar
+    ``workspace:namespace:id``, with an optional ``.field`` suffix carried inside the id.
+    There is no ``Kind`` segment. An EMPTY middle segment (``ws::id``) ELIDES the
+    namespace rather than asserting the workspace root.
+
+    Mirrors ``qmdc.workspace._parse_reference`` and the Rust
+    ``core::reference_scan::parse_reference_target`` so the graph and the validator can
+    never disagree about what a reference names.
+    """
+    s = target[1:] if target.startswith("#") else target
+    # file#id (cross-file reference) -- keep only the id part.
+    if "#" in s:
+        s = s.split("#", 1)[1]
+    parts = s.split(":")
+    if len(parts) >= 3:
+        return parts[0], parts[1], ":".join(parts[2:])
+    if len(parts) == 2:
+        return None, parts[0], parts[1]
+    return None, None, s
+
+
 @dataclass
 class QueryResult:
     """Result of a SQL query."""
@@ -227,7 +251,10 @@ class QmdcDatabase:
         If the full target_id doesn't resolve as an object and contains a dot,
         tries splitting off the last segment as a target_field (field-level reference).
         """
-        target_global_id = self._resolve_target_global_id(target_id, workspace_id, namespace)
+        ref_ws, ref_ns, ref_id = _parse_reference_target(target_id)
+        target_global_id = self._resolve_target_global_id(
+            ref_id, ref_ws, ref_ns, workspace_id, namespace
+        )
         if target_global_id:
             self.insert_edge(
                 source_global_id,
@@ -237,12 +264,14 @@ class QmdcDatabase:
                 target_field=target_field,
                 workspace_id=workspace_id,
             )
-        elif "." in target_id and target_field is None:
-            # Try field-level resolution: split on last dot
-            last_dot = target_id.rfind(".")
-            obj_path = target_id[:last_dot]
-            field_part = target_id[last_dot + 1 :]
-            obj_global_id = self._resolve_target_global_id(obj_path, workspace_id, namespace)
+        elif "." in ref_id and target_field is None:
+            # Field-level resolution: split the ID (never the qualifiers) on the last dot.
+            last_dot = ref_id.rfind(".")
+            obj_path = ref_id[:last_dot]
+            field_part = ref_id[last_dot + 1 :]
+            obj_global_id = self._resolve_target_global_id(
+                obj_path, ref_ws, ref_ns, workspace_id, namespace
+            )
             if obj_global_id:
                 self.insert_edge(
                     source_global_id,
@@ -350,7 +379,8 @@ class QmdcDatabase:
             if _REF_VALUE_RE.match(val) or _MULTI_REF_RE.match(val):
                 ref_ids = re.findall(r"\[\[#([^\]]+)\]\]", val)
                 for ref_id in ref_ids:
-                    target = ref_id.split(":")[-1]
+                    # QMD-69: keep the FULL reference target, qualifiers included.
+                    target = ref_id
                     edges.append((key, target))
             else:
                 return None  # Value is not a reference — invalid preamble
@@ -358,57 +388,105 @@ class QmdcDatabase:
         return edges if edges else None
 
     def _resolve_target_global_id(
-        self, target_id: str, workspace_id: str, namespace: str
+        self,
+        target_id: str,
+        ref_workspace: str | None,
+        ref_namespace: str | None,
+        workspace_id: str,
+        namespace: str,
     ) -> str | None:
-        """Resolve target __global_id from target __id.
+        """Resolve a target __global_id from a parsed reference target (QMD-69).
 
-        First tries same workspace/namespace, then searches all workspaces.
+        Each qualifier present narrows the search; the search NEVER widens past the referring
+        object's own workspace unless the reference names one. There is no "any workspace"
+        fallback: a cross-workspace reference must be qualified, and an unresolvable or
+        ambiguous target returns None so no edge is built. That is what keeps the graph and
+        `qmdc workspace validate` in agreement.
+
+        ``ref_namespace == ""`` is the ELIDED form ``ws::id``: any namespace of the named
+        workspace, ambiguous if more than one candidate matches.
         """
-        # First try: same workspace and namespace
-        candidate = self.compute_global_id(workspace_id, namespace, target_id)
-        cursor = self.conn.execute(
-            "SELECT 1 FROM objects WHERE __global_id = ? LIMIT 1", (candidate,)
+        # The workspace to search: the one the reference names, otherwise the referring
+        # object's own. There is no widening past it.
+        eff_workspace = ref_workspace if ref_workspace is not None else workspace_id
+        elided = ref_namespace == ""
+        # A concrete namespace is an assertion. The elided form searches every namespace of
+        # eff_workspace. A bare id means own namespace first, then any namespace.
+        concrete_namespace = (
+            None if elided else (ref_namespace if ref_namespace is not None else namespace)
         )
-        if cursor.fetchone():
-            return candidate
 
-        # Second try: same workspace, any namespace (including empty)
-        cursor = self.conn.execute(
-            "SELECT __global_id FROM objects WHERE __workspace = ? AND __id = ? LIMIT 1",
-            (workspace_id, target_id),
-        )
-        row = cursor.fetchone()
-        if row:
-            return row[0]
+        # First try: an exact __global_id, available whenever the namespace is concrete.
+        if concrete_namespace is not None:
+            candidate = self.compute_global_id(eff_workspace, concrete_namespace, target_id)
+            cursor = self.conn.execute(
+                "SELECT 1 FROM objects WHERE __global_id = ? LIMIT 1", (candidate,)
+            )
+            if cursor.fetchone():
+                return candidate
 
-        # Third try: any workspace
-        cursor = self.conn.execute(
-            "SELECT __global_id FROM objects WHERE __id = ? LIMIT 1", (target_id,)
-        )
-        row = cursor.fetchone()
-        if row:
-            return row[0]
+        # Second try: any namespace of eff_workspace. Reached by the elided form, and by a
+        # bare id whose own namespace held nothing. NOT reached by a concrete namespace
+        # qualifier, which must not fall through to a different namespace.
+        #
+        # LIMIT 2 so that several candidates are an ambiguity rather than an arbitrary pick --
+        # `validate` reports `ambiguous_reference` for exactly this case, so the graph must
+        # build no edge.
+        #
+        # A `__Workspace` root object carries no own `__workspace` (it IS the workspace), so
+        # it is reachable only when the id being looked up is that workspace's own name.
+        if elided or ref_namespace is None:
+            cursor = self.conn.execute(
+                "SELECT __global_id FROM objects WHERE __id = ?"
+                " AND (__workspace = ? OR (__workspace = '' AND __id = ?)) LIMIT 2",
+                (target_id, eff_workspace, eff_workspace),
+            )
+            rows = cursor.fetchall()
+            if len(rows) == 1:
+                return rows[0][0]
+            if len(rows) > 1:
+                return None
 
-        # Fourth try: __local_id in same namespace
-        cursor = self.conn.execute(
-            "SELECT __global_id FROM objects"
-            " WHERE __local_id = ? AND __workspace = ? AND __namespace = ? LIMIT 2",
-            (target_id, workspace_id, namespace),
-        )
+        # Third try: the __local_id fallback for short-form references like [[#child]], which
+        # names a hierarchical object by its last segment.
+        #
+        # QMD-69: the WORKSPACE searched is the one the reference names, not the referring
+        # object's. It used to be hard-wired to the source's own workspace, so spelling out the
+        # workspace that actually holds the target made the reference stop resolving.
+        #
+        # The NAMESPACE rule is the historical one and is NOT the elide/assert rule used above:
+        # an unqualified reference resolves by __local_id only inside the referring object's
+        # OWN namespace. That keeps a bare [[#config]] at the workspace root from reaching
+        # gateway.config in the `services` namespace.
+        #
+        # LIMIT 2 so that 0 or >1 matches return None (not found or ambiguous).
+        if elided:
+            cursor = self.conn.execute(
+                "SELECT __global_id FROM objects WHERE __local_id = ? AND __workspace = ? LIMIT 2",
+                (target_id, eff_workspace),
+            )
+        else:
+            local_ns = ref_namespace if ref_namespace is not None else namespace
+            cursor = self.conn.execute(
+                "SELECT __global_id FROM objects"
+                " WHERE __local_id = ? AND __workspace = ? AND __namespace = ? LIMIT 2",
+                (target_id, eff_workspace, local_ns),
+            )
         rows = cursor.fetchall()
         if len(rows) == 1:
             return rows[0][0]
-        # If 0 or >1 matches, return None (ambiguous or not found)
 
         return None
 
     def _parse_reference(self, s: str) -> str | None:
-        """Parse [[#id]] or [[#namespace:id]] reference, return target id."""
+        """Parse a [[#...]] reference and return the FULL target, qualifiers included.
+
+        QMD-69: the target used to be truncated to the last `:`-segment here, which
+        discarded the workspace and namespace before resolution could see them.
+        """
         if s.startswith("[[#") and s.endswith("]]"):
-            inner = s[3:-2]
-            # Take last part after : as the id
-            parts = inner.split(":")
-            return parts[-1] if parts else None
+            inner = s[3:-2].strip()
+            return inner or None
         return None
 
     def _parse_all_references(self, s: str) -> list[str]:
@@ -417,10 +495,8 @@ class QmdcDatabase:
         # Match [[#...]] patterns
         pattern = r"\[\[#([^\]]+)\]\]"
         for match in re.finditer(pattern, s):
-            inner = match.group(1)
-            # Take last part after : as the id
-            parts = inner.split(":")
-            target_id = parts[-1] if parts else None
+            # QMD-69: keep the FULL reference target, qualifiers included.
+            target_id = match.group(1).strip()
             if target_id:
                 targets.append(target_id)
         return targets

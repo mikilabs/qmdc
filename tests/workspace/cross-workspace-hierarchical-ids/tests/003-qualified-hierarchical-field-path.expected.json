@@ -1,0 +1,4 @@
+{
+  "columns": ["edge_type", "target_id", "target_field"],
+  "rows": [["hier_field", "system.data.postgres", "engine"]]
+}

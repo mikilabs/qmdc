@@ -30,12 +30,15 @@ Workspace is defined in root `readme.qmd.md` via `[[id: __Workspace]]`. Namespac
 The parser automatically:
 
 1. Finds all objects in all files
-2. Indexes them by `namespace:Kind:id`
+2. Indexes them by `workspace:namespace:id` (its `__global_id`)
 3. Validates all references
 4. Reports broken links
 
-Cross-namespace reference format: `[[#namespace:id]]` or `[[#namespace:Kind:id]]`.
-Cross-workspace reference format: `[[#workspace:namespace:Kind:id]]`.
+Cross-namespace reference format: `[[#namespace:id]]`.
+Cross-workspace reference format: `[[#workspace:namespace:id]]`, or
+`[[#workspace::id]]` to elide the namespace and match any namespace of that workspace.
+A cross-workspace reference MUST name its workspace: a bare `[[#id]]` never reaches into a
+sibling workspace.
 
 ## Object Metadata [[object_metadata: text]]
 

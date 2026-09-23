@@ -26,7 +26,7 @@ Shows object information when hovering over a reference.
 
 **Contexts:**
 
-- Object reference: `[[#id]]`, `[[#namespace:id]]`, `[[#Kind:id]]`
+- Object reference: `[[#id]]`, `[[#namespace:id]]`, `[[#workspace:namespace:id]]`
 - Kind in heading: `[[id: Kind]]` (if a schema exists)
 
 **Example:**

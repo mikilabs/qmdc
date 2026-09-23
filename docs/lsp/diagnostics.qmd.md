@@ -117,8 +117,7 @@ Ambiguous reference '{id}', found in: {locations}
 **Resolution:** add a qualifier:
 
 - `[[#namespace:id]]` — specify namespace
-- `[[#Kind:id]]` — specify Kind
-- `[[#namespace:Kind:id]]` — specify both
+- `[[#workspace:namespace:id]]` — specify workspace and namespace
 - `[[#parent.child]]` — use full hierarchical ID (for `__local_id` ambiguity)
 
 **Example:**

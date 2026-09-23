@@ -1,0 +1,13 @@
+{
+  "columns": ["edge_type", "target_workspace", "target_id", "target_field"],
+  "rows": [
+    ["ffield_wsns", "qmd69_shapes_provider", "flat_store", "engine"],
+    ["flat_wselided", "qmd69_shapes_provider", "flat_store", ""],
+    ["flat_wsns", "qmd69_shapes_provider", "flat_store", ""],
+    ["hfield_wsns", "qmd69_shapes_provider", "system.data.postgres", "engine"],
+    ["hier_wselided", "qmd69_shapes_provider", "system.data.postgres", ""],
+    ["hier_wsns", "qmd69_shapes_provider", "system.data.postgres", ""],
+    ["leaf_wselided", "qmd69_shapes_provider", "system.data.postgres", ""],
+    ["leaf_wsns", "qmd69_shapes_provider", "system.data.postgres", ""]
+  ]
+}

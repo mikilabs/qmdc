@@ -10,6 +10,35 @@ export interface QueryResult {
   rows: unknown[][];
 }
 
+/**
+ * Parse a reference target into [workspace, namespace, id].
+ *
+ * QMD-69: a reference target is a right-aligned suffix of the `__global_id` grammar
+ * `workspace:namespace:id`, with an optional `.field` suffix carried inside the id. There
+ * is no `Kind` segment. An EMPTY middle segment (`ws::id`) ELIDES the namespace rather
+ * than asserting the workspace root.
+ *
+ * Mirrors `parseReference` in workspace.ts and the Rust
+ * `core::reference_scan::parse_reference_target`, so the graph and the validator can never
+ * disagree about what a reference names.
+ */
+function parseReferenceTarget(target: string): [string | null, string | null, string] {
+  let s = target.startsWith('#') ? target.slice(1) : target;
+  // file#id (cross-file reference) -- keep only the id part.
+  const hashIdx = s.indexOf('#');
+  if (hashIdx !== -1) {
+    s = s.slice(hashIdx + 1);
+  }
+  const parts = s.split(':');
+  if (parts.length >= 3) {
+    return [parts[0] || null, parts[1] ?? '', parts.slice(2).join(':')];
+  }
+  if (parts.length === 2) {
+    return [null, parts[0] ?? '', parts[1] || ''];
+  }
+  return [null, null, s];
+}
+
 export interface QmdcObject {
   __id?: string;
   __kind?: string;
@@ -195,15 +224,16 @@ export class QmdcDatabase {
     edgeType?: string,
     targetField?: string | null
   ): void {
-    const targetGlobalId = this.resolveTargetGlobalId(targetId, workspaceId, namespace);
+    const [refWs, refNs, refId] = parseReferenceTarget(targetId);
+    const targetGlobalId = this.resolveTargetGlobalId(refId, refWs, refNs, workspaceId, namespace);
     if (targetGlobalId) {
       this.insertEdge(sourceGlobalId, field, targetGlobalId, edgeType, targetField, workspaceId);
-    } else if (targetId.includes('.') && !targetField) {
-      // Try field-level resolution: split on last dot
-      const lastDot = targetId.lastIndexOf('.');
-      const objPath = targetId.slice(0, lastDot);
-      const fieldPart = targetId.slice(lastDot + 1);
-      const objGlobalId = this.resolveTargetGlobalId(objPath, workspaceId, namespace);
+    } else if (refId.includes('.') && !targetField) {
+      // Field-level resolution: split the ID (never the qualifiers) on the last dot.
+      const lastDot = refId.lastIndexOf('.');
+      const objPath = refId.slice(0, lastDot);
+      const fieldPart = refId.slice(lastDot + 1);
+      const objGlobalId = this.resolveTargetGlobalId(objPath, refWs, refNs, workspaceId, namespace);
       if (objGlobalId) {
         this.insertEdge(sourceGlobalId, field, objGlobalId, edgeType, fieldPart, workspaceId);
       }
@@ -287,10 +317,9 @@ export class QmdcDatabase {
         let match;
         refExtractRe.lastIndex = 0;
         while ((match = refExtractRe.exec(val)) !== null) {
-          const inner = match[1]!;
-          const parts = inner.split(':');
-          const targetId = parts[parts.length - 1]!;
-          edges.push([key, targetId]);
+          // QMD-69: keep the FULL reference target, qualifiers included.
+          const targetRef = match[1]!.trim();
+          edges.push([key, targetRef]);
         }
       } else {
         return null;
@@ -301,51 +330,100 @@ export class QmdcDatabase {
   }
 
   /**
-   * Resolve target __global_id from target __id.
-   * First tries same workspace/namespace, then searches all workspaces.
+   * Resolve a target __global_id from a parsed reference target (QMD-69).
+   *
+   * Each qualifier present narrows the search; the search NEVER widens past the referring
+   * object's own workspace unless the reference names one. There is no "any workspace"
+   * fallback: a cross-workspace reference must be qualified, and an unresolvable or
+   * ambiguous target returns null so no edge is built. That is what keeps the graph and
+   * `qmdc workspace validate` in agreement.
+   *
+   * `refNamespace === ''` is the ELIDED form `ws::id`: any namespace of the named
+   * workspace, ambiguous if more than one candidate matches.
    */
   private resolveTargetGlobalId(
     targetId: string,
+    refWorkspace: string | null,
+    refNamespace: string | null,
     workspaceId: string,
     namespace: string
   ): string | null {
-    // First try: same workspace and namespace
-    const candidate = QmdcDatabase.computeGlobalId(workspaceId, namespace, targetId);
-    const stmt1 = this.db.prepare('SELECT 1 FROM objects WHERE __global_id = ? LIMIT 1');
-    stmt1.bind([candidate]);
-    if (stmt1.step()) {
+    // The workspace to search: the one the reference names, otherwise the referring object's
+    // own. There is no widening past it.
+    const effWorkspace = refWorkspace !== null ? refWorkspace : workspaceId;
+    const elided = refNamespace === '';
+    // A concrete namespace is an assertion. The elided form searches every namespace of
+    // effWorkspace. A bare id means own namespace first, then any namespace.
+    const concreteNamespace = elided ? null : refNamespace !== null ? refNamespace : namespace;
+
+    // First try: an exact __global_id, available whenever the namespace is concrete.
+    if (concreteNamespace !== null) {
+      const candidate = QmdcDatabase.computeGlobalId(effWorkspace, concreteNamespace, targetId);
+      const stmt1 = this.db.prepare('SELECT 1 FROM objects WHERE __global_id = ? LIMIT 1');
+      stmt1.bind([candidate]);
+      const found = stmt1.step();
       stmt1.free();
-      return candidate;
+      if (found) {
+        return candidate;
+      }
     }
-    stmt1.free();
 
-    // Second try: same workspace, any namespace (including empty)
-    const stmt2 = this.db.prepare(
-      'SELECT __global_id FROM objects WHERE __workspace = ? AND __id = ? LIMIT 1'
-    );
-    stmt2.bind([workspaceId, targetId]);
-    if (stmt2.step()) {
-      const result = stmt2.get()[0] as string;
+    // Second try: any namespace of effWorkspace. Reached by the elided form, and by a bare id
+    // whose own namespace held nothing. NOT reached by a concrete namespace qualifier, which
+    // must not fall through to a different namespace.
+    //
+    // LIMIT 2 so that several candidates are an ambiguity rather than an arbitrary pick --
+    // `validate` reports `ambiguous_reference` for exactly this case, so the graph must build
+    // no edge.
+    //
+    // A `__Workspace` root object carries no own `__workspace` (it IS the workspace), so it is
+    // reachable only when the id being looked up is that workspace's own name.
+    if (elided || refNamespace === null) {
+      const stmt2 = this.db.prepare(
+        'SELECT __global_id FROM objects WHERE __id = ?' +
+          " AND (__workspace = ? OR (__workspace = '' AND __id = ?)) LIMIT 2"
+      );
+      stmt2.bind([targetId, effWorkspace, effWorkspace]);
+      const rows: string[] = [];
+      while (stmt2.step()) {
+        rows.push(stmt2.get()[0] as string);
+      }
       stmt2.free();
-      return result;
+      if (rows.length === 1) {
+        return rows[0]!;
+      }
+      if (rows.length > 1) {
+        return null;
+      }
     }
-    stmt2.free();
 
-    // Third try: any workspace
-    const stmt3 = this.db.prepare('SELECT __global_id FROM objects WHERE __id = ? LIMIT 1');
-    stmt3.bind([targetId]);
-    if (stmt3.step()) {
-      const result = stmt3.get()[0] as string;
-      stmt3.free();
-      return result;
+    // Third try: the __local_id fallback for short-form references like [[#child]], which
+    // names a hierarchical object by its last segment.
+    //
+    // QMD-69: the WORKSPACE searched is the one the reference names, not the referring
+    // object's. It used to be hard-wired to the source's own workspace, so spelling out the
+    // workspace that actually holds the target made the reference stop resolving.
+    //
+    // The NAMESPACE rule is the historical one and is NOT the elide/assert rule used above: an
+    // unqualified reference resolves by __local_id only inside the referring object's OWN
+    // namespace. That keeps a bare [[#config]] at the workspace root from reaching
+    // gateway.config in the `services` namespace.
+    //
+    // LIMIT 2 so that 0 or >1 matches return null (not found or ambiguous).
+    let stmt4;
+    if (elided) {
+      stmt4 = this.db.prepare(
+        'SELECT __global_id FROM objects WHERE __local_id = ? AND __workspace = ? LIMIT 2'
+      );
+      stmt4.bind([targetId, effWorkspace]);
+    } else {
+      const localNs = refNamespace !== null ? refNamespace : namespace;
+      stmt4 = this.db.prepare(
+        'SELECT __global_id FROM objects' +
+          ' WHERE __local_id = ? AND __workspace = ? AND __namespace = ? LIMIT 2'
+      );
+      stmt4.bind([targetId, effWorkspace, localNs]);
     }
-    stmt3.free();
-
-    // Fourth try: __local_id in same namespace
-    const stmt4 = this.db.prepare(
-      'SELECT __global_id FROM objects WHERE __local_id = ? AND __workspace = ? AND __namespace = ? LIMIT 2'
-    );
-    stmt4.bind([targetId, workspaceId, namespace]);
     const localRows: string[] = [];
     while (stmt4.step()) {
       localRows.push(stmt4.get()[0] as string);
@@ -366,11 +444,10 @@ export class QmdcDatabase {
     while ((match = pattern.exec(s)) !== null) {
       const inner = match[1];
       if (inner) {
-        // Take last part after : as the id
-        const parts = inner.split(':');
-        const targetId = parts[parts.length - 1];
-        if (targetId) {
-          targets.push(targetId);
+        // QMD-69: keep the FULL reference target, qualifiers included.
+        const targetRef = inner.trim();
+        if (targetRef) {
+          targets.push(targetRef);
         }
       }
     }

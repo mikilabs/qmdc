@@ -576,7 +576,68 @@ export function buildIndex(objects: QmdcObject[]): WorkspaceIndex {
 // extractReferences and stripBackticks are no longer used - we use __references from objects instead
 
 /**
- * Parse reference like [[#ns:Kind:id]] or [[#id]].
+ * Whether a candidate in `candWorkspace` satisfies a reference's WORKSPACE qualifier (QMD-69).
+ *
+ * A name binds the match to that workspace; `null` keeps it inside `objWorkspace`, because a
+ * cross-workspace reference must name its workspace. An empty `objWorkspace`
+ * (single-workspace parse) imposes no constraint, and so does an empty `candWorkspace` — that
+ * is a workspace ROOT object.
+ *
+ * Mirrors `workspace_matches` in the Rust `core::reference_scan`.
+ */
+function workspaceMatches(
+  refWorkspace: string | null,
+  candWorkspace: string,
+  objWorkspace: string
+): boolean {
+  if (refWorkspace !== null) {
+    return candWorkspace === refWorkspace;
+  }
+  return !objWorkspace || !candWorkspace || candWorkspace === objWorkspace;
+}
+
+/**
+ * Whether a candidate satisfies a reference's qualifiers (QMD-69).
+ *
+ * Used by every path that resolves a reference by its `__id`: the main candidate filter, the
+ * field-reference escape and the `ambiguous_field_reference` check.
+ *
+ * `refNamespace` is a name for an assertion, `''` for the ELIDED form (`ws::id`, no namespace
+ * constraint), and `null` when the reference named none — which imposes no constraint here
+ * either, the own-namespace-first preference being the caller's rule.
+ *
+ * The `__local_id` fallback deliberately does NOT use this: there an unqualified reference is
+ * scoped to the referring object's own namespace exactly.
+ */
+function qualifiersMatch(
+  refWorkspace: string | null,
+  refNamespace: string | null,
+  candWorkspace: string,
+  candNamespace: string,
+  objWorkspace: string
+): boolean {
+  if (!workspaceMatches(refWorkspace, candWorkspace, objWorkspace)) {
+    return false;
+  }
+  if (refNamespace === null || refNamespace === '') {
+    return true;
+  }
+  return candNamespace === refNamespace;
+}
+
+/**
+ * Parse a reference target into [workspace, namespace, id].
+ *
+ * QMD-69: a reference target is a right-aligned suffix of the `__global_id` grammar
+ * `workspace:namespace:id`, with an optional `.field` suffix carried inside the id.
+ * There is no `Kind` segment.
+ *
+ * - `#id` -> [null, null, id]
+ * - `#ns:id` -> [null, ns, id]
+ * - `#ws:ns:id` -> [ws, ns, id]
+ * - `#ws::id` -> [ws, '', id] -- an EMPTY namespace ELIDES rather than asserting the
+ *   workspace root, so the target may live in any namespace of `ws`; more than one
+ *   candidate is an ambiguity.
  */
 function parseReference(ref: string): [string | null, string | null, string] {
   const match = ref.match(/\[\[#([^\]]+)\]\]/);
@@ -587,16 +648,12 @@ function parseReference(ref: string): [string | null, string | null, string] {
   const inner = match[1] || '';
   const parts = inner.split(':');
 
-  if (parts.length === 3) {
-    return [parts[0] || null, parts[1] || null, parts[2] || ''];
+  if (parts.length >= 3) {
+    // workspace:namespace:id -- the id keeps any further colons; the middle segment may
+    // be empty (elided namespace), so it must NOT be coerced to null.
+    return [parts[0] || null, parts[1] ?? '', parts.slice(2).join(':')];
   } else if (parts.length === 2) {
-    // Could be Kind:id or namespace:id
-    // Assume Kind:id if first part looks like a Kind (capitalized)
-    if (parts[0] && parts[0][0] && parts[0][0] === parts[0][0].toUpperCase()) {
-      return [null, parts[0], parts[1] || ''];
-    } else {
-      return [parts[0] || null, null, parts[1] || ''];
-    }
+    return [null, parts[0] ?? '', parts[1] || ''];
   } else {
     return [null, null, parts[0] || ''];
   }
@@ -690,7 +747,9 @@ export function validateWorkspace(
 
   // Build index of all objects by id, kind, and namespace for validation
   // Format: id -> [(file, kind, namespace, line), ...]
-  const objectsById: Record<string, Array<[string, string, string, number]>> = {};
+  // QMD-69: [file, kind, namespace, workspace, line] -- the workspace is carried so a
+  // workspace-qualified reference can be enforced and an unqualified one kept local.
+  const objectsById: Record<string, Array<[string, string, string, string, number]>> = {};
 
   for (const obj of objects) {
     const objId = obj.__id;
@@ -708,7 +767,7 @@ export function validateWorkspace(
     if (!objectsById[objId]) {
       objectsById[objId] = [];
     }
-    objectsById[objId].push([objFile, objKind, nsId, objLine]);
+    objectsById[objId].push([objFile, objKind, nsId, (obj.__workspace as string) || '', objLine]);
   }
 
   // Check for duplicate IDs (same id, different files or same file)
@@ -727,7 +786,10 @@ export function validateWorkspace(
   // duplicate whenever a system object happens to share the id in the same namespace.
   // (objectsById itself stays complete — reference resolution depends on it.)
   const SYSTEM_KINDS = new Set(['__Document', '__TextBlock', '__ParsingError']);
-  const objectsByNsId = new Map<string, Map<string, Array<[string, string, string, number]>>>();
+  const objectsByNsId = new Map<
+    string,
+    Map<string, Array<[string, string, string, string, number]>>
+  >();
   for (const [objId, locations] of Object.entries(objectsById)) {
     for (const loc of locations) {
       if (SYSTEM_KINDS.has(loc[1])) {
@@ -756,8 +818,8 @@ export function validateWorkspace(
         if (files.size > 1) {
           // Duplicate ID across files
           for (const location of locations.slice(1)) {
-            const [file, , , line] = location;
-            const candidates = locations.map(([f, , , l]) => `${f}:${l}`);
+            const [file, , , , line] = location;
+            const candidates = locations.map(([f, , , , l]) => `${f}:${l}`);
             errors.push({
               type: 'duplicate_id',
               message: `Duplicate ID '${objId}' found in multiple files`,
@@ -775,8 +837,8 @@ export function validateWorkspace(
             // Same ID, different kinds - ambiguous
             const firstKind = locations[0]?.[1];
             if (!firstKind) continue;
-            for (const [file, kind, , line] of locations.slice(1)) {
-              const candidates = locations.map(([f, k, , l]) => `${f}:${k}:${l}`);
+            for (const [file, kind, , , line] of locations.slice(1)) {
+              const candidates = locations.map(([f, k, , , l]) => `${f}:${k}:${l}`);
               errors.push({
                 type: 'duplicate_id',
                 message: `Duplicate ID '${objId}' with different kinds: ${firstKind} and ${kind}`,
@@ -805,6 +867,11 @@ export function validateWorkspace(
     if (!objNsId && obj.__kind === '__Namespace') {
       objNsId = (obj.__id as string) || '';
     }
+    // QMD-69: the referring object's own workspace. Empty in a single-workspace parse,
+    // where it correctly imposes no filter.
+    const objWsId = (obj.__workspace as string) || '';
+    {
+    }
 
     // Get all references from this object using __references field
     const refs = (obj.__references as Array<{ target: string; line: number; raw?: string }>) || [];
@@ -826,27 +893,31 @@ export function validateWorkspace(
       const objId = obj.__id;
       const objFile = (obj.__file as string) || '';
 
-      // Parse reference target to extract namespace, kind, and id
-      const [refNs, refKind, refId] = parseReference(target);
+      // Parse reference target to extract workspace, namespace and id
+      const [refWs, refNs, refId] = parseReference(target);
 
-      // Find matching objects
-      const matchingObjects: Array<[string, string, string, number]> = [];
+      // QMD-69 candidate filter. Each qualifier present narrows the search; the WORKSPACE
+      // never widens past the referring object's own workspace unless the reference names
+      // one.
+      const matchingObjects: Array<[string, string, string, string, number]> = [];
       if (objectsById[refId]) {
-        for (const [file, kind, ns, refLine] of objectsById[refId]) {
-          // If reference specifies namespace, must match exactly
-          if (refNs !== null) {
-            if (ns !== refNs) {
+        for (const [file, kind, ns, ws, refLine] of objectsById[refId]) {
+          if (refWs !== null) {
+            // `ws:...` -- only inside the named workspace.
+            if (ws !== refWs) {
               continue;
             }
+          } else if (objWsId && ws && ws !== objWsId) {
+            // Unqualified: a cross-workspace reference MUST name its workspace, so an
+            // unqualified one stays local.
+            continue;
           }
-          // If reference specifies kind, must match
-          if (refKind !== null) {
-            if (kind !== refKind) {
-              continue;
-            }
+          if (refNs !== null && refNs !== '' && ns !== refNs) {
+            // An EMPTY namespace segment (`ws::id`) elides rather than asserting the root
+            // namespace: any namespace matches.
+            continue;
           }
-          // If reference doesn't specify namespace, include all candidates
-          matchingObjects.push([file, kind, ns, refLine]);
+          matchingObjects.push([file, kind, ns, ws, refLine]);
         }
       }
 
@@ -855,7 +926,7 @@ export function validateWorkspace(
       // Ambiguous only if:
       // 1. Multiple objects in current namespace, OR
       // 2. No objects in current namespace but multiple in other namespaces
-      let resolvedObjects: Array<[string, string, string, number]>;
+      let resolvedObjects: Array<[string, string, string, string, number]>;
       if (refNs === null) {
         if (objNsId) {
           // Prefer objects from same namespace
@@ -934,16 +1005,31 @@ export function validateWorkspace(
         // __local_id fallback: try to resolve by __local_id within same namespace
         const localCandidatesRaw = _index.byLocalId[refId] || [];
 
-        // Filter by target namespace (refNs if explicit, else source obj namespace)
-        const targetNs = refNs !== null ? refNs : objNsId;
+        // QMD-69: honour the reference's WORKSPACE qualifier here too. This path used to
+        // ignore it entirely, so `[[#no_such_ws:ns:leaf]]` was accepted.
+        const wsScoped = localCandidatesRaw.filter((c) =>
+          workspaceMatches(refWs, (c.__workspace as string) || '', objWsId)
+        );
+
+        // The NAMESPACE rule is deliberately NOT the elide/assert rule used by
+        // qualifiersMatch: an unqualified reference resolves by __local_id only inside the
+        // referring object's OWN namespace (the root namespace when it has none). That is what
+        // keeps a bare [[#config]] at the workspace root from reaching gateway.config in the
+        // `services` namespace.
         let localCandidates: QmdcObject[];
-        if (targetNs) {
-          localCandidates = localCandidatesRaw.filter(
-            (c) => extractNamespaceId((c.__namespace as string) || '') === targetNs
-          );
+        if (refNs === '') {
+          // `ws::id` — namespace elided: any namespace of the named workspace.
+          localCandidates = wsScoped;
         } else {
-          // Root-level: only match other root-level objects
-          localCandidates = localCandidatesRaw.filter((c) => !c.__namespace);
+          const targetNs = refNs !== null ? refNs : objNsId;
+          if (targetNs) {
+            localCandidates = wsScoped.filter(
+              (c) => extractNamespaceId((c.__namespace as string) || '') === targetNs
+            );
+          } else {
+            // Root-level: only match other root-level objects
+            localCandidates = wsScoped.filter((c) => !c.__namespace);
+          }
         }
 
         if (localCandidates.length === 1) {
@@ -954,6 +1040,7 @@ export function validateWorkspace(
               matched.__file as string,
               (matched.__kind as string) || '',
               extractNamespaceId((matched.__namespace as string) || ''),
+              (matched.__workspace as string) || '',
               matched.__line as number,
             ],
           ];
@@ -992,15 +1079,30 @@ export function validateWorkspace(
           const lastDot = refId.lastIndexOf('.');
           const objPrefix = refId.slice(0, lastDot);
           const fieldPart = refId.slice(lastDot + 1);
-          if (objectsById[objPrefix]) {
-            // Check that the field exists on the target object
-            for (const candidateObj of objects) {
-              if (candidateObj.__id === objPrefix) {
-                if (fieldPart in candidateObj && !fieldPart.startsWith('__')) {
-                  isFieldRef = true;
-                }
-                break;
-              }
+          // QMD-69: the prefix object must itself satisfy the reference's qualifiers, and
+          // the scan must not stop at the first object with a matching id — in a composed
+          // container the same id legitimately exists in several workspaces. This escape
+          // used to accept any object with a matching id and field, so a reference naming a
+          // workspace that does not exist, or one that exists but does not hold the object,
+          // was silently treated as a field reference and never reported.
+          for (const candidateObj of objects) {
+            if (candidateObj.__id !== objPrefix) {
+              continue;
+            }
+            if (
+              !qualifiersMatch(
+                refWs,
+                refNs,
+                (candidateObj.__workspace as string) || '',
+                extractNamespaceId((candidateObj.__namespace as string) || ''),
+                objWsId
+              )
+            ) {
+              continue;
+            }
+            if (fieldPart in candidateObj && !fieldPart.startsWith('__')) {
+              isFieldRef = true;
+              break;
             }
           }
         }
@@ -1056,32 +1158,46 @@ export function validateWorkspace(
           const lastDot = refId.lastIndexOf('.');
           const objPrefix = refId.slice(0, lastDot);
           const fieldPart = refId.slice(lastDot + 1);
-          if (objectsById[objPrefix]) {
-            for (const candidateObj of objects) {
-              if (candidateObj.__id === objPrefix) {
-                if (fieldPart in candidateObj && !fieldPart.startsWith('__')) {
-                  const fieldVal = candidateObj[fieldPart];
-                  // Ambiguous if field value is NOT a reference to the object
-                  if (fieldVal !== `[[#${refId}]]`) {
-                    const fieldValRepr = JSON.stringify(fieldVal).slice(0, 40);
-                    errors.push({
-                      type: 'ambiguous_field_reference',
-                      message: `Reference '${target}' cannot be unequivocally resolved to an object or a field`,
-                      file: objFile,
-                      line,
-                      objectId: objId,
-                      reference: target,
-                      candidates: [
-                        `object with __id '${refId}'`,
-                        `field '${fieldPart}' on object '${objPrefix}' (value: ${fieldValRepr})`,
-                      ],
-                      severity: 'error',
-                    });
-                  }
-                }
-                break;
+          // QMD-69: same qualifier rule as the field-ref escape above — the prefix object
+          // considered here must be one the reference could actually name, or QMDC009 would
+          // be raised about an object in a workspace the reference never mentioned.
+          for (const candidateObj of objects) {
+            if (candidateObj.__id !== objPrefix) {
+              continue;
+            }
+            if (
+              !qualifiersMatch(
+                refWs,
+                refNs,
+                (candidateObj.__workspace as string) || '',
+                extractNamespaceId((candidateObj.__namespace as string) || ''),
+                objWsId
+              )
+            ) {
+              continue;
+            }
+            if (fieldPart in candidateObj && !fieldPart.startsWith('__')) {
+              const fieldVal = candidateObj[fieldPart];
+              // Ambiguous if field value is NOT a reference to the object
+              if (fieldVal !== `[[#${refId}]]`) {
+                const fieldValRepr = JSON.stringify(fieldVal).slice(0, 40);
+                errors.push({
+                  type: 'ambiguous_field_reference',
+                  message: `Reference '${target}' cannot be unequivocally resolved to an object or a field`,
+                  file: objFile,
+                  line,
+                  objectId: objId,
+                  reference: target,
+                  candidates: [
+                    `object with __id '${refId}'`,
+                    `field '${fieldPart}' on object '${objPrefix}' (value: ${fieldValRepr})`,
+                  ],
+                  severity: 'error',
+                });
               }
             }
+            // Only the first qualifying candidate is considered.
+            break;
           }
         }
       } else if (resolvedObjects.length > 1) {
@@ -1089,14 +1205,10 @@ export function validateWorkspace(
         const kinds = new Set(resolvedObjects.map(([, kind]) => kind));
         const namespaces = new Set(resolvedObjects.map(([, , ns]) => ns));
 
-        let isAmbiguous = false;
-        if (refKind !== null && refNs !== null) {
-          isAmbiguous = false; // Fully qualified, should not be ambiguous
-        } else if (kinds.size > 1) {
-          isAmbiguous = true; // Different kinds
-        } else if (namespaces.size > 1) {
-          isAmbiguous = true; // Different namespaces
-        }
+        // QMD-69: there is no Kind segment to suppress ambiguity with, and an elided
+        // namespace (`ws::id`) explicitly MAY match several namespaces -- which is an
+        // ambiguity, not a silent pick.
+        const isAmbiguous = kinds.size > 1 || namespaces.size > 1;
 
         if (isAmbiguous) {
           const candidates = resolvedObjects.map(([, kind, ns]) => {
@@ -1386,6 +1498,12 @@ export function parseAllWorkspaces(rootPath: string): WorkspaceResult {
 
     // Adjust error file paths to be relative to root_path
     for (const error of wsResult.errors) {
+      // QMD-69: reference findings are dropped here and recomputed once over the composed
+      // object set below -- in isolation this workspace could not see its siblings'
+      // objects, so any cross-workspace reference looked broken.
+      if (isReferenceFinding(error.type)) {
+        continue;
+      }
       if (error.file) {
         const fullPath = join(wsDir, error.file);
         error.file = relative(root, fullPath);
@@ -1488,14 +1606,44 @@ export function parseAllWorkspaces(rootPath: string): WorkspaceResult {
     }
   }
 
+  // QMD-69: re-run reference validation over the COMPOSED object set.
+  //
+  // Each sibling workspace above was parsed and validated in isolation, so its reference
+  // findings were computed against an index that could not see the other workspaces'
+  // objects; a workspace-qualified cross-workspace reference was therefore always reported
+  // as a broken link. Those stale findings were dropped as the per-workspace errors were
+  // collected, and validation runs once here over every object in the container.
+  // Structural findings (duplicate_id, workspace_in_wrong_file, parsing errors) stay
+  // per-workspace, because identity is workspace-scoped (QMD-67).
+  const composedIndex = buildIndex(allObjects);
+  for (const error of validateWorkspace(allObjects, composedIndex, root)) {
+    if (isReferenceFinding(error.type)) {
+      allErrors.push(error);
+    }
+  }
+
   return {
     root,
     workspaceId: null, // Multiple workspaces, no single ID
     files: allFiles,
     objects: allObjects,
-    index: buildIndex(allObjects),
+    index: composedIndex,
     errors: allErrors,
   };
+}
+
+/**
+ * Whether a workspace error was produced by the reference resolver.
+ *
+ * QMD-69: these are recomputed over the composed object set when a container holds several
+ * sibling workspaces, so the per-workspace copies must be discarded first.
+ */
+function isReferenceFinding(errorType: string): boolean {
+  return (
+    errorType === 'broken_link' ||
+    errorType === 'ambiguous_reference' ||
+    errorType === 'ambiguous_field_reference'
+  );
 }
 
 /**

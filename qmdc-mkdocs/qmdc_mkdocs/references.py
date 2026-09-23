@@ -223,8 +223,12 @@ def _direct_lookup(
         if ns_check:
             source_namespace = candidate_ns
 
+    # QMD-69: the reference grammar is a right-aligned suffix of workspace:namespace:id,
+    # with no Kind segment, and the resolver takes the parsed qualifiers.
     if len(parts) == 1:
-        global_id = db._resolve_target_global_id(parts[0], workspace_id, source_namespace)
+        global_id = db._resolve_target_global_id(
+            parts[0], None, None, workspace_id, source_namespace
+        )
         if not global_id:
             # Cross-namespace __local_id fallback. The workspace resolver resolves a
             # bare [[#leaf]] to a hierarchical (dot-id) object by its __local_id even
@@ -238,25 +242,15 @@ def _direct_lookup(
             if len(rows) == 1:
                 return rows[0]
     elif len(parts) == 2:
-        if parts[0] and parts[0][0].isupper():
-            # Kind:id
-            rows = ws_data.query(
-                "SELECT __file, __id, __label FROM objects "
-                "WHERE __kind = ? AND (__id = ? OR __local_id = ?)",
-                params=(parts[0], parts[1], parts[1]),
-            )
-            return rows[0] if len(rows) == 1 else None
-        else:
-            # namespace:id
-            global_id = db._resolve_target_global_id(parts[1], workspace_id, parts[0])
-    elif len(parts) == 3:
-        # namespace:Kind:id
-        rows = ws_data.query(
-            "SELECT __file, __id, __label FROM objects "
-            "WHERE __namespace = ? AND __kind = ? AND (__id = ? OR __local_id = ?)",
-            params=(parts[0], parts[1], parts[2], parts[2]),
+        # namespace:id
+        global_id = db._resolve_target_global_id(
+            parts[1], None, parts[0], workspace_id, source_namespace
         )
-        return rows[0] if len(rows) == 1 else None
+    elif len(parts) == 3:
+        # workspace:namespace:id -- the middle segment may be empty (elided namespace).
+        global_id = db._resolve_target_global_id(
+            parts[2], parts[0], parts[1], workspace_id, source_namespace
+        )
     else:
         return None
 

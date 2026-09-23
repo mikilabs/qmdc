@@ -484,18 +484,34 @@ When two objects have the same ID but different Kind, the reference must specify
 ```markdown example
 ## API Service [[api_service: Service]]
 
-- database: [[#storage:users]]           # different namespace
-- user_table: [[#storage:Table:users]]   # namespace + Kind
+- database: [[#storage:users]]                  # different namespace
+- user_table: [[#other_ws:storage:users]]       # different workspace
+- ledger: [[#other_ws::ledger]]                 # different workspace, any namespace
 ```
 
-**Full format:** `[[#workspace:namespace:Kind:id]]`
+**Full format:** `[[#workspace:namespace:id]]` — the same grammar as `__global_id`, with an
+optional `.field` suffix on the id. A reference and an identity are written the same way.
 
-All components are optional except `id`:
+A reference is a right-aligned SUFFIX of that grammar; each qualifier you add narrows the
+search:
 
-- `[[#id]]` — local reference (current namespace)
-- `[[#Kind:id]]` — with type (collision resolution)
-- `[[#namespace:id]]` — different namespace
-- `[[#namespace:Kind:id]]` — full form for cross-namespace
+- `[[#id]]` — this workspace: own namespace first, then any namespace of it
+- `[[#namespace:id]]` — this workspace, that namespace
+- `[[#workspace:namespace:id]]` — that workspace, that namespace
+- `[[#workspace::id]]` — that workspace, ANY namespace (the empty middle segment ELIDES the
+  namespace rather than asserting the workspace root)
+
+Two rules follow from this, and both are enforced:
+
+- **A cross-workspace reference must name its workspace.** A bare `[[#id]]` never reaches
+  into a sibling workspace, not even when exactly one workspace holds that id.
+- **A qualifier that matches more than one object is an `ambiguous_reference`, and builds no
+  edge.** `[[#other_ws::ledger]]` is ambiguous if `other_ws` holds `ledger` in two
+  namespaces — exactly as a bare `[[#ledger]]` is ambiguous within one workspace.
+
+There is no `Kind` segment. Ids are unique within a namespace, so a Kind could only ever
+disambiguate an already-invalid workspace; it was never part of identity, and
+`[[#namespace:Kind:id]]` is not valid syntax.
 
 ### Resolution Order and __local_id [[resolution_order: text]]
 
@@ -660,7 +676,7 @@ my-project/
 The parser automatically:
 
 1. Finds all objects in all files
-2. Indexes them by `namespace:Kind:id`
+2. Indexes them by `workspace:namespace:id` (its `__global_id`)
 3. Validates all references
 4. Reports broken links
 

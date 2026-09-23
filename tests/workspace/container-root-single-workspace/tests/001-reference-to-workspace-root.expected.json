@@ -1,0 +1,4 @@
+{
+  "columns": ["source_id", "edge_type", "target_global_id", "target_kind"],
+  "rows": [["models_doc", "about", "::docs_ws", "__Workspace"]]
+}

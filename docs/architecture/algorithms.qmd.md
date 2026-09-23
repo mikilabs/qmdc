@@ -60,7 +60,7 @@ Converts QMD.md into JSON objects.
 
 - **ID auto-generation** — if no ID specified, generated from label (lowercase, spaces → _)
 - **Hierarchy** — object stack tracks nesting by heading levels
-- **References** — patterns like `[[#id]]`, `[[#Kind:id]]`, `[[#namespace:id]]` are extracted
+- **References** — patterns like `[[#id]]`, `[[#namespace:id]]`, `[[#workspace:namespace:id]]` are extracted
 - **Lossless** — field order, object order, and reference positions are preserved
 
 ## Rebuild Algorithm [[rebuild_algorithm: Algorithm]]
@@ -189,7 +189,7 @@ Table `edges`: `source_id`, `source_field`, `target_id`, `edge_type`, `__workspa
    a. Extract system fields → INSERT into objects
    b. Serialize user fields to JSON → data column
    c. Extract references from all fields:
-      - Find `[[#id]]`, `[[#Kind:id]]`, `[[#namespace:id]]` patterns
+      - Find `[[#id]]`, `[[#namespace:id]]`, `[[#workspace:namespace:id]]` patterns
       - For text fields: check preamble (all-or-nothing rule)
       - INSERT into edges (ON CONFLICT DO NOTHING)
 4. Validate: check all target_ids exist in objects
@@ -207,11 +207,14 @@ Resolves references of the form `[[#id]]` to objects.
 
 **Reference formats:**
 
-1. Local reference (current namespace): `[[#id]]`
-2. With type (collision resolution): `[[#Kind:id]]`
-3. Different namespace: `[[#namespace:id]]`
-4. Cross-workspace: `[[#workspace:namespace:id]]`
-5. Full form: `[[#namespace:Kind:id]]`
+A reference target is a right-aligned suffix of `workspace:namespace:id` (the
+`__global_id` grammar), with an optional `.field` suffix on the id. There is no Kind
+segment.
+
+1. Local reference: `[[#id]]` — own namespace first, then any namespace of the same workspace
+2. Different namespace: `[[#namespace:id]]`
+3. Cross-workspace: `[[#workspace:namespace:id]]`
+4. Cross-workspace, namespace elided: `[[#workspace::id]]` — any namespace of that workspace
 
 **Algorithm:**
 

@@ -631,10 +631,18 @@ def _extract_references(obj: dict[str, Any]) -> list[tuple[str, str]]:
 
 def _parse_reference(ref: str) -> tuple[str | None, str | None, str]:
     """
-    Parse reference like [[#ns:Kind:id]] or [[#id]].
+    Parse a reference target into (workspace, namespace, id).
 
-    Returns:
-        (namespace, kind, id)
+    QMD-69: a reference target is a right-aligned suffix of the ``__global_id`` grammar
+    ``workspace:namespace:id``, with an optional ``.field`` suffix carried inside the id.
+    There is no ``Kind`` segment.
+
+    * ``#id`` -> (None, None, id)
+    * ``#ns:id`` -> (None, ns, id)
+    * ``#ws:ns:id`` -> (ws, ns, id)
+    * ``#ws::id`` -> (ws, "", id) -- an EMPTY namespace ELIDES rather than asserting the
+      workspace root, so the target may live in any namespace of ``ws``; more than one
+      candidate is an ambiguity.
     """
     # Remove [[# and ]]
     match = _REF_INNER_RE.match(ref)
@@ -644,15 +652,12 @@ def _parse_reference(ref: str) -> tuple[str | None, str | None, str]:
     inner = match.group(1)
     parts = inner.split(":")
 
-    if len(parts) == 3:
-        return parts[0], parts[1], parts[2]
+    if len(parts) >= 3:
+        # workspace:namespace:id -- the id keeps any further colons, as rsplit-style
+        # parsing would; the middle segment may be empty (elided namespace).
+        return parts[0], parts[1], ":".join(parts[2:])
     elif len(parts) == 2:
-        # Could be Kind:id or namespace:id
-        # Assume Kind:id if first part looks like a Kind (capitalized)
-        if parts[0][0].isupper():
-            return None, parts[0], parts[1]
-        else:
-            return parts[0], None, parts[1]
+        return None, parts[0], parts[1]
     else:
         return None, None, parts[0]
 
@@ -771,11 +776,16 @@ def validate_workspace(
                 )
             )
 
-    # Build index of all objects by id, kind, and namespace for validation
-    # Format: id -> [(file, kind, namespace, line), ...]
-    objects_by_id: dict[str, list[tuple[str, str, str, int]]] = {}
+    # Build index of all objects by id, kind, namespace and workspace for validation.
+    # Format: id -> [(file, kind, namespace, workspace, line), ...]
+    # QMD-69: the workspace is carried so a workspace-qualified reference can be enforced
+    # and an unqualified one can be kept inside its own workspace.
+    objects_by_id: dict[str, list[tuple[str, str, str, str, int]]] = {}
     # Quick lookup: id -> first object with that id (for field-level resolution)
-    obj_lookup: dict[str, dict[str, Any]] = {}
+    # QMD-69: a MULTIMAP, not `id -> first object`. The field-reference check has to pick a
+    # candidate that satisfies the reference's qualifiers, and in a composed container the
+    # same id legitimately exists in several workspaces.
+    obj_lookup: dict[str, list[dict[str, Any]]] = {}
 
     for obj in objects:
         obj_id = obj.get("__id")
@@ -789,9 +799,9 @@ def validate_workspace(
         obj_namespace = obj.get("__namespace", "")
         ns_id = _extract_namespace_id(obj_namespace)
 
-        objects_by_id.setdefault(obj_id, []).append((obj_file, obj_kind, ns_id, obj_line))
-        if obj_id not in obj_lookup:
-            obj_lookup[obj_id] = obj
+        obj_ws = obj.get("__workspace", "") or ""
+        objects_by_id.setdefault(obj_id, []).append((obj_file, obj_kind, ns_id, obj_ws, obj_line))
+        obj_lookup.setdefault(obj_id, []).append(obj)
 
     # Check for duplicate IDs (same id, different files or same file)
     # Skip system objects (__Document, __TextBlock) as they are auto-generated per file
@@ -809,10 +819,10 @@ def validate_workspace(
     # duplicate whenever a system object happens to share the id in the same namespace.
     # (objects_by_id itself stays complete — reference resolution depends on it.)
     system_kinds = ("__Document", "__TextBlock", "__ParsingError")
-    objects_by_ns_id: dict[tuple[str, str], list[tuple[str, str, str, int]]] = {}
+    objects_by_ns_id: dict[tuple[str, str], list[tuple[str, str, str, str, int]]] = {}
     for obj_id, locations in objects_by_id.items():
         for loc in locations:
-            _file, kind, namespace, _line = loc
+            _file, kind, namespace, _ws, _line = loc
             if kind in system_kinds:
                 continue
             objects_by_ns_id.setdefault((namespace, obj_id), []).append(loc)
@@ -820,11 +830,11 @@ def validate_workspace(
     for (_namespace, obj_id), locations in objects_by_ns_id.items():
         if len(locations) > 1:
             # Check if duplicates are in different files
-            files = {file for file, _, _, _ in locations}
+            files = {file for file, _, _, _, _ in locations}
             if len(files) > 1:
                 # Duplicate ID across files
-                for file, _kind, _ns, line in locations[1:]:
-                    candidates = [f"{f}:{line_num}" for f, _, _, line_num in locations]
+                for file, _kind, _ns, _ws, line in locations[1:]:
+                    candidates = [f"{f}:{line_num}" for f, _, _, _, line_num in locations]
                     errors.append(
                         WorkspaceError(
                             type="duplicate_id",
@@ -838,12 +848,12 @@ def validate_workspace(
                     )
             else:
                 # Same file - check if different kinds
-                kinds = {kind for _, kind, _, _ in locations}
+                kinds = {kind for _, kind, _, _, _ in locations}
                 if len(kinds) > 1:
                     # Same ID, different kinds - ambiguous
                     first_kind = locations[0][1]
-                    for file, kind, _ns, line in locations[1:]:
-                        candidates = [f"{f}:{k}:{line_num}" for f, k, _, line_num in locations]
+                    for file, kind, _ns, _ws, line in locations[1:]:
+                        candidates = [f"{f}:{k}:{line_num}" for f, k, _, _, line_num in locations]
                         errors.append(
                             WorkspaceError(
                                 type="duplicate_id",
@@ -870,6 +880,9 @@ def validate_workspace(
         # the file directory for such objects.
         if not obj_ns_id and obj.get("__kind") == "__Namespace":
             obj_ns_id = obj.get("__id", "")
+        # QMD-69: the referring object's own workspace. Empty in a single-workspace parse,
+        # where it correctly imposes no filter.
+        obj_ws_id = obj.get("__workspace", "") or ""
 
         # Get all references from this object using __references field
         refs = obj.get("__references", [])
@@ -894,21 +907,29 @@ def validate_workspace(
             obj_id = obj.get("__id", "")
             obj_file = obj.get("__file", "")
 
-            # Parse reference target to extract namespace, kind, and id
-            ref_ns, ref_kind, ref_id = _parse_reference(target)
+            # Parse reference target to extract workspace, namespace and id
+            ref_ws, ref_ns, ref_id = _parse_reference(target)
 
-            # Find matching objects
+            # QMD-69 candidate filter. Each qualifier present narrows the search; the
+            # WORKSPACE never widens past the referring object's own workspace unless the
+            # reference names one.
             matching_objects = []
             if ref_id in objects_by_id:
-                for file, kind, ns, ref_line in objects_by_id[ref_id]:
-                    # If reference specifies namespace, must match exactly
-                    if ref_ns is not None and ns != ref_ns:
+                for file, kind, ns, ws, ref_line in objects_by_id[ref_id]:
+                    if ref_ws is not None:
+                        # `ws:...` -- only inside the named workspace.
+                        if ws != ref_ws:
+                            continue
+                    # Unqualified: a cross-workspace reference MUST name its workspace, so
+                    # an unqualified one stays local. The empty-workspace case keeps
+                    # single-workspace parses working unchanged.
+                    elif obj_ws_id and ws and ws != obj_ws_id:
                         continue
-                    # If reference specifies kind, must match
-                    if ref_kind is not None and kind != ref_kind:
+                    # An EMPTY namespace segment (`ws::id`) elides rather than
+                    # asserting the root namespace: any namespace matches.
+                    if ref_ns is not None and ref_ns != "" and ns != ref_ns:
                         continue
-                    # If reference doesn't specify namespace, include all candidates
-                    matching_objects.append((file, kind, ns, ref_line))
+                    matching_objects.append((file, kind, ns, ws, ref_line))
 
             # If reference doesn't specify namespace, prefer objects in same namespace
             # According to spec: "current namespace first, then other files in the same namespace"
@@ -919,8 +940,8 @@ def validate_workspace(
                 if obj_ns_id:
                     # Prefer objects from same namespace
                     same_ns = [
-                        (f, k, n, line_num)
-                        for f, k, n, line_num in matching_objects
+                        (f, k, n, w, line_num)
+                        for f, k, n, w, line_num in matching_objects
                         if n == obj_ns_id
                     ]
                     resolved_objects = same_ns or matching_objects
@@ -971,17 +992,33 @@ def validate_workspace(
                 by_local_id = index.get("by_local_id", {})
                 local_candidates = by_local_id.get(ref_id, [])
 
-                # Filter by target namespace (ref_ns if explicit, else source obj namespace)
-                target_ns = ref_ns if ref_ns is not None else obj_ns_id
-                if target_ns:
-                    local_candidates = [
-                        c
-                        for c in local_candidates
-                        if _extract_namespace_id(c.get("__namespace", "")) == target_ns
-                    ]
+                # QMD-69: honour the reference's WORKSPACE qualifier here too. This path used
+                # to ignore it entirely, so `[[#no_such_ws:ns:leaf]]` was accepted.
+                local_candidates = [
+                    c
+                    for c in local_candidates
+                    if _workspace_matches(ref_ws, c.get("__workspace", "") or "", obj_ws_id)
+                ]
+
+                # The NAMESPACE rule is deliberately NOT the elide/assert rule used by
+                # _qualifiers_match: an unqualified reference resolves by __local_id only
+                # inside the referring object's OWN namespace (the root namespace when it has
+                # none). That is what keeps a bare [[#config]] at the workspace root from
+                # reaching gateway.config in the `services` namespace.
+                if ref_ns == "":
+                    # `ws::id` -- namespace elided: any namespace of the named workspace.
+                    pass
                 else:
-                    # Root-level: only match other root-level objects
-                    local_candidates = [c for c in local_candidates if not c.get("__namespace")]
+                    target_ns = ref_ns if ref_ns is not None else obj_ns_id
+                    if target_ns:
+                        local_candidates = [
+                            c
+                            for c in local_candidates
+                            if _extract_namespace_id(c.get("__namespace", "")) == target_ns
+                        ]
+                    else:
+                        # Root-level: only match other root-level objects
+                        local_candidates = [c for c in local_candidates if not c.get("__namespace")]
 
                 if len(local_candidates) == 1:
                     # Resolved via __local_id — no error
@@ -1031,14 +1068,23 @@ def validate_workspace(
                     last_dot = ref_id.rfind(".")
                     obj_prefix = ref_id[:last_dot]
                     field_part = ref_id[last_dot + 1 :]
-                    if obj_prefix in objects_by_id:
-                        candidate_obj = obj_lookup.get(obj_prefix)
-                        if (
-                            candidate_obj
-                            and field_part in candidate_obj
-                            and not field_part.startswith("__")
+                    # QMD-69: the prefix object must itself satisfy the reference's
+                    # qualifiers. This escape used to accept any object with a matching id
+                    # and field, so a reference naming a workspace that does not exist -- or
+                    # one that exists but does not hold the object -- was silently treated as
+                    # a field reference and never reported.
+                    for candidate_obj in obj_lookup.get(obj_prefix, []):
+                        if not _qualifiers_match(
+                            ref_ws,
+                            ref_ns,
+                            candidate_obj.get("__workspace", "") or "",
+                            _extract_namespace_id(candidate_obj.get("__namespace", "")),
+                            obj_ws_id,
                         ):
+                            continue
+                        if field_part in candidate_obj and not field_part.startswith("__"):
                             is_field_ref = True
+                            break
 
                 if not is_field_ref:
                     # Check if the object exists in a different namespace
@@ -1063,20 +1109,22 @@ def validate_workspace(
 
                     if not hint:
                         # Check by __id in other namespaces
+                        # QMD-69: objects_by_id holds TUPLES
+                        # (file, kind, namespace, workspace, line) -- not dicts. This block
+                        # used to call .get() on them and abort the whole validation run
+                        # with `'tuple' object has no attribute 'get'`. It only fired when
+                        # a broken link had no by_local_id hint yet the bare id existed
+                        # elsewhere, which is exactly what a workspace-qualified reference
+                        # produces.
                         other_ns_id = objects_by_id.get(ref_id, [])
                         if other_ns_id:
                             if obj_ns_id:
-                                others = [
-                                    c
-                                    for c in other_ns_id
-                                    if _extract_namespace_id(c.get("__namespace", "")) != obj_ns_id
-                                ]
+                                others = [c for c in other_ns_id if c[2] != obj_ns_id]
                             else:
-                                others = [c for c in other_ns_id if c.get("__namespace")]
+                                others = [c for c in other_ns_id if c[2]]
                             if others:
-                                other_ns = _extract_namespace_id(others[0].get("__namespace", ""))
-                                other_id = others[0].get("__id", ref_id)
-                                hint = f". Did you mean [[#{other_ns}:{other_id}]]?"
+                                other_ns = others[0][2]
+                                hint = f". Did you mean [[#{other_ns}:{ref_id}]]?"
 
                     # Broken link - reference not found
                     errors.append(
@@ -1098,58 +1146,71 @@ def validate_workspace(
                     last_dot = ref_id.rfind(".")
                     obj_prefix = ref_id[:last_dot]
                     field_part = ref_id[last_dot + 1 :]
-                    if obj_prefix in objects_by_id:
-                        candidate_obj = obj_lookup.get(obj_prefix)
-                        if (
-                            candidate_obj
-                            and field_part in candidate_obj
-                            and not field_part.startswith("__")
-                        ):
-                            field_val = candidate_obj.get(field_part)
-                            # Ambiguous if field value is NOT a reference to the object
-                            if field_val != f"[[#{ref_id}]]":
-                                field_val_repr = (
-                                    repr(field_val)
-                                    if len(repr(field_val)) < 40
-                                    else repr(field_val)[:37] + "..."
-                                )
-                                errors.append(
-                                    WorkspaceError(
-                                        type="ambiguous_field_reference",
-                                        message=(
-                                            f"Reference '{target}' cannot be unequivocally "
-                                            f"resolved to an object or a field"
+                    # QMD-69: same qualifier rule as the field-ref escape above -- the prefix
+                    # object considered here must be one the reference could actually name, or
+                    # QMDC009 would be raised about an object in a workspace the reference
+                    # never mentioned.
+                    candidate_obj = next(
+                        (
+                            c
+                            for c in obj_lookup.get(obj_prefix, [])
+                            if _qualifiers_match(
+                                ref_ws,
+                                ref_ns,
+                                c.get("__workspace", "") or "",
+                                _extract_namespace_id(c.get("__namespace", "")),
+                                obj_ws_id,
+                            )
+                        ),
+                        None,
+                    )
+                    if (
+                        candidate_obj
+                        and field_part in candidate_obj
+                        and not field_part.startswith("__")
+                    ):
+                        field_val = candidate_obj.get(field_part)
+                        # Ambiguous if field value is NOT a reference to the object
+                        if field_val != f"[[#{ref_id}]]":
+                            field_val_repr = (
+                                repr(field_val)
+                                if len(repr(field_val)) < 40
+                                else repr(field_val)[:37] + "..."
+                            )
+                            errors.append(
+                                WorkspaceError(
+                                    type="ambiguous_field_reference",
+                                    message=(
+                                        f"Reference '{target}' cannot be unequivocally "
+                                        f"resolved to an object or a field"
+                                    ),
+                                    file=obj_file,
+                                    line=line,
+                                    object_id=obj_id,
+                                    reference=target,
+                                    candidates=[
+                                        f"object with __id '{ref_id}'",
+                                        (
+                                            f"field '{field_part}' on object"
+                                            f" '{obj_prefix}' (value: {field_val_repr})"
                                         ),
-                                        file=obj_file,
-                                        line=line,
-                                        object_id=obj_id,
-                                        reference=target,
-                                        candidates=[
-                                            f"object with __id '{ref_id}'",
-                                            (
-                                                f"field '{field_part}' on object"
-                                                f" '{obj_prefix}' (value: {field_val_repr})"
-                                            ),
-                                        ],
-                                        severity="error",
-                                    )
+                                    ],
+                                    severity="error",
                                 )
+                            )
             elif len(resolved_objects) > 1:
                 # Ambiguous reference - multiple matching objects
-                kinds = {kind for _, kind, _, _ in resolved_objects}
-                namespaces = {ns for _, _, ns, _ in resolved_objects}
+                kinds = {kind for _, kind, _, _, _ in resolved_objects}
+                namespaces = {ns for _, _, ns, _, _ in resolved_objects}
 
-                is_ambiguous = False
-                if ref_kind is not None and ref_ns is not None:
-                    is_ambiguous = False  # Fully qualified, should not be ambiguous
-                elif len(kinds) > 1:
-                    is_ambiguous = True  # Different kinds
-                elif len(namespaces) > 1:
-                    is_ambiguous = True  # Different namespaces
+                # QMD-69: there is no Kind segment to suppress ambiguity with, and an
+                # elided namespace (`ws::id`) explicitly MAY match several namespaces --
+                # which is an ambiguity, not a silent pick.
+                is_ambiguous = len(kinds) > 1 or len(namespaces) > 1
 
                 if is_ambiguous:
                     candidates = []
-                    for _file, kind, ns, _ref_line in resolved_objects:
+                    for _file, kind, ns, _ws, _ref_line in resolved_objects:
                         if ns:
                             candidates.append(f"{ns}:{kind}:{ref_id}")
                         else:
@@ -1327,6 +1388,57 @@ def is_ignored(path: Path, root_path: Path, patterns: list[str]) -> bool:
     return False
 
 
+def _workspace_matches(ref_workspace: str | None, cand_workspace: str, obj_workspace: str) -> bool:
+    """Whether a candidate in ``cand_workspace`` satisfies a reference's WORKSPACE qualifier.
+
+    QMD-69. ``Some(ws)`` binds the match to that workspace; ``None`` keeps it inside
+    ``obj_workspace``, because a cross-workspace reference must name its workspace. An empty
+    ``obj_workspace`` (single-workspace parse) imposes no constraint, and so does an empty
+    ``cand_workspace`` -- that is a workspace ROOT object.
+
+    Mirrors ``workspace_matches`` in the Rust ``core::reference_scan``.
+    """
+    if ref_workspace is not None:
+        return cand_workspace == ref_workspace
+    return not obj_workspace or not cand_workspace or cand_workspace == obj_workspace
+
+
+def _qualifiers_match(
+    ref_workspace: str | None,
+    ref_namespace: str | None,
+    cand_workspace: str,
+    cand_namespace: str,
+    obj_workspace: str,
+) -> bool:
+    """Whether a candidate satisfies a reference's qualifiers (QMD-69).
+
+    Used by every path that resolves a reference by its ``__id``: the main candidate filter,
+    the field-reference escape and the ``ambiguous_field_reference`` check.
+
+    ``ref_namespace`` is a name for an assertion, ``""`` for the ELIDED form (``ws::id``, no
+    namespace constraint), and ``None`` when the reference named none -- which imposes no
+    constraint here either, the own-namespace-first preference being the caller's rule.
+
+    The ``__local_id`` fallback deliberately does NOT use this: there an unqualified reference
+    is scoped to the referring object's own namespace exactly.
+    """
+    if not _workspace_matches(ref_workspace, cand_workspace, obj_workspace):
+        return False
+    if ref_namespace is None or ref_namespace == "":
+        return True
+    return cand_namespace == ref_namespace
+
+
+def _is_reference_finding(error_type: str) -> bool:
+    """
+    Whether a WorkspaceError was produced by the reference resolver.
+
+    QMD-69: these are recomputed over the composed object set when a container holds
+    several sibling workspaces, so the per-workspace copies must be discarded first.
+    """
+    return error_type in ("broken_link", "ambiguous_reference", "ambiguous_field_reference")
+
+
 def parse_all_workspaces(root_path: str) -> WorkspaceResult:
     """
     Parse all workspaces found in a directory tree (non-nested).
@@ -1423,6 +1535,11 @@ def parse_all_workspaces(root_path: str) -> WorkspaceResult:
 
         # Adjust error file paths to be relative to root_path
         for error in ws_result.errors:
+            # QMD-69: reference findings are dropped here and recomputed once over the
+            # composed object set below -- in isolation this workspace could not see its
+            # siblings' objects, so any cross-workspace reference looked broken.
+            if _is_reference_finding(error.type):
+                continue
             if error.file:
                 try:
                     full_path = ws_dir / error.file
@@ -1484,6 +1601,22 @@ def parse_all_workspaces(root_path: str) -> WorkspaceResult:
             except Exception:
                 # Skip files that can't be read
                 pass
+
+    # QMD-69: re-run reference validation over the COMPOSED object set.
+    #
+    # Each sibling workspace above was parsed and validated in isolation, so its reference
+    # findings were computed against an index that could not see the other workspaces'
+    # objects; a workspace-qualified cross-workspace reference was therefore always
+    # reported as a broken link. Those stale findings were dropped as the per-workspace
+    # errors were collected, and validation runs once here over every object in the
+    # container. Structural findings (duplicate_id, workspace_in_wrong_file, parsing
+    # errors) stay per-workspace, because identity is workspace-scoped (QMD-67).
+    composed_index = build_index(all_objects)
+    all_errors.extend(
+        error
+        for error in validate_workspace(all_objects, composed_index, root_path=str(root))
+        if _is_reference_finding(error.type)
+    )
 
     return WorkspaceResult(
         root=str(root),

@@ -84,18 +84,14 @@ class TestDirectLookup:
         result = _direct_lookup(["nonexistent"], mock_workspace_db)
         assert result is None
 
-    def test_kind_qualified_ref(self, mock_workspace_db):
-        result = _direct_lookup(["Table", "users"], mock_workspace_db)
-        assert result is not None
-        assert result["__file"] == "storage/tables.qmd.md"
-        assert result["__id"] == "users"
+    def test_kind_segment_is_not_a_qualifier(self, mock_workspace_db):
+        """QMD-69: there is no Kind segment.
 
-    def test_kind_qualified_ref_endpoint(self, mock_workspace_db):
-        result = _direct_lookup(["Endpoint", "get_users"], mock_workspace_db)
-        assert result is not None
-        assert result["__file"] == "api/endpoints.qmd.md"
-        assert result["__id"] == "get_users"
-        assert result["__label"] == "Get Users"
+        A two-segment target is always `namespace:id`, so an uppercase first segment is
+        read as a namespace name and does not resolve unless such a namespace exists.
+        """
+        assert _direct_lookup(["Table", "users"], mock_workspace_db) is None
+        assert _direct_lookup(["Endpoint", "get_users"], mock_workspace_db) is None
 
     def test_namespace_qualified_ref(self, mock_workspace_db):
         result = _direct_lookup(["storage", "users"], mock_workspace_db)
@@ -104,7 +100,15 @@ class TestDirectLookup:
         assert result["__id"] == "users"
 
     def test_full_qualified_ref(self, mock_workspace_db):
-        result = _direct_lookup(["storage", "Table", "users"], mock_workspace_db)
+        """QMD-69: three segments are `workspace:namespace:id`."""
+        result = _direct_lookup(["myproject", "storage", "users"], mock_workspace_db)
+        assert result is not None
+        assert result["__file"] == "storage/tables.qmd.md"
+        assert result["__id"] == "users"
+
+    def test_elided_namespace_ref(self, mock_workspace_db):
+        """QMD-69: an empty middle segment elides the namespace, matching any of them."""
+        result = _direct_lookup(["myproject", "", "users"], mock_workspace_db)
         assert result is not None
         assert result["__file"] == "storage/tables.qmd.md"
         assert result["__id"] == "users"
@@ -377,9 +381,9 @@ class TestResolveReferences:
         result = resolve_references(lines, file_objects, "api/endpoints.qmd.md", sample_ws_data)
         assert "[Users](../storage/tables.md#users)" in result[0]
 
-    def test_kind_qualified_ref(self, sample_ws_data):
-        """Test [[#Table:users]] kind-qualified reference resolution."""
-        lines = ["- table: [[#Table:users]]\n"]
+    def test_workspace_qualified_ref(self, sample_ws_data):
+        """QMD-69: [[#myproject:storage:users]] -- workspace:namespace:id resolution."""
+        lines = ["- table: [[#myproject:storage:users]]\n"]
         file_objects = [
             {
                 "__id": "test_obj",
@@ -389,10 +393,10 @@ class TestResolveReferences:
                     {
                         "line": 1,
                         "start_col": 9,
-                        "end_col": 24,
-                        "raw": "[[#Table:users]]",
-                        "target": "#Table:users",
-                        "type": "kind",
+                        "end_col": 37,
+                        "raw": "[[#myproject:storage:users]]",
+                        "target": "#myproject:storage:users",
+                        "type": "namespace",
                     },
                 ],
             }

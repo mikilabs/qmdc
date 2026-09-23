@@ -886,8 +886,14 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
             }
         }
 
-        // Adjust error file paths to be relative to root_path
+        // Adjust error file paths to be relative to root_path.
+        // QMD-69: reference findings are dropped here and recomputed once over the
+        // composed object set below — in isolation this workspace could not see its
+        // siblings' objects, so any cross-workspace reference looked broken.
         for mut error in ws_result.errors {
+            if is_reference_finding(&error.error_type) {
+                continue;
+            }
             if let Some(ref file) = error.file {
                 if let Ok(rel_path) = ws_dir.join(file).strip_prefix(root_path) {
                     error.file = Some(path_to_slash(rel_path));
@@ -1040,6 +1046,52 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
         }
     }
 
+    // QMD-69: re-run reference validation over the COMPOSED object set.
+    //
+    // Each sibling workspace above was parsed and validated in isolation by
+    // `parse_workspace`, so its reference findings were computed against an index that
+    // could not see the other workspaces' objects. A workspace-qualified cross-workspace
+    // reference was therefore always reported as a broken link. Those stale findings are
+    // dropped as the per-workspace errors are collected (see `is_reference_finding`), and
+    // the single shared engine runs once here over every object in the container.
+    //
+    // Structural findings (duplicate_id, workspace_in_wrong_file, parsing errors) stay
+    // per-workspace: they are scoped to one workspace by definition, and identity is
+    // workspace-scoped (QMD-67), so a container must not report a duplicate across
+    // siblings.
+    {
+        let mut file_content_cache: HashMap<String, Vec<String>> = HashMap::new();
+        for rel_file in &all_files {
+            if let Ok(content) = fs::read_to_string(root_path.join(rel_file)) {
+                file_content_cache.insert(
+                    rel_file.clone(),
+                    content.lines().map(String::from).collect(),
+                );
+            }
+        }
+        for f in crate::core::reference_scan::reference_scan(
+            &all_objects,
+            &all_objects,
+            Some(&file_content_cache),
+        ) {
+            all_errors.push(WorkspaceError {
+                error_type: f.kind.type_str().to_string(),
+                message: f.message,
+                file: Some(f.file),
+                line: Some(f.line),
+                object: Some(f.object),
+                field_name: None,
+                reference: Some(f.reference),
+                candidates: if f.candidates.is_empty() {
+                    None
+                } else {
+                    Some(f.candidates)
+                },
+                severity: "error".to_string(),
+            });
+        }
+    }
+
     WorkspaceResult {
         root: root_path.to_string_lossy().to_string(),
         workspace_id: None, // Multiple workspaces, no single ID
@@ -1047,6 +1099,17 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
         objects: all_objects,
         errors: all_errors,
     }
+}
+
+/// Whether a `WorkspaceError` was produced by the reference resolver.
+///
+/// QMD-69: these are recomputed over the composed object set when a container holds
+/// several sibling workspaces, so the per-workspace copies must be discarded first.
+fn is_reference_finding(error_type: &str) -> bool {
+    matches!(
+        error_type,
+        "broken_link" | "ambiguous_reference" | "ambiguous_field_reference"
+    )
 }
 
 /// Walk UP from `start_path` looking for the nearest workspace root.

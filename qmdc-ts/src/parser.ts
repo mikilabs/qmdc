@@ -90,24 +90,15 @@ function classifyReference(inner: string): string {
     return 'crossfile';
   }
 
-  // Check for Kind:id or Kind.id format (first char is uppercase = Kind)
-  // Or namespace:id format (first char is lowercase = namespace)
+  // A reference target is a right-aligned suffix of `workspace:namespace:id` with an
+  // optional `.field` suffix (QMD-69). There is no Kind segment, so any qualified
+  // target classifies as `namespace`; the uppercase-first-segment heuristic that used
+  // to tell `Kind:id` from `namespace:id` is gone.
   if (content.includes(':') || content.includes('.')) {
     const sep = content.includes(':') ? ':' : '.';
     const parts = content.split(sep, 2);
     if (parts.length === 2) {
-      const first = parts[0];
-      // If first char is uppercase, assume Kind
-      if (
-        first &&
-        first[0] &&
-        first[0] === first[0].toUpperCase() &&
-        first[0] !== first[0].toLowerCase()
-      ) {
-        return 'kind';
-      } else {
-        return 'namespace';
-      }
+      return 'namespace';
     }
   }
 

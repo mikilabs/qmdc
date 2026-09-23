@@ -25,7 +25,7 @@ Note: before producing a `broken_link` error, the validator attempts `__local_id
 1. Verify the target object exists
 2. Fix the ID in the reference
 3. Create the missing object
-4. Add namespace/Kind to the reference: `[[#namespace:id]]`
+4. Add a qualifier to the reference: `[[#namespace:id]]` or `[[#workspace:namespace:id]]`
 5. Use the full hierarchical ID: `[[#parent.child]]` instead of `[[#child]]`
 
 ## Duplicate ID [[err_duplicate_id: ValidationError]]

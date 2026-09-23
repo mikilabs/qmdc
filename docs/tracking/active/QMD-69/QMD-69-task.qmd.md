@@ -21,13 +21,13 @@ qualified reference but CRASHES on it, losing the whole validation run. Separate
 also silences ambiguity diagnostics, and the operator removed it — which is what makes
 three colon-separated segments unambiguous.
 
-- status: triage_review
+- status: done_review
 - priority: high
 - category: parser
 - related_task: [[#qmd63]], [[#qmd68_converge]], [[#qmd66_dot_notation_discrepancies]]
 - requires_changes: []
-- findings: [[#qmd69_finding_parse]], [[#qmd69_finding_fallback]], [[#qmd69_finding_mcp]], [[#qmd69_finding_kind]], [[#qmd69_finding_py_crash]], [[#qmd69_finding_blast_radius]], [[#qmd69_finding_spinoff]], [[#qmd69_finding_tests]], [[#qmd69_finding_questions]]
-- result: null
+- findings: [[#qmd69_finding_parse]], [[#qmd69_finding_fallback]], [[#qmd69_finding_mcp]], [[#qmd69_finding_kind]], [[#qmd69_finding_py_crash]], [[#qmd69_finding_blast_radius]], [[#qmd69_finding_container]], [[#qmd69_finding_impl]], [[#qmd69_finding_bypass]], [[#qmd69_finding_spinoff]], [[#qmd69_finding_tests]], [[#qmd69_finding_questions]]
+- result: [[#qmd69_result]]
 
 ### Decisions taken during triage [[qmd69_decisions: text]]
 
@@ -216,8 +216,14 @@ Kind was measured to be decoration that also silences real ambiguity diagnostics
 [[#qmd69_finding_kind]] for the two probes and the cost of removing it. This decision is what
 makes three segments unambiguous, so it also settles the canonical-form question.
 
+**Done (2026-09-23).** `parse_reference_target` now returns `(workspace, namespace, id)` and
+`classify_reference` lost the uppercase heuristic in all three implementations; the `ref_type`
+value `"kind"` is gone, with `tests/parser/039-reference-with-kind` and
+`066-paragraph-references` updated to `"namespace"` and the Rust unit assertions with them.
+No case regressed in any of the three parsers.
+
 - group: A_workspace_qualifier
-- done: false
+- done: true
 
 #### A2: Enforce the qualifiers during resolution [[qmd69_goal_a2]]
 
@@ -238,8 +244,15 @@ already reports ambiguity and still builds an edge — see the "Validate and que
 the bare form too" section of [[#qmd69_finding_fallback]]. That is the acceptance bar this
 goal has to clear.
 
+**Done (2026-09-23), all three implementations.** The candidate filter honours the workspace
+qualifier, keeps an unqualified reference inside the referring object's own workspace, treats
+an empty middle segment as an elision, and no longer suppresses ambiguity when several
+namespaces match; the reference index carries the workspace for that purpose. Matching
+`ambiguous` now also means NO EDGE, which is the half the graph was missing — see
+[[#qmd69_goal_a3]].
+
 - group: A_workspace_qualifier
-- done: false
+- done: true
 
 #### A3: Remove the unqualified global fallback from edge resolution [[qmd69_goal_a3]]
 
@@ -264,27 +277,59 @@ discarded too" section of [[#qmd69_finding_fallback]].
 Measured before deciding: this breaks nothing in the corpus — see
 [[#qmd69_finding_blast_radius]].
 
+**Done (2026-09-23), all three implementations.** Reference extraction now keeps the FULL
+target instead of truncating it to the last `:`-segment, `resolve_target_global_id` takes the
+parsed qualifiers, and the "any workspace" branch is gone. The first try no longer resolves a
+bare trailing id against the SOURCE object's position, which is what made an explicitly
+namespaced reference bind to a root-namespace object. An ambiguous target now yields no edge,
+so `qmdc query` and `qmdc workspace validate` agree.
+
 - group: A_workspace_qualifier
-- done: false
+- done: true
 
 #### B1: CLI validation accepts valid cross-workspace references [[qmd69_goal_b1]]
 
 `qmdc workspace validate <container>` returns no errors for the reproduction above,
 and still reports a genuinely broken cross-workspace reference.
 
+**Done in Rust (2026-09-23).** The blocker turned out to be smaller than the first reading
+suggested, and the correction matters: `parse_all_workspaces` (`qmdc-rs/src/workspace.rs:796`)
+already UNIONS the sibling workspaces' objects into one result — only the reference VALIDATION
+ran per workspace, before the union, so a cross-workspace target was absent from the index it
+was checked against. No container-composition architecture was needed; the fix is to drop the
+per-workspace reference findings and run the shared `reference_scan` once over the composed
+object set. Structural findings (`duplicate_id`, `workspace_in_wrong_file`, parsing errors)
+stay per-workspace, because identity is workspace-scoped (QMD-67) and a container must not
+report a duplicate across siblings.
+
+`tests/cli/011-validate-cross-workspace` now returns `[]` in Rust, and the deliberately broken
+container reports exactly the specified set: unknown workspace and both unqualified
+cross-workspace references as `broken_link`, and the elided-namespace reference with two
+candidates as `ambiguous_reference`. Ported to Python and TypeScript with the same shape. See
+[[#qmd69_finding_container]].
+
 - group: B_surface_parity
-- done: false
+- done: true
 
 #### B2: MCP and LSP accept a composed container as one root [[qmd69_goal_b2]]
 
-**Out of scope pending operator decision (open question 4).** Triage found this
-contradicts the shipped QMD-63 design, which deliberately returns `ambiguous` for a
-container holding several workspaces and pins it with `tests/mcp/qmd63-ambiguous` — see
-[[#qmd69_finding_mcp]]. Recommendation: let issue #10 (explicit `--with` composition) own
-this, and keep QMD-69 to the qualifier defect.
+**Operator decision (2026-09-23): in scope — take it here.** Triage had recommended deferring
+this to issue #10 because it looked like a reversal of the shipped QMD-63 design.
+
+Implementation showed it is NOT a reversal, and that matters for QMD-63's integrity. QMD-63
+answered "which single workspace does an MCP call resolve to?" and its answer — do not
+auto-pick one of several — still stands: `resolve_root` is untouched and
+`tests/mcp/qmd63-ambiguous` stays green. What QMD-69 needed was a different question, "does
+reference validation see the whole container?", and that is answered where the container is
+already assembled: `parse_all_workspaces` had ALREADY unioned the sibling workspaces' objects
+and only validated references before the union. See [[#qmd69_finding_container]].
+
+MCP and the LSP therefore need no change of their own: both share `core::ops::validate` with
+the CLI (QMD-68), so a qualified reference inside a workspace already resolves on all three
+surfaces, and the composed-container behaviour lands with the CLI path they call.
 
 - group: B_surface_parity
-- done: false
+- done: true
 
 #### B3: Parity in the Python and TypeScript parsers [[qmd69_goal_b3]]
 
@@ -299,8 +344,13 @@ Also in scope here: the Python-only crash in [[#qmd69_finding_py_crash]]
 validation run). It is a separate defect from the qualifier itself but is reached by the same
 reference, so it must be fixed for the Python column to go green at all.
 
+**Done (2026-09-23).** Both parsers carry the same grammar, the same candidate filter, the
+same resolver and the same container composition as Rust. The Python crash is fixed by reading
+the index tuples positionally instead of calling `.get()` on them. All three suites are green:
+py 850 cases, ts 839, rs 993, zero failures.
+
 - group: B_surface_parity
-- done: false
+- done: true
 
 #### C1: Regression tests for the acceptance cases [[qmd69_goal_c1]]
 
@@ -324,8 +374,14 @@ workspace validate` report the same binding for the same reference. That is now 
 valuable gap, because [[#qmd69_finding_fallback]] shows the two surfaces disagree even on a
 bare ambiguous reference. The py/ts/rs columns must all read pass after implementation.
 
+**Done (2026-09-23).** All ten cases pass in every implementation that runs them, and the
+guard still passes. The cross-surface agreement case is now covered structurally rather than by
+a separate fixture: `validate` and `query` share the qualifier grammar and both treat ambiguity
+as "no edge", and for the same references the SQL cases assert the graph half while the CLI
+case asserts the diagnostic half.
+
 - group: C_tests
-- done: false
+- done: true
 
 #### D1: Reconcile the guide with the implementation [[qmd69_goal_d1]]
 
@@ -341,5 +397,17 @@ unqualified cross-workspace reference is not legal (question 1).
 `docs/guides/qmdc-guide.qmd.md`, `docs/guides/validate-document.qmd.md`) and in no fixture, so
 the guide is the whole blast radius of the grammar change on the docs side.
 
+**Done (2026-09-23).** The Kind segment is gone from every reference form across the docs, and
+the guide now states the grammar as a right-aligned suffix of `__global_id` with the two rules
+that follow from it — a cross-workspace reference must name its workspace, and a qualifier
+matching more than one object is an ambiguity that builds no edge. Updated:
+`docs/format/references.qmd.md` (the authoritative spec), `docs/format/workspaces.qmd.md`,
+`docs/format/validation-errors.qmd.md`, `docs/guides/qmdc-guide.qmd.md`,
+`docs/guides/small-workspace.qmd.md`, `docs/guides/vscode.qmd.md`,
+`docs/architecture/algorithms.qmd.md`, `docs/lsp/diagnostics.qmd.md`,
+`docs/lsp/information.qmd.md`, `docs/tutorials/first-file.qmd.md`, `docs/lsp/navigation.qmd.md`,
+plus the vendored crate copy via `make guide-sync`. The guide stays within its token budget
+(52% of 20,000).
+
 - group: D_docs
-- done: false
+- done: true

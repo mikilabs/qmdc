@@ -1,0 +1,4 @@
+{
+  "columns": ["edge_type", "target_workspace", "target_namespace", "target_id"],
+  "rows": [["hier_elided", "qmd69_hier_provider", "arch", "system.data.postgres"]]
+}

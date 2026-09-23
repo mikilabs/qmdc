@@ -1,0 +1,25 @@
+{
+  "columns": ["edge_type", "target_id", "target_field"],
+  "rows": [
+    ["ffield_bare", "flat_store", "engine"],
+    ["ffield_ns", "flat_store", "engine"],
+    ["ffield_wselided", "flat_store", "engine"],
+    ["ffield_wsns", "flat_store", "engine"],
+    ["flat_bare", "flat_store", ""],
+    ["flat_ns", "flat_store", ""],
+    ["flat_wselided", "flat_store", ""],
+    ["flat_wsns", "flat_store", ""],
+    ["hfield_bare", "system.data.postgres", "engine"],
+    ["hfield_ns", "system.data.postgres", "engine"],
+    ["hfield_wselided", "system.data.postgres", "engine"],
+    ["hfield_wsns", "system.data.postgres", "engine"],
+    ["hier_bare", "system.data.postgres", ""],
+    ["hier_ns", "system.data.postgres", ""],
+    ["hier_wselided", "system.data.postgres", ""],
+    ["hier_wsns", "system.data.postgres", ""],
+    ["leaf_bare", "system.data.postgres", ""],
+    ["leaf_ns", "system.data.postgres", ""],
+    ["leaf_wselided", "system.data.postgres", ""],
+    ["leaf_wsns", "system.data.postgres", ""]
+  ]
+}

@@ -125,18 +125,15 @@ def classify_reference(inner: str) -> str:
     if "/" in content or (not inner.startswith("#") and "#" in content):
         return "crossfile"
 
-    # Check for Kind:id or Kind.id format (first char is uppercase = Kind)
-    # Or namespace:id format (first char is lowercase = namespace)
+    # A reference target is a right-aligned suffix of `workspace:namespace:id` with an
+    # optional `.field` suffix (QMD-69). There is no Kind segment, so any qualified
+    # target classifies as `namespace`; the uppercase-first-segment heuristic that used
+    # to tell `Kind:id` from `namespace:id` is gone.
     if ":" in content or "." in content:
         sep = ":" if ":" in content else "."
         parts = content.split(sep, 1)
         if len(parts) == 2:
-            first = parts[0]
-            # If first char is uppercase, assume Kind
-            if first and first[0].isupper():
-                return "kind"
-            else:
-                return "namespace"
+            return "namespace"
 
     # hash_local vs local
     if inner.startswith("#"):

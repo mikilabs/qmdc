@@ -282,7 +282,7 @@ If `alce` doesn't exist, QMDC produces a warning — but the object still loads 
 | `[[#alice]]` | Short form — most common |
 | `[[#User:alice]]` | With Kind — needed when two objects share an ID but have different types |
 | `[[#alice.address]]` | Hierarchical dot-path — target a nested child object |
-| `[[#namespace:Kind:id]]` | Cross-namespace — reference objects in other namespaces |
+| `[[#workspace:namespace:id]]` | Cross-workspace — reference objects in another workspace |
 
 ---
 

@@ -575,6 +575,234 @@ sub-sections of Findings, which is the one position where the corpus already pro
 survives (`tests/parser/065-text-table-in-array`). A tracking document that puts a table
 inside a Goal is currently corrupting itself, and in Rust it loses the Goal.
 
+## B1 and B2 are one change, and question 4 decides both [[qmd69_finding_container: Finding]]
+
+Found during implementation, not triage, and it revises the recommendation this task carried.
+Triage recommended dropping goal B2 (composed root on MCP/LSP) and letting issue #10 own it,
+while keeping B1 (CLI validation of a container) inside QMD-69. That split does not survive
+contact with the code: B1 cannot pass without the same composed index B2 asks for.
+
+- category: parser
+- related_to: [[#qmd69_cross_ws_refs]]
+- affected_files: [qmdc-rs/src/workspace.rs, qmdc-rs/src/core/index_seam.rs]
+- affected_functions: [parse_all_workspaces, resolve_root]
+- solution: Operator decision needed (question 4). Either QMD-69 owns container composition for all surfaces (B1 + B2 together), or both are deferred to issue #10 and QMD-69 ships qualifier semantics WITHIN a workspace only — in which case `tests/cli/011-validate-cross-workspace` and the composed-container SQL cases move with them.
+
+### The measurement [[qmd69_finding_container_detail: text]]
+
+- about: [[#qmd69_finding_container]]
+
+With the qualifier filter in place, a qualified reference inside ONE workspace resolves
+correctly — `tests/workspace/workspace-qualified-reference` validates clean, and the LSP and
+MCP microtests both went green. The container case did not: it still reports
+`broken_link — Object 'payments_api' not found` for all three of its cross-workspace forms.
+
+The cause is upstream of resolution. `parse_all_workspaces` (`qmdc-rs/src/workspace.rs:796`)
+finds the sibling workspace directories and then loops `for ws_dir in &workspace_dirs`,
+parsing and validating each one on its own and concatenating the errors. The reference
+resolver is handed one workspace's objects at a time, so a cross-workspace target is not
+merely mis-filtered — it is absent from the index. No change to the filter can fix that.
+
+This is the same thing QMD-63 decided against on the MCP surface, where `resolve_root`
+returns `ambiguous` for a container of several workspaces rather than composing them. So the
+three surfaces are consistent today: none of them composes a container. Composing it is a
+single architectural change that lands on all three at once.
+
+### Why this matters for the SOP gate [[qmd69_finding_container_gate: text]]
+
+- about: [[#qmd69_finding_container]]
+
+The workflow SOP requires every Goal to reach `done: true` before a task may move to
+`done_review` — partial completion is explicitly not done. With B1 blocked and B2 held out of
+scope, QMD-69 cannot reach that gate as currently scoped, regardless of how much of the
+qualifier work lands. The scope has to be settled first:
+
+- **Own it here:** B1 and B2 both stay, QMD-69 grows a container-composition change, and it
+  reverses a shipped QMD-63 decision — which needs its own justification and probably its own
+  test review, since `tests/mcp/qmd63-ambiguous` currently pins the opposite.
+- **Defer both:** B1 and B2 move to issue #10 along with the container fixtures, and QMD-69
+  ships the qualifier grammar and its enforcement within a workspace — A1, A2, A3, B3, C1, D1.
+  Six of ten test cases then belong to QMD-69 and four move with the deferred goals.
+
+The second option is what the measurement recommends: it keeps QMD-69 to one coherent defect
+and leaves the architectural question where it was already being discussed.
+
+## What implementation found that triage did not [[qmd69_finding_impl: Finding]]
+
+Three things surfaced only while writing the fix, and each one changes what the task claims.
+Recorded here because two of them were wrong in the triage documents and one is a defect this
+task nearly shipped.
+
+- category: parser
+- related_to: [[#qmd69_cross_ws_refs]]
+- affected_files: [qmdc-rs/src/db/mod.rs, qmdc-py/qmdc/db.py, qmdc-ts/src/db.ts, qmdc-mkdocs/qmdc_mkdocs/references.py, tests/workspace/container-root-single-workspace]
+- solution: All three are fixed; the guard test and the mkdocs port are part of the change. Nothing outstanding.
+
+### QMD-63 was not reversed, and did not need to be [[qmd69_finding_impl_qmd63: text]]
+
+- about: [[#qmd69_finding_impl]]
+
+Goal B2 was taken into scope expecting to overturn the shipped QMD-63 decision. It did not
+come to that, and the distinction is worth keeping straight because QMD-63's reasoning is
+still sound.
+
+QMD-63 answered "which SINGLE workspace does an MCP call resolve to when handed a container?"
+and decided: do not auto-pick one of several, return `ambiguous` with the candidates. That is
+about ROOT SELECTION. `resolve_root` is untouched by QMD-69 and `tests/mcp/qmd63-ambiguous`
+stays green.
+
+QMD-69 needed a different question answered: "does reference validation see the whole
+container?" And that is settled where the container is already assembled. QMD-63's own findings
+noted in passing that the CLI's "parse/union contract differs from MCP's single-root" — the
+union was already there. `parse_all_workspaces` combined the sibling workspaces' objects into
+one result and only ran reference validation BEFORE the union, per workspace. So no
+container-composition architecture was needed: drop the stale per-workspace reference findings,
+run the shared engine once over the composed set, and keep structural findings per-workspace
+because identity is workspace-scoped (QMD-67).
+
+### Removing the fallback broke references to a workspace ROOT object [[qmd69_finding_impl_root: text]]
+
+- about: [[#qmd69_finding_impl]]
+
+A real regression, caught by reading the graph rather than by a failing test — and that is the
+point worth recording.
+
+A `__Workspace` object carries no own `__workspace` field, because it IS the workspace; its
+`__global_id` is `::docs_ws`. The same-workspace lookup filters on `__workspace = <ws>`, which
+that object cannot satisfy, so once the unqualified "any workspace" fallback was gone,
+`about: [[#docs_ws]]` stopped producing an edge.
+
+Nothing pinned it. `tests/workspace/container-root-single-workspace` carries exactly that
+reference but had no `tests/` directory at all, so the whole suite stayed green while the edge
+silently disappeared. Fixed by admitting an empty-workspace object only when the looked-up id
+IS the workspace's own name — which keeps the root object reachable without letting a bare id
+reach a sibling workspace's root, so the operator's decision 1 still holds. Pinned now by
+`container-root-single-workspace/001-reference-to-workspace-root`.
+
+### The grammar had a fourth consumer outside the three parsers [[qmd69_finding_impl_mkdocs: text]]
+
+- about: [[#qmd69_finding_impl]]
+
+The blast-radius measurement looked at fixtures and at the three parsers. It missed that
+`qmdc-mkdocs` reaches into `QmdcDatabase._resolve_target_global_id` — a private method — and
+additionally reimplements the old grammar inline, including its own `parts[0][0].isupper()`
+Kind branch and a `namespace:Kind:id` query.
+
+So "the uppercase heuristic lives in two places per implementation" was an undercount: there
+was a third copy in a sibling package. Its 24 failing tests were the signal. The port replaces
+the inline grammar with the new call shape, and six of its tests asserted the Kind forms and
+were rewritten to the workspace-qualified ones.
+
+Lesson for the next grammar change: `grep` for the private resolver name across ALL packages,
+not just for the syntax inside `tests/`.
+
+## Three resolution paths bypassed the qualifier filter [[qmd69_finding_bypass: Finding]]
+
+Found by the operator asking whether hierarchical dotted ids still worked. They did — but the
+corpus contained **not one reference carrying a qualifier and a dotted id together, in any
+form**, so nothing was pinning it. Building that matrix out exposed three paths that resolve a
+reference AFTER the main candidate filter misses, and none of them consulted the qualifiers.
+
+- category: parser
+- related_to: [[#qmd69_cross_ws_refs]]
+- affected_files: [qmdc-rs/src/core/reference_scan.rs, qmdc-rs/src/db/mod.rs, qmdc-py/qmdc/workspace.py, qmdc-py/qmdc/db.py, qmdc-ts/src/workspace.ts, qmdc-ts/src/db.ts]
+- affected_functions: [qualifiers_match, workspace_matches, resolve_target_global_id]
+- solution: All three fixed in all three implementations, behind one shared predicate pair so they cannot drift apart again. Pinned by the id-shape matrix.
+
+### The three paths [[qmd69_finding_bypass_paths: text]]
+
+- about: [[#qmd69_finding_bypass]]
+
+**1. The `__local_id` fallback in the validator.** Its index carried no workspace column at
+all, so a workspace qualifier was not merely mishandled — there was nothing to compare against.
+It filtered on the namespace only, which produced a precise and damning asymmetry: with
+`postgres` held solely by the provider workspace, `[[#provider:no_such_ns:postgres]]` was
+reported while `[[#no_such_ws:arch:postgres]]` and `[[#third_ws:arch:postgres]]` were accepted
+silently. The second of those names a workspace that EXISTS and does not hold the object, which
+is the case a namespace check cannot catch — the fixture gives the third workspace a namespace
+called `arch` on purpose to prove it.
+
+**2. The field-reference escape in the validator.** When the full id misses, the validator
+splits on the last dot and accepts the reference if the prefix is an object with that field.
+It did so without looking at the qualifiers, so a mis-qualified reference to a hierarchical id
+was swallowed: `[[#no_such_ws:arch:system.data.postgres]]` was read as "field `postgres` of
+object `system.data`" and never reported. The same applied to the `ambiguous_field_reference`
+(QMDC009) check beside it.
+
+**3. The `__local_id` fallback in the edge builder.** Hard-wired to the SOURCE object's
+workspace and namespace, so naming the workspace that actually holds the target made the
+reference stop resolving. Spelling out more made it worse, which is the shape of the defect.
+
+Paths 1 and 3 together produced the validate-versus-query split this task exists to remove, on
+the one combination it had not covered: the validator accepted a qualified leaf reference while
+the graph built no edge for it.
+
+### Why it survived [[qmd69_finding_bypass_survival: text]]
+
+- about: [[#qmd69_finding_bypass]]
+
+Reaching these paths needs a reference whose full id does NOT exist — a short-form leaf or a
+field path — AND a qualifier on it. The corpus pins the namespace half
+(`local-id-cross-namespace-explicit` uses `[[#services:gateway]]`), but the workspace half was
+unpinnable: before this task there was no workspace qualifier in the grammar. The holes were
+not overlooked; they were not expressible.
+
+Confirmed by the diff, not by argument: the `__local_id` block was untouched by the earlier
+part of this change, so these are pre-existing defects that the new tests finally reached.
+
+### The fix [[qmd69_finding_bypass_fix: text]]
+
+- about: [[#qmd69_finding_bypass]]
+
+Two shared predicates, so no path decides on its own again:
+
+- `workspace_matches` — the workspace rule alone.
+- `qualifiers_match` — workspace plus the namespace rule where `Some("")` is an elision.
+
+The main candidate filter, the field-reference escape and the QMDC009 check all use
+`qualifiers_match`. The `__local_id` fallback uses `workspace_matches` plus its OWN namespace
+rule, and that difference is deliberate: there an unqualified reference is scoped to the
+referring object's own namespace EXACTLY. Conflating the two is the mistake this fix made
+first, and two shipped fixtures caught it —
+`local-id-cross-namespace-no-fallback` (a bare `[[#config]]` at the workspace root must not
+reach `gateway.config` in `services`) and `errors` (a root-level `[[#users]]` must stay a
+broken link rather than becoming ambiguous). Both are documented at the call sites so the
+distinction is not lost again.
+
+Two supporting changes fell out of it. The field lookup index became a MULTIMAP: it mapped
+`id -> first object seen`, which in a composed container silently inspected an object from the
+wrong workspace. And the edge resolver was restructured into one flow — it used to return early
+whenever a workspace was named, so the `__local_id` fallback was unreachable for exactly the
+references that needed it.
+
+### The id-shape matrix [[qmd69_finding_bypass_matrix: text]]
+
+- about: [[#qmd69_finding_bypass]]
+
+Five id shapes — flat, hierarchical dotted, the `__local_id` leaf of a hierarchical object, a
+field path on a flat object, a field path on a hierarchical one — crossed with every qualifier
+form, on every surface.
+
+| fixture | surface | what it covers |
+| --- | --- | --- |
+| `tests/workspace/id-shapes-qualified/001` | graph, py+ts+rs | 20 intra-workspace combinations |
+| `tests/workspace/id-shapes-qualified/002` | graph, py+ts+rs | 8 cross-workspace combinations |
+| `tests/workspace/id-shapes-qualified/003` | graph, py+ts+rs | 15 negatives build no edge — GUARD, the graph was already right |
+| `tests/cli/014-validate-id-shapes` | validator, py+ts+rs | all 15 negatives reported AND every valid form clean |
+| `tests/cli/012-validate-qualified-hierarchical` | validator, py+ts+rs | GUARD: valid qualifier+dot combinations stay clean |
+| `tests/cli/013-validate-qualified-local-id-unknown-workspace` | validator, py+ts+rs | unknown workspace on the leaf path |
+| `tests/lsp/microtests/diagnostics/034-qualified-local-id-and-field-path` | LSP + MCP | the leaf and field-path forms on the rs-only surfaces |
+| `tests/workspace/cross-workspace-hierarchical-ids/001-004` | graph, py+ts+rs | dotted id and field path with a qualifier; three guards plus one reproduction |
+
+The field-path case is the one most at risk from a careless fix: in
+`[[#ws:arch:system.data.postgres.engine]]` only the LAST dot separates the field, so splitting
+on the first dot, or splitting before the qualifiers are removed, yields a WRONG edge rather
+than no edge — which passes unnoticed unless asserted. `003-qualified-hierarchical-field-path`
+asserts the target id and the target field separately for exactly that reason.
+
+Whole-suite result after the fix: **3325 cases, 0 failures**, and `make validate-compare`
+reports 0 errors from each of the three parsers.
+
 ## Open questions for the operator [[qmd69_finding_questions: Finding]]
 
 Five decisions were needed before implementation. **Questions 1, 2, 3 and 5 are now
