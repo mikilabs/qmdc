@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "plain",
+    "__label": "Plain",
+    "__kind": "Section",
+    "__comments": [
+      {
+        "after": "role",
+        "content": ">"
+      }
+    ],
+    "role": "admin",
+    "__types": {
+      "role": "string"
+    },
+    "__level": 2
+  }
+]

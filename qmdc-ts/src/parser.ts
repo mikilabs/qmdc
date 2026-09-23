@@ -1249,8 +1249,19 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           }
         }
 
-        // Reset comment anchor for new object
-        commentAnchor = '__self';
+        // Reset comment anchor for new object.
+        //
+        // QMD-70: a heading that carries a field type AND has a structural parent declares a
+        // FIELD on that parent rather than a new object, so it must not reset the parent's
+        // anchor. Resetting it made content following such a heading anchor at `__self` where
+        // Python keeps the last field before it. This mirrors Python's condition exactly
+        // (`if not field_type or not parent_id`) — every field type, not just `object_array`,
+        // because `yaml`/`json` headings set a pending fence and never re-set the anchor
+        // afterwards, so for them the wrong reset is observable. A heading with no parent does
+        // create an object, so it still resets.
+        if (!(header.fieldType && parentId)) {
+          commentAnchor = '__self';
+        }
       }
 
       i += 3; // Skip heading_open, inline, heading_close
@@ -1819,7 +1830,18 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
       }
 
       i = scanIdx;
-    } else if (token.type === 'table_open' && pendingObjectArray) {
+    } else if (
+      token.type === 'table_open' &&
+      pendingObjectArray &&
+      // QMD-70: only the array CONTAINER's own table converts into child objects.
+      // `pendingObjectArray` stays set for the whole array subtree, because each sibling
+      // element still needs it, so on its own it cannot tell "table under the array heading"
+      // from "table inside one of its elements". The current object does: it is the array's
+      // parent while positioned in the container, and the element itself once an element
+      // heading has opened. Without this check a table written as ordinary content inside an
+      // element had its rows converted into sibling elements of the parent array.
+      getCurrentObjectId() === pendingObjectArray[0]
+    ) {
       // Table after [[field: [Kind]]] heading
       const [arrParentId, arrField, arrKind] = pendingObjectArray;
       const parentObj = objects[arrParentId];
@@ -2373,7 +2395,12 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
     } else if (
       (token.type === 'table_open' || token.type === 'blockquote_open' || token.type === 'hr') &&
       !pendingTextField &&
-      !pendingObjectArray
+      // QMD-70: reached for a table inside an array ELEMENT as well, not only outside any
+      // array. The guard used to be `!pendingObjectArray`, which excluded the whole array
+      // subtree; the branch above now claims only the container's own tables, so everything
+      // else falls through here and is carried as the element's comment content — the same
+      // treatment a table gets in any other prose position.
+      !(pendingObjectArray && getCurrentObjectId() === pendingObjectArray[0])
     ) {
       // Block-level content as comment inside object - use raw slice
       // Capture when: after fields (commentAnchor !== '__self') OR object has explicit Kind
@@ -2419,9 +2446,14 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
             break;
           }
 
-          // Update endLine
+          // Update endLine.
+          //
+          // QMD-70: take the maximum rather than overwriting. The scan walks INTO the block, and
+          // a child token's map can be NARROWER than its container's — a table with no data rows
+          // is `table_open [4,6]` but `thead_open`/`tr_open` are `[4,5]`, so plain assignment
+          // shrank the slice and dropped the separator row, which Rust and Python both keep.
           if (scanTok.map) {
-            endLine = scanTok.map[1];
+            endLine = Math.max(endLine, scanTok.map[1]);
           }
           scanIdx++;
         }

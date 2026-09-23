@@ -1490,7 +1490,19 @@ def parse(
                 i = scan_j + 1
             else:
                 i += 1
-        elif token.type == "table_open" and pending_object_array:
+        elif (
+            token.type == "table_open"
+            and pending_object_array
+            # QMD-70: only the array CONTAINER's own table converts into child objects.
+            # `pending_object_array` stays set for the whole array subtree, because each
+            # sibling element still needs it, so on its own it cannot tell "table under the
+            # array heading" from "table inside one of its elements". The current object does:
+            # it is the array's parent while positioned in the container, and the element
+            # itself once an element heading has opened. Without this check a table written as
+            # ordinary content inside an element had its rows converted into sibling elements
+            # of the parent array.
+            and get_current_object_id() == pending_object_array[0]
+        ):
             # Table after [[field: [Kind]]] heading
             arr_parent_id, arr_field, arr_kind, arr_level = pending_object_array
 

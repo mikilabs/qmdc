@@ -10,6 +10,40 @@ file is maintained by hand.
 
 ## [Unreleased]
 
+### Added
+
+- References can be qualified with a workspace: `[[#workspace:namespace:id.field]]`, a
+  right-aligned suffix of the object's global id. `[[#ws::id]]` elides the namespace and matches
+  any namespace of that workspace. A reference that crosses a workspace boundary MUST now be
+  qualified; an ambiguous qualified reference produces no edge rather than an arbitrary one
+  (QMD-69).
+
+### Fixed
+
+- A Markdown table written inside an object-array *element* is now that element's own content,
+  carried in `__comments`, instead of being converted into extra rows of the parent array. In
+  Rust some shapes also lost the element entirely — its explicit id became an empty array and its
+  fields were dropped — which turned references to it into false `broken_link` diagnostics. All
+  three parsers now agree on every shape an element can take, and on what follows the array's own
+  table. **Behaviour change:** a document that relied on the old reading to add rows parses to a
+  different graph, silently (QMD-70).
+- A second Markdown table under one object-array heading no longer loses a row. Rust converted
+  both tables, both children took the same local id, the second overwrote the first, and the array
+  held the same reference twice; the leftover table is now preserved verbatim as the parent's
+  comment, as in Python and TypeScript. **Behaviour change:** the second table's row is no longer
+  an array element (QMD-70).
+- Rust no longer discards content that follows an object array's own table. A trailing paragraph was
+  dropped and a trailing `- field: value` was lost entirely, because the array's parent object was
+  closed at the array heading and the paths that write fields and comments had nothing left to write
+  to; the parent now stays open for the whole array (QMD-70).
+- TypeScript no longer cuts the separator row off a Markdown table that has no data rows when the
+  table is carried as comment content (QMD-70).
+- Table-fed array children now compose their hierarchical id through the same rule as the array's
+  heading elements in all three parsers. Rust doubled the segment when the array field name
+  equalled the parent's id (`items.items.items_0` instead of `items.items_0`) and prefixed the
+  parent id under a `__Workspace` / `__Namespace` parent (`ns_rows_0` instead of `rows_0`)
+  (QMD-70).
+
 ## [1.0.2] - 2026-07-20
 
 ### Added

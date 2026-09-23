@@ -98,6 +98,31 @@ Table syntax as compact alternative:
 
 First row = field names, each data row = one object. Supports primitives and references in cells. The `__syntax` field records `table`.
 
+The table must be the array container's **own** content — directly under the array heading, as
+above. A table written inside one of the array's ELEMENTS is that element's content, not more
+rows for the array:
+
+```markdown example
+### Members [[members: [User]]]
+
+#### Alice [[alice]]
+
+- role: admin
+
+| col_a | col_b |
+| ----- | ----- |
+| r1    | v1    |
+```
+
+Here the table belongs to `alice` and is carried as its comment content; `members` keeps exactly
+one element.
+
+Only the FIRST table under an array heading feeds the array. A second table under the same heading
+is no longer the container's own content, so it too is captured verbatim in the container's
+`__comments` rather than adding more rows. To attach a table to an element deliberately and have it land in a named field,
+declare a text field for it (`#### Details [[details: text]]`) — text fields are covered in
+`docs/format/fields.qmd.md`.
+
 ## Examples [[examples: text]]
 
 Primitive arrays — strings:

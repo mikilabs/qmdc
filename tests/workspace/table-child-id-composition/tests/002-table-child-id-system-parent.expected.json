@@ -1,0 +1,19 @@
+{
+  "columns": [
+    "id",
+    "kind",
+    "local_id"
+  ],
+  "rows": [
+    [
+      "rows_0",
+      "Row",
+      null
+    ],
+    [
+      "rows_1",
+      "Row",
+      null
+    ]
+  ]
+}

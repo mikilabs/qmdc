@@ -18,13 +18,13 @@ ones labelled after the table's first column. The two tasks share nothing but th
 was found in — different code path, different symptom, different fix — so this one is tracked
 separately even though both land on the same branch.
 
-- status: triage_review
+- status: in_progress
 - priority: high
 - category: parser
 - related_task: [[#qmd69_cross_ws_refs]], [[#qmd66_dot_notation_discrepancies]]
 - requires_changes: []
-- findings: [[#qmd70_finding_scope]], [[#qmd70_finding_matrix]], [[#qmd70_finding_id_compose]], [[#qmd70_finding_surfaces]], [[#qmd70_finding_tests]], [[#qmd70_finding_questions]]
-- result: null
+- findings: [[#qmd70_finding_scope]], [[#qmd70_finding_matrix]], [[#qmd70_finding_id_compose]], [[#qmd70_finding_surfaces]], [[#qmd70_finding_prose_gap]], [[#qmd70_finding_two_tables]], [[#qmd70_finding_rs_after_array]], [[#qmd70_finding_rs_other_paths]], [[#qmd70_finding_no_diagnostic]], [[#qmd70_finding_red_suite]], [[#qmd70_finding_rebuild_anchor]], [[#qmd70_finding_hdr_only]], [[#qmd70_finding_tests]], [[#qmd70_finding_questions]]
+- result: [[#qmd70_result]]
 
 ### Reproduction [[qmd70_repro: text]]
 
@@ -114,8 +114,21 @@ with the element, its id and its fields intact.
 Keep the documented case working: a table directly under `### Members [[members: [User]]]`
 still produces one object per data row.
 
+**Done (2026-09-23), all three implementations.** The table branch now fires only while
+positioned in the array CONTAINER, which the current object distinguishes: it is the array's
+parent in the container and the element itself once an element heading has opened. Everything
+else falls through to the comment path, whose `pending_object_array.is_none()` guard was removed
+so it can be reached from inside an array subtree.
+
+Implementation found a SECOND cause the triage had missed, and it is what made shapes A and D
+lose the element rather than merely gain a phantom: Rust's `has_table_after` lookahead
+skips paragraphs, so an element written as prose-then-table matched
+the "bare `[[id]]` followed by a table" table-field pattern and was claimed as a table FIELD of
+the grandparent — its explicit id became an empty array and its fields were dropped. That
+lookahead now declines any heading which would be an array element.
+
 - group: A_scope
-- done: false
+- done: true
 
 #### A2: No silent loss, ever [[qmd70_goal_a2]]
 
@@ -124,8 +137,12 @@ carries an explicit id, and must never silently move a heading out of the array 
 written in. If a construct is genuinely unsupported, it has to surface as a
 `__ParsingError` rather than as a quietly different graph.
 
+**Done (2026-09-23).** Follows from A1: the element is no longer claimed by either the array
+branch or the table-field lookahead, so nothing with an explicit id disappears. No
+`__ParsingError` was needed — the construct turned out to be representable, not unsupported.
+
 - group: A_scope
-- done: false
+- done: true
 
 #### B1: Parity across the three parsers [[qmd70_goal_b1]]
 
@@ -134,8 +151,12 @@ All three implementations agree on every shape in the characterization matrix
 `make validate-compare` does not catch it because no fixture puts a table inside an array
 element.
 
+**Done (2026-09-23).** All four shapes now agree across the three implementations. Python needed
+only the container check; TypeScript needed that plus the same unblocking of its comment path,
+which had refused tables anywhere inside an array subtree.
+
 - group: B_parity
-- done: false
+- done: true
 
 #### B2: Consistent id composition for table children [[qmd70_goal_b2]]
 
@@ -143,8 +164,15 @@ Rust and the other two compose a table child's hierarchical id differently when 
 field name equals the parent object's id — see [[#qmd70_finding_id_compose]]. One rule,
 and the same rule table children and heading elements already share.
 
+**Done (2026-09-23).** Rust now composes a table child's id exactly as Python's documented
+`resolve_child_id` does, including the case where the array field name IS the parent's id (a
+top-level array) and the dot-ID case. Pinned by
+`tests/workspace/table-child-id-composition/001-table-child-id-field-equals-parent`, which no
+fixture covered before — asserted through the SQL harness because this shape's `parse -> rebuild`
+is not round-trip stable, a separate pre-existing limitation.
+
 - group: B_parity
-- done: false
+- done: true
 
 #### C1: Regression tests for every shape, on every surface [[qmd70_goal_c1]]
 
@@ -158,8 +186,12 @@ The documented feature needs no new guard: shipped `tests/parser/032-table` (tab
 array heading) and `tests/parser/065-text-table-in-array` (table inside an element, wrapped in
 a declared `text` field) already pin it and must stay green.
 
+**Done (2026-09-23).** Eight cases: the four shape microtests, the validator/LSP/MCP trio from
+[[#qmd70_finding_surfaces]], and the id-composition case. All green in every implementation that
+runs them, and the five shipped table fixtures (`032`, `042`, `064`, `065`, `089`) stay green.
+
 - group: C_tests
-- done: false
+- done: true
 
 #### D1: State the scope rule in the format spec [[qmd70_goal_d1]]
 
@@ -169,5 +201,9 @@ content, that a table inside an element is ordinary content carried as a comment
 declared `text` field is how to attach one deliberately — the form
 `tests/parser/065-text-table-in-array` already relies on.
 
+**Done (2026-09-23).** `docs/format/arrays.qmd.md` now states that the table must be the array
+container's own content, shows the element case explicitly, and points at the declared `text`
+field as the way to attach a table to an element deliberately.
+
 - group: D_docs
-- done: false
+- done: true

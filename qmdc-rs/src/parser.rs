@@ -130,29 +130,25 @@ fn create_table_child_objects(
     let data_rows = &table_rows[1..];
     let mut result = Vec::new();
 
-    // Get parent's full ID for hierarchical composition
+    // The parent's full ID, used for the child's `__parent` back-reference.
     let parent_full_id = objects_map
         .get(arr_parent_id)
         .and_then(|m| m.get("__id"))
         .and_then(|v| v.as_str())
         .unwrap_or(arr_parent_id);
 
-    // Check if parent is a system container
-    let parent_kind = objects_map
-        .get(arr_parent_id)
-        .and_then(|m| m.get("__kind"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    let is_system_parent = parent_kind == "__Workspace" || parent_kind == "__Namespace";
-
     for (row_idx, row) in data_rows.iter().enumerate() {
         let local_id = format!("{}_{}", arr_field, row_idx);
-        let (obj_id, local_id_out) = if is_system_parent {
-            (format!("{}_{}_{}", arr_parent_id, arr_field, row_idx), None)
-        } else {
-            let composed = format!("{}.{}.{}", parent_full_id, arr_field, local_id);
-            (composed, Some(local_id.clone()))
-        };
+        // QMD-70: compose the id through the shared `resolve_child_id` helper, the same way
+        // the array's HEADING elements do. This function used to re-implement the rule inline
+        // and the copy had drifted from the helper in two places: it composed
+        // `{parent}.{field}.{local}` unconditionally, doubling the segment when the array
+        // field name IS the parent's id (a top-level array), and it prefixed the parent id in
+        // the system-container case where the helper — and Python and TypeScript — use the
+        // bare local id. A table child and a heading element of the same array must agree,
+        // so there is only one rule and it lives in the helper.
+        let (obj_id, local_id_out) =
+            resolve_child_id(objects_map, arr_parent_id, &local_id, Some(arr_field));
         let mut element = IndexMap::new();
         element.insert("__id".to_string(), json!(&obj_id));
 
@@ -720,9 +716,23 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
 
                 // Check if this is a table field: [[id]] (no Kind) followed by table
                 // This handles patterns like ### Statuses [[task_statuses]] with a table below
+                //
+                // QMD-70: this lookahead must not claim a heading that is an ELEMENT of an
+                // enclosing object array. `has_table_after` skips paragraphs, so an element
+                // written as prose-then-table matched the pattern and was taken as a table
+                // FIELD of the grandparent instead — the element's explicit id became an
+                // empty array, its fields were dropped, and the table's rows still landed in
+                // the enclosing array. Inside an array context every deeper heading is an
+                // element (see the element branch below), so the two readings cannot both
+                // apply and the element wins.
+                let would_be_array_element = pending_object_array
+                    .as_ref()
+                    .is_some_and(|(_, _, _, arr_level)| heading_level > *arr_level)
+                    && header.field_type.as_deref() != Some("text");
                 if header.has_explicit_id
                     && header.kind.is_none()
                     && header.field_type.is_none()
+                    && !would_be_array_element
                     && has_table_after(i + 1, &events)
                 {
                     if let Some(ref pid) = parent_id {
@@ -780,19 +790,44 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 // Check if this is an object array header [[field: [Kind]]]
                 if header.field_type.as_deref() == Some("object_array") {
                     if let Some(ref pid) = parent_id {
-                        // Finalize current object (the parent) before setting up array
-                        if let Some(obj) = current_obj.take() {
-                            finalize_object(
-                                &mut objects_map,
-                                &mut duplicate_objects,
-                                &mut parsing_errors,
-                                &mut first_seen_lines,
-                                obj,
-                            );
+                        // QMD-70: the parent STAYS in `current_obj` here. It used to be finalized
+                        // at this point, which is why everything following the array's own table
+                        // was lost in Rust: the field, comment and reference paths all write to the
+                        // in-flight object, so once the parent was gone they had no target, and a
+                        // trailing `- note: value` silently vanished while Python and TypeScript
+                        // kept it.
+                        //
+                        // The parent's slot in `objects_map` is reserved with a skeleton entry so
+                        // the array's children, which are inserted as soon as the table converts,
+                        // still come after their parent in the output. `finalize_object` treats an
+                        // entry without `__line` as a skeleton and overwrites it IN PLACE without
+                        // reporting a duplicate, so the position survives and the parent is written
+                        // for real whenever it does get finalized — at the first element heading,
+                        // at the next heading of its own level, or at end of input.
+                        //
+                        // The skeleton carries `__kind` because `resolve_child_id` reads it to
+                        // recognise a `__Workspace` / `__Namespace` parent, whose children take a
+                        // bare local id.
+                        if !objects_map.contains_key(pid) {
+                            let mut skeleton = IndexMap::new();
+                            skeleton.insert("__id".to_string(), json!(pid));
+                            if let Some(ref obj) = current_obj {
+                                if let Some(ref k) = obj.kind {
+                                    skeleton.insert("__kind".to_string(), json!(k));
+                                }
+                            }
+                            objects_map.insert(pid.clone(), skeleton);
                         }
 
-                        // Initialize empty array in parent
-                        if let Some(parent) = objects_map.get_mut(pid) {
+                        // Initialize empty array on the parent, wherever it currently lives.
+                        if let Some(ref mut obj) = current_obj {
+                            obj.fields.insert(header.id.clone(), json!([]));
+                            obj.syntax.insert(header.id.clone(), "headers".to_string());
+                            let line_text = lines.get(heading_line as usize - 1).unwrap_or(&"");
+                            let col =
+                                line_text.find(&format!("[[{}", header.id)).unwrap_or(0) as u32;
+                            obj.positions.insert(header.id.clone(), (heading_line, col));
+                        } else if let Some(parent) = objects_map.get_mut(pid) {
                             parent.insert(header.id.clone(), json!([]));
 
                             // Add __syntax
@@ -2660,13 +2695,55 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     continue;
                 }
 
-                // Table inside object array context — parse into child objects
+                // Table directly under an object-array heading — parse into child objects.
+                //
+                // QMD-70: the array context must be scoped to the array's OWN content.
+                // `pending_object_array` stays set for the whole array subtree, because each
+                // sibling element still needs it, so on its own it cannot tell "table under
+                // the array heading" from "table inside one of its elements". The CURRENT
+                // OBJECT makes that distinction: it is the array's parent while positioned in
+                // the container, and the element itself once an element heading has opened.
+                // Without the extra check a table written as ordinary content inside an element
+                // had its rows converted into sibling elements of the parent array — and in this
+                // implementation the element being built was dropped with them, taking its
+                // explicit id and its fields.
+                //
+                // This is the same predicate Python and TypeScript use
+                // (`get_current_object_id() == pending_object_array[0]`). It replaced a
+                // `current_obj.is_none()` check that held only while the parent was finalized at
+                // the array heading; the parent now stays in flight so that content following the
+                // array's own table still has somewhere to go.
+                // The innermost open object: the one in flight, or the stack top when a heading
+                // owns the array directly (a top-level array is inserted into the map and pushed
+                // on the stack rather than being held in flight).
+                let positioned_in_container = |pid: &String| -> bool {
+                    match current_obj.as_ref() {
+                        Some(o) => o.id == *pid,
+                        None => object_stack
+                            .last()
+                            .map(|(id, _)| id == pid)
+                            .unwrap_or(false),
+                    }
+                };
                 if let Some((ref arr_parent_id, ref arr_field, ref arr_kind, _arr_level)) =
                     pending_object_array
+                        .as_ref()
+                        .filter(|(pid, _, _, _)| positioned_in_container(pid))
                 {
                     if !table_rows.is_empty() {
-                        // Update parent syntax and types
-                        if let Some(parent) = objects_map.get_mut(arr_parent_id) {
+                        // Update parent syntax and types. QMD-70: the parent is normally still in
+                        // flight here (see the array-heading branch), so prefer it and fall back to
+                        // the map for the case where an element heading has already finalized it.
+                        if current_obj
+                            .as_ref()
+                            .map(|o| o.id == *arr_parent_id)
+                            .unwrap_or(false)
+                        {
+                            if let Some(ref mut obj) = current_obj {
+                                obj.syntax.insert(arr_field.clone(), "table".to_string());
+                                obj.types.insert(arr_field.clone(), "array".to_string());
+                            }
+                        } else if let Some(parent) = objects_map.get_mut(arr_parent_id) {
                             if let Some(syntax_obj) = parent.get_mut("__syntax") {
                                 if let Some(syntax_map) = syntax_obj.as_object_mut() {
                                     syntax_map.insert(arr_field.clone(), json!("table"));
@@ -2692,16 +2769,41 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             &objects_map,
                         );
                         for (obj_id, element) in children {
-                            if let Some(parent) = objects_map.get_mut(arr_parent_id) {
-                                if let Some(arr) = parent.get_mut(arr_field) {
-                                    if let Some(arr_vec) = arr.as_array_mut() {
-                                        arr_vec.push(json!(format!("[[#{}]]", obj_id)));
+                            // Wire the child to the parent wherever the parent lives.
+                            let wired = if let Some(ref mut obj) = current_obj {
+                                if obj.id == *arr_parent_id {
+                                    if let Some(arr) = obj.fields.get_mut(arr_field) {
+                                        if let Some(arr_vec) = arr.as_array_mut() {
+                                            arr_vec.push(json!(format!("[[#{}]]", obj_id)));
+                                        }
+                                    }
+                                    true
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            };
+                            if !wired {
+                                if let Some(parent) = objects_map.get_mut(arr_parent_id) {
+                                    if let Some(arr) = parent.get_mut(arr_field) {
+                                        if let Some(arr_vec) = arr.as_array_mut() {
+                                            arr_vec.push(json!(format!("[[#{}]]", obj_id)));
+                                        }
                                     }
                                 }
                             }
                             objects_map.insert(obj_id, element);
                         }
                     }
+                    // QMD-70: the array's own table has now been consumed, so close the array
+                    // context. Python and TypeScript both clear it here and Rust did not, which
+                    // made a SECOND table under the same array heading convert as well: both
+                    // children took the same `local_id`, the second overwrote the first, and the
+                    // array ended up holding the same reference twice. Clearing it lets any
+                    // following table fall through to the comment path and be preserved verbatim,
+                    // the same treatment a table gets in any other prose position.
+                    pending_object_array = None;
                     table_rows.clear();
                     i += 1;
                     continue;
@@ -2732,8 +2834,16 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             parent.insert(field_name.clone(), json!(new_val));
                         }
                     }
-                } else if pending_object_array.is_none() {
-                    // Table as comment content (only if not in object array context)
+                } else {
+                    // Table as comment content.
+                    //
+                    // QMD-70: reached for a table inside an array ELEMENT as well, not only
+                    // outside any array. The guard used to be
+                    // `pending_object_array.is_none()`, which excluded the whole array
+                    // subtree; the branch above now claims only the container's own tables,
+                    // so everything else falls through here and is carried as the element's
+                    // comment content — the same treatment a table gets in any other prose
+                    // position (see tests/parser/089-comments-preserve-tables).
                     if let Some(ref mut obj) = current_obj {
                         // Add table to comments if:
                         // 1. Object has fields (table is supplementary content), OR

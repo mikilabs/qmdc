@@ -18,7 +18,11 @@ Reads QMD.md from a file or stdin and outputs JSON objects to a file or stdout. 
 - **standard** — system fields + user fields (default)
 - **full** — standard + __references,__comments, __types
 
-**Round-trip guarantee:** parse → rebuild restores the original document.
+**Round-trip guarantee:** parse → rebuild restores the original document, and re-parsing the
+result always yields the same graph. Text placement has known limits: content that follows a
+heading-declared array's own table is re-anchored on the field before that heading, so it can move
+above the array heading on rebuild, and a top-level array is rebuilt as a wrapper heading plus a
+nested array heading. The graph is unchanged in both cases; only the layout is.
 
 ### Syntax [[syntax: text]]
 
@@ -69,7 +73,7 @@ Converts JSON back to QMD.md.
 
 ### Description [[description: text]]
 
-Reads JSON objects from a file or stdin and outputs QMD.md to a file or stdout. Ensures lossless round-trip: parse → rebuild restores the original document. Preserves object and field order. Restores hierarchy from __parent and__level.
+Reads JSON objects from a file or stdin and outputs QMD.md to a file or stdout. Round-trips a parsed document back to QMD.md — see the round-trip note above for the two shapes where the layout can shift while the graph stays identical. Preserves object and field order. Restores hierarchy from __parent and__level.
 
 ### Syntax [[syntax: text]]
 

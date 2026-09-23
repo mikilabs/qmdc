@@ -1,0 +1,7 @@
+{
+  "columns": ["id", "local_id"],
+  "rows": [
+    ["items.items_0", "items_0"],
+    ["items.items_1", "items_1"]
+  ]
+}

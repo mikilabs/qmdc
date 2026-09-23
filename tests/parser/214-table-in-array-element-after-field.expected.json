@@ -22,13 +22,13 @@
     "__kind": "User",
     "__parent": "[[#team]]",
     "__parent_field": "members",
-    "role": "admin",
     "__comments": [
       {
         "after": "role",
         "content": "| col_a | col_b |\n|-------|-------|\n| r1 | v1 |"
       }
     ],
+    "role": "admin",
     "__types": {
       "role": "string"
     }
