@@ -24,7 +24,7 @@ three colon-separated segments unambiguous.
 - status: done
 - priority: high
 - category: parser
-- related_task: [[#qmd63]], [[#qmd68_converge]], [[#qmd66_dot_notation_discrepancies]]
+- related_task: [[#qmd63]], [[#qmd68_converge]], [[#qmd66_dot_notation_discrepancies]], [[#qmd70_table_scope]]
 - requires_changes: []
 - findings: [[#qmd69_finding_parse]], [[#qmd69_finding_fallback]], [[#qmd69_finding_mcp]], [[#qmd69_finding_kind]], [[#qmd69_finding_py_crash]], [[#qmd69_finding_blast_radius]], [[#qmd69_finding_container]], [[#qmd69_finding_impl]], [[#qmd69_finding_bypass]], [[#qmd69_finding_spinoff]], [[#qmd69_finding_tests]], [[#qmd69_finding_questions]]
 - result: [[#qmd69_result]]

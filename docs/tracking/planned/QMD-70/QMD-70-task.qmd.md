@@ -14,14 +14,14 @@ is terminated and following siblings leak out as plain fields with their Kind de
 
 Found while authoring the QMD-69 task document (cross-workspace reference qualifiers, GitHub
 issue #9): a comparison table inside that task's goal A2 replaced the goal with four anonymous
-ones labelled after the table's first column. QMD-69 lives on its own branch and is not
-referenced here, because the two tasks share nothing but the file the bug was found in —
-different code path, different symptom, different fix.
+ones labelled after the table's first column. The two tasks share nothing but the file the bug
+was found in — different code path, different symptom, different fix — so this one is tracked
+separately even though both land on the same branch.
 
 - status: triage_review
 - priority: high
 - category: parser
-- related_task: [[#qmd66_dot_notation_discrepancies]]
+- related_task: [[#qmd69_cross_ws_refs]], [[#qmd66_dot_notation_discrepancies]]
 - requires_changes: []
 - findings: [[#qmd70_finding_scope]], [[#qmd70_finding_matrix]], [[#qmd70_finding_id_compose]], [[#qmd70_finding_tests]], [[#qmd70_finding_questions]]
 - result: null

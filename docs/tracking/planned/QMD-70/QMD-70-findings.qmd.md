@@ -168,14 +168,14 @@ pre-existing or unrelated case fails.
 Case counts, reading the JUnit reports: rs `rs-microtests.xml` 222/4,
 `rs-microtests-rebuild.xml` 183/4, `rs-microtests-text.xml` 211/4 — twelve failures, the same
 four fixtures across the three aspects. ts `ts-parser.xml` 616/6 and py 6 — two fixtures
-across three aspects each. So this branch adds 12 failing cases in Rust and 6 in each of the
+across three aspects each. So this task adds 12 failing cases in Rust and 6 in each of the
 other two, and nothing else fails.
 
-Note on where the numbers were taken: the measurement ran on a working tree that also carried
-an unrelated task's fixtures, so the whole-suite totals from that run are not this branch's
-totals and are deliberately not quoted. The per-fixture columns above transfer unchanged,
-because that tree differed from this branch's base only in `.gitignore` and three
-`uv.lock` version lines — no parser code.
+These four fixtures are the ONLY failures on the branch: QMD-69 landed green at 3325 cases,
+so `make test` now reports exactly 24 failures, all of them these. That is intended under the
+Bug triage exception — a regression test is written before the fix and is expected to fail until
+[[#qmd70_goal_a1]] lands. Anyone treating a red suite here as a broken branch should check the
+failing case names first.
 
 The columns are the matrix, restated as tests: the two shapes where Python and TypeScript are
 already correct are exactly the two where Rust loses the element. After the fix all twelve

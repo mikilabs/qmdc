@@ -543,16 +543,14 @@ that is why the issue reported a wrong answer rather than a crash.
 
 ## A separate bug was split off: QMD-70 [[qmd69_finding_spinoff: Finding]]
 
-Triage surfaced a defect that is NOT part of this task and was filed on its own as **QMD-70**,
-on its own branch `qmd-70` off `public/main`. It is recorded here because it was found while
-authoring this task's own documents and because it shaped how they are written. There is no
-`[[#...]]` reference to it on purpose: the two tasks are on separate branches, so a reference
-would be a broken link on either one until both land.
+Triage surfaced a defect that is NOT part of this task and was filed on its own as
+[[#qmd70_table_scope]]. It is recorded here because it was found while authoring this task's own
+documents and because it shaped how they are written.
 
 - category: parser
 - related_to: [[#qmd69_cross_ws_refs]]
 - affected_files: [docs/tracking/planned/QMD-70]
-- solution: Nothing to do here. QMD-70 carries its own goals, findings and four failing fixtures on branch qmd-70; the operator has parked it, and it does not block any goal of QMD-69.
+- solution: Nothing to do here. QMD-70 carries its own goals, findings and four failing fixtures; the operator has parked it, and it does not block any goal of QMD-69.
 
 ### What it is and why it is out of scope [[qmd69_finding_spinoff_detail: text]]
 

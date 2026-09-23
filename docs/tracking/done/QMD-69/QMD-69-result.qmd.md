@@ -87,9 +87,10 @@ regression the corpus did not cover — a reference to the workspace root object
 MCP call still stands, and `tests/mcp/qmd63-ambiguous` stays green. QMD-69 did not need it
 overturned — see [[#qmd69_finding_impl]].
 
-One defect found while authoring this task's documents was filed separately as **QMD-70** (a
-Markdown table inside an object-array element is captured by the parent array) and parked by the
-operator on branch `qmd-70`. It shares no code path with this work.
+One defect found while authoring this task's documents was filed separately as
+[[#qmd70_table_scope]] (a Markdown table inside an object-array element is captured by the parent
+array) and parked by the operator. It shares no code path with this work, and its own regression
+tests fail by design until it is implemented.
 
 Issue #10 (explicit `--with` composition) is unaffected: this change composes a container that
 is already being read as one, and adds no new way to name several roots.
