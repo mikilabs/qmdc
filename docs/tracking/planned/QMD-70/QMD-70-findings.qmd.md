@@ -113,25 +113,73 @@ and a table:
 | table child | `items.items.items_0` | `items.items_0` | `items.items_0` |
 
 Rust composes `{parent_full_id}.{arr_field}.{local_id}` for table children
-(`qmdc-rs/src/parser.rs:145`), which doubles the segment here, while its own heading
+(`qmdc-rs/src/parser.rs:153`), which doubles the segment here, while its own heading
 elements and both other implementations produce `items.items_0`. When the field name
 differs from the parent id all three agree (`team.members.members_0`), which is why this
 never surfaced.
 
+## The lost element is visible on the validator, LSP and MCP surfaces too [[qmd70_finding_surfaces: Finding]]
+
+Found by re-checking this triage rather than by the original pass, and it is the same class of
+gap: the triage had covered only the PARSE surface. When the element that disappears carries an
+explicit id, anything referring to it becomes a false `broken_link` — so the bug is observable
+wherever references are validated, and there the three implementations disagree.
+
+- category: parser
+- related_to: [[#qmd70_table_scope]]
+- affected_files: [tests/cli/015-validate-table-in-array-element, tests/lsp/microtests/diagnostics/035-table-in-array-element]
+- solution: No extra code change — the fix for [[#qmd70_goal_a1]] closes this too, because the element stops disappearing. What was missing was the coverage; three cases now assert it on the validator, LSP and MCP.
+
+### Measurement [[qmd70_finding_surfaces_detail: text]]
+
+- about: [[#qmd70_finding_surfaces]]
+
+A workspace whose `Bug` object carries `tracks: [[#goal_a2]]`, with goal A2 holding prose then a
+table (shape D — the real-world case):
+
+| surface | rs | py | ts |
+| --- | --- | --- | --- |
+| `qmdc workspace validate` | `broken_link` on `[[#goal_a2]]` | clean | clean |
+| LSP `textDocument/diagnostic` | false QMDC001 | — | — |
+| MCP `qmdc_validate_references` | false QMDC001 | — | — |
+
+The MCP index itself is short an object — it reports 3 objects where the file declares 4 — so
+this is not a diagnostic-formatting artefact but the lost object showing through.
+
+The user-facing consequence is worse than the parse-level one: an editor puts a red squiggle on
+a reference to a goal that is written a few lines further down the same file, and the CLI calls
+a valid workspace broken. And because py and ts keep the element in this shape, the same file is
+valid or invalid depending on which parser reads it.
+
+### Why the first pass missed it [[qmd70_finding_surfaces_why: text]]
+
+- about: [[#qmd70_finding_surfaces]]
+
+The four microtests assert the parse output, which is where the defect originates, and the
+reasoning stopped there — a parse bug felt like a parse-surface bug. But an object vanishing from
+the index is not a formatting difference; it propagates to every consumer of the index. Nothing
+in the fixture set referenced a lost element, so no surface past the parser was ever exercised.
+
+The lesson is the same one QMD-69 recorded: coverage has to be reasoned about per SURFACE, not
+per cause. One fixture per code path is not the same as one fixture per observable behaviour.
+
 ## Mandatory regression tests (data-driven, failing as designed) [[qmd70_finding_tests: Finding]]
 
-Four parser microtests were added during triage per the Bug triage exception, one per shape
-of the characterization matrix. They are plain fixtures plus expected JSON — no new test
-code — so each runs in all three implementations and through all three microtest aspects
-(parse, rebuild, rebuild-text). The documented feature needs no new guard: the shipped
-`tests/parser/032-table` already pins a table directly under an array heading, and
-`tests/parser/065-text-table-in-array` pins a table inside an element wrapped in a `text`
-field. Both stay green.
+Seven data-driven cases across three surfaces. Four parser microtests, one per shape of the
+characterization matrix, plus three added when re-checking the triage found that the lost element
+also surfaces on the validator, the LSP and MCP ([[#qmd70_finding_surfaces]]). All are plain
+fixtures plus expected JSON — no new test code — and the microtests each run in all three
+implementations through all three aspects (parse, rebuild, rebuild-text).
+
+The documented feature needs no new guard: the shipped `tests/parser/032-table` already pins a
+table directly under an array heading, and `tests/parser/065-text-table-in-array` pins a table
+inside an element wrapped in a `text` field. Both stay green, as do `042-table-one-row`,
+`064-text-field-with-table` and `089-comments-preserve-tables` — verified in all three parsers.
 
 - category: testing
 - related_to: [[#qmd70_table_scope]]
-- affected_files: [tests/parser/212-table-in-array-element-after-prose.qmd.md, tests/parser/213-table-in-array-element-first.qmd.md, tests/parser/214-table-in-array-element-after-field.qmd.md, tests/parser/215-table-in-array-element-between.qmd.md]
-- solution: Keep all four as the acceptance gate; they turn green only when the array context is scoped to the array's own content, and they are what forces the three implementations to agree.
+- affected_files: [tests/parser/212-table-in-array-element-after-prose.qmd.md, tests/parser/213-table-in-array-element-first.qmd.md, tests/parser/214-table-in-array-element-after-field.qmd.md, tests/parser/215-table-in-array-element-between.qmd.md, tests/cli/015-validate-table-in-array-element, tests/lsp/microtests/diagnostics/035-table-in-array-element]
+- solution: Keep all seven as the acceptance gate; they turn green only when the array context is scoped to the array's own content, and they are what forces the three implementations to agree across all four surfaces.
 
 ### Where the expected JSON comes from [[qmd70_finding_tests_expected: text]]
 
@@ -164,6 +212,9 @@ pre-existing or unrelated case fails.
 | `213-table-in-array-element-first` | B | **fail** | **fail** | **fail** |
 | `214-table-in-array-element-after-field` | C | **fail** | **fail** | **fail** |
 | `215-table-in-array-element-between` | D | **fail** | pass | pass |
+| `cli/015-validate-table-in-array-element` | D, via `workspace validate` | **fail** | pass | pass |
+| `diagnostics/035-table-in-array-element` (`expected.json`) | D, via LSP | **fail** | — | — |
+| `diagnostics/035-table-in-array-element` (`mcp-expected.json`) | D, via MCP | **fail** | — | — |
 
 Case counts, reading the JUnit reports: rs `rs-microtests.xml` 222/4,
 `rs-microtests-rebuild.xml` 183/4, `rs-microtests-text.xml` 211/4 — twelve failures, the same

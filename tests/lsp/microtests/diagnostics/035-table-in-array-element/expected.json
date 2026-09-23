@@ -1,0 +1,4 @@
+{
+  "_comment": "QMD-70: a table inside an object-array element is ordinary content of that element. The element must survive, so a reference to it is valid and the editor must show no diagnostic. Today the array captures the table's rows, the element with the explicit id is lost, and a false QMDC001 is reported.",
+  "diagnostics": []
+}

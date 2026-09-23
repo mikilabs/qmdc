@@ -23,7 +23,7 @@ separately even though both land on the same branch.
 - category: parser
 - related_task: [[#qmd69_cross_ws_refs]], [[#qmd66_dot_notation_discrepancies]]
 - requires_changes: []
-- findings: [[#qmd70_finding_scope]], [[#qmd70_finding_matrix]], [[#qmd70_finding_id_compose]], [[#qmd70_finding_tests]], [[#qmd70_finding_questions]]
+- findings: [[#qmd70_finding_scope]], [[#qmd70_finding_matrix]], [[#qmd70_finding_id_compose]], [[#qmd70_finding_surfaces]], [[#qmd70_finding_tests]], [[#qmd70_finding_questions]]
 - result: null
 
 ### Reproduction [[qmd70_repro: text]]
@@ -146,11 +146,15 @@ and the same rule table children and heading elements already share.
 - group: B_parity
 - done: false
 
-#### C1: Regression tests for every shape [[qmd70_goal_c1]]
+#### C1: Regression tests for every shape, on every surface [[qmd70_goal_c1]]
 
-Data-driven, covering the four shapes of the matrix. Written during triage per the Bug triage
-exception and failing as designed — see [[#qmd70_finding_tests]] for the measured columns. The
-documented feature needs no new guard: shipped `tests/parser/032-table` (table under the
+Data-driven, covering the four shapes of the matrix on the PARSE surface plus the same defect
+as it shows on `qmdc workspace validate`, the LSP and MCP — where a lost element turns a
+reference to it into a false `broken_link` and the three parsers disagree about whether the file
+is valid ([[#qmd70_finding_surfaces]]). Written during triage per the Bug triage exception and
+failing as designed; see [[#qmd70_finding_tests]] for the measured columns.
+
+The documented feature needs no new guard: shipped `tests/parser/032-table` (table under the
 array heading) and `tests/parser/065-text-table-in-array` (table inside an element, wrapped in
 a declared `text` field) already pin it and must stay green.
 
