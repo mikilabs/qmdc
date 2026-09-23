@@ -291,6 +291,11 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     // Track blockquote state
     let mut in_blockquote = false;
     let mut blockquote_lines: Vec<String> = Vec::new();
+    // QMD-70 follow-up: byte offset of the OUTERMOST open blockquote, so its comment content can
+    // be sliced from the source rather than reconstructed from text events, plus the nesting depth
+    // so a `> >` emits once for the whole quote instead of once per level.
+    let mut blockquote_start_offset: usize = 0;
+    let mut blockquote_depth: u32 = 0;
 
     // Track if last comment was a block element (blockquote, rule, code block, table)
     // Used to merge following paragraphs with the block
@@ -3713,21 +3718,31 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
 
             Event::Start(Tag::BlockQuote) => {
                 in_blockquote = true;
-                blockquote_lines.clear();
+                if blockquote_depth == 0 {
+                    blockquote_lines.clear();
+                    blockquote_start_offset = range.start;
+                }
+                blockquote_depth += 1;
             }
 
             Event::End(TagEnd::BlockQuote) => {
+                blockquote_depth = blockquote_depth.saturating_sub(1);
+                if blockquote_depth > 0 {
+                    // Inner level of a nested quote — the outermost one carries the whole slice.
+                    i += 1;
+                    continue;
+                }
                 in_blockquote = false;
 
-                if !blockquote_lines.is_empty() {
-                    // Format blockquote with > prefix for each line
-                    let blockquote_content = blockquote_lines
-                        .iter()
-                        .flat_map(|para| para.lines())
-                        .map(|line| format!("> {}", line))
-                        .collect::<Vec<_>>()
-                        .join("\n");
+                // QMD-70 follow-up: preserve the blockquote verbatim by slicing the source, the
+                // same way tables already are (see `raw_table_slice`). Rebuilding the `>` prefixes
+                // from text events lost three things Python and TypeScript keep: an empty
+                // blockquote produced no text events at all and was dropped outright, a leading
+                // `>` line with no content vanished, and a nested `> >` collapsed to one level.
+                let blockquote_content =
+                    raw_table_slice(&block_tree.source, blockquote_start_offset, range.end);
 
+                if !blockquote_content.is_empty() {
                     if let Some(ref mut obj) = current_obj {
                         // Check if we can append to the last comment with the same anchor
                         let should_append = obj

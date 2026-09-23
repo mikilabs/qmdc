@@ -23,7 +23,7 @@ separately even though both land on the same branch.
 - category: parser
 - related_task: [[#qmd69_cross_ws_refs]], [[#qmd66_dot_notation_discrepancies]]
 - requires_changes: []
-- findings: [[#qmd70_finding_scope]], [[#qmd70_finding_matrix]], [[#qmd70_finding_id_compose]], [[#qmd70_finding_surfaces]], [[#qmd70_finding_prose_gap]], [[#qmd70_finding_two_tables]], [[#qmd70_finding_rs_after_array]], [[#qmd70_finding_rs_other_paths]], [[#qmd70_finding_no_diagnostic]], [[#qmd70_finding_red_suite]], [[#qmd70_finding_rebuild_anchor]], [[#qmd70_finding_hdr_only]], [[#qmd70_finding_tests]], [[#qmd70_finding_questions]]
+- findings: [[#qmd70_finding_scope]], [[#qmd70_finding_matrix]], [[#qmd70_finding_id_compose]], [[#qmd70_finding_surfaces]], [[#qmd70_finding_prose_gap]], [[#qmd70_finding_two_tables]], [[#qmd70_finding_rs_after_array]], [[#qmd70_finding_rs_other_paths]], [[#qmd70_finding_blockquote]], [[#qmd70_finding_no_diagnostic]], [[#qmd70_finding_red_suite]], [[#qmd70_finding_rebuild_anchor]], [[#qmd70_finding_hdr_only]], [[#qmd70_finding_tests]], [[#qmd70_finding_questions]]
 - result: [[#qmd70_result]]
 
 ### Reproduction [[qmd70_repro: text]]

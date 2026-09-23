@@ -1,0 +1,38 @@
+[
+  {
+    "__id": "doc",
+    "__label": "Doc",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Prose between the heading and the table."
+      }
+    ],
+    "items": [
+      "[[#doc.items.items_0]]"
+    ],
+    "__types": {
+      "items": "array"
+    },
+    "__syntax": {
+      "items": "table"
+    },
+    "__level": 2,
+    "__labels": {
+      "items": "Items"
+    }
+  },
+  {
+    "__id": "doc.items.items_0",
+    "__local_id": "items_0",
+    "__label": "r1",
+    "__kind": "Item",
+    "__parent": "[[#doc]]",
+    "__parent_field": "items",
+    "col_a": "r1",
+    "__types": {
+      "col_a": "string"
+    }
+  }
+]

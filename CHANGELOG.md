@@ -36,6 +36,12 @@ file is maintained by hand.
   dropped and a trailing `- field: value` was lost entirely, because the array's parent object was
   closed at the array heading and the paths that write fields and comments had nothing left to write
   to; the parent now stays open for the whole array (QMD-70).
+- Prose between an object-array heading and its table no longer breaks the connection in Python and
+  TypeScript: the prose is the container's comment and the table still feeds the array, matching what
+  all three already did when a heading element follows the prose instead of a table (QMD-70).
+- Rust preserves blockquote comments verbatim instead of reconstructing the `>` prefixes, which had
+  dropped an empty blockquote entirely, lost a leading blank quoted line, and collapsed a nested
+  `> >` to one level (QMD-70).
 - TypeScript no longer cuts the separator row off a Markdown table that has no data rows when the
   table is carried as comment content (QMD-70).
 - Table-fed array children now compose their hierarchical id through the same rule as the array's

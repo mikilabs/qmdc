@@ -2198,6 +2198,23 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
             listNesting--;
           }
 
+          // QMD-70: stop before a table that belongs to an object array.
+          //
+          // Prose between an array heading and its table must not absorb the table: the prose is
+          // the container's comment, the table is still the array's own content. This matches what
+          // all three parsers already do when a heading ELEMENT follows the prose instead of a
+          // table — the prose becomes a comment and the element still joins the array. Without
+          // this the scan swallowed the table into the comment and left the array empty.
+          if (
+            scanTok.type === 'table_open' &&
+            listNesting === 0 &&
+            pendingObjectArray &&
+            getCurrentObjectId() === pendingObjectArray[0]
+          ) {
+            contentEndLine = scanTok.map ? scanTok.map[0] : contentEndLine;
+            break;
+          }
+
           // Stop at heading
           if (scanTok.type === 'heading_open') {
             const nextLevel = getHeadingLevel(scanTok.tag);

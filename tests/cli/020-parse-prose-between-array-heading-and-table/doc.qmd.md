@@ -1,4 +1,6 @@
-## Items [[items: [Item]]]
+## Doc [[doc]]
+
+### Items [[items: [Item]]]
 
 Prose between the heading and the table.
 

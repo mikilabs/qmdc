@@ -1681,6 +1681,23 @@ def parse(
                     ):
                         list_nesting -= 1
 
+                    # QMD-70: stop before a table that belongs to an object array.
+                    #
+                    # Prose between an array heading and its table must not absorb the table:
+                    # the prose is the container's comment, the table is still the array's own
+                    # content. This matches what all three parsers already do when a heading
+                    # ELEMENT follows the prose instead of a table — the prose becomes a comment
+                    # and the element still joins the array. Without this the scan swallowed the
+                    # table into the comment and left the array empty.
+                    if (
+                        scan_tok.type == "table_open"
+                        and list_nesting == 0
+                        and pending_object_array
+                        and get_current_object_id() == pending_object_array[0]
+                    ):
+                        content_end_line = scan_tok.map[0] if scan_tok.map else content_end_line
+                        break
+
                     # Stop at heading
                     if scan_tok.type == "heading_open":
                         next_level = get_heading_level(scan_tok.tag)

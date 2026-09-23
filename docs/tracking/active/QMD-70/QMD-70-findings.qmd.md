@@ -261,7 +261,7 @@ other two, and nothing in the corpus covered it.
 - category: parser
 - related_to: [[#qmd70_table_scope]]
 - affected_files: [qmdc-rs/src/parser.rs, qmdc-py/qmdc/parser.py, qmdc-ts/src/parser.ts]
-- solution: Operator decision needed — see [[#qmd70_finding_questions]] question 2. NOW PINNED AS A DELIBERATELY FAILING TEST: `tests/parser/220-prose-between-array-heading-and-table` asserts Python's reading, so Rust fails it. That encodes an answer to the open question — see [[#qmd70_finding_red_suite]] before treating it as settled.
+- solution: ANSWERED by precedent, and the answer is Rust's: prose does not break the connection. FIXED in Python and TypeScript — their comment scan now stops before a table belonging to the array container. Pinned by `tests/cli/020-parse-prose-between-array-heading-and-table`, green in all three.
 
 ### Measurement [[qmd70_finding_prose_gap_detail: text]]
 
@@ -287,10 +287,59 @@ Rust's `has_table_after` lookahead skips paragraphs, so it still sees the table 
 own content. Python and TypeScript have no such lookahead: the paragraph takes the comment path
 first, and the table follows it there, leaving the array empty.
 
-Neither behaviour is obviously wrong, which is why this is a question rather than a fix. Rust's
-is more forgiving — an author can introduce the table with a sentence. Python's and
-TypeScript's is more literal — the documented syntax has the table immediately under the
-heading, and anything else is content.
+**Answered (2026-09-23) by looking at what the three already agree on.** The question was framed as
+"neither reading is obviously wrong", which was a failure to look for precedent. There is one, and
+it settles it.
+
+Take the SAME shape but put a heading element after the prose instead of a table:
+
+```text
+## Doc [[doc]]
+
+### Items [[items: [Item]]]
+
+Prose between.
+
+#### A [[a]]
+
+- role: x
+```
+
+All three implementations agree here: `items` holds the element AND the prose is preserved as
+`__comments` anchored `__self`. Prose is separated out; the structural content still counts. The
+same is true for a `text` field — prose before a table inside one is part of the field's value in
+all three.
+
+Measured against that precedent, Rust's reading of the table case is exactly right and Python's and
+TypeScript's is the deviation:
+
+| impl | `items` | `__comments` |
+| --- | --- | --- |
+| rs | the converted child | the prose, anchored `__self` |
+| py, ts | empty | the prose AND the table |
+
+So the fix belongs in Python and TypeScript, not in Rust.
+
+A fixture was written earlier pinning Python's reading, on the grounds that Python is the reference
+implementation. That was wrong — mechanical deference instead of checking the precedent — and it was
+replaced. Worth recording as a method note: "Python is the reference" resolves a tie, it does not
+answer a design question the corpus already answers.
+
+One caveat found while writing the replacement. The sentence in `docs/format/arrays.qmd.md` saying
+the table must sit "directly under the array heading" was added by THIS task and cannot be cited as
+precedent for it.
+
+**Fixed (2026-09-23) in Python and TypeScript.** Each has a forward scan that decides where a
+comment block ends, and neither stopped at a table. Both now stop before a table that belongs to the
+array container, using the same predicate as the conversion branch. In TypeScript the edit went
+first onto the block-level comment branch, which this shape never reaches — it arrives through the
+PARAGRAPH branch, since the prose opens the block; the fixture caught that immediately.
+
+One defect in the same area is NOT fixed: with a TOP-LEVEL array (no structural parent) Rust
+converts the table but **drops the prose entirely** — no `__comments` at all — while Python and
+TypeScript keep it. Now that the parented form is settled, this is a Rust bug against the agreed
+reading. It needs the same treatment the parented case got in `create_table_child_objects`, and it
+is recorded in [[#qmd70_finding_rs_other_paths]] rather than fixed here.
 
 This is the same family as the main defect (where does a table belong?) but a different cell:
 the main defect is about a table inside an ELEMENT, this one is about a table separated from
@@ -481,6 +530,41 @@ expansion of QMD-70.
 The indented-block case is not the same cause at all: the block is attached to the wrong field and
 kept as raw source rather than normalised, which is list-item handling, not parent lifetime.
 
+## Rust rebuilt blockquote comments instead of slicing them [[qmd70_finding_blockquote: Finding]]
+
+Started as "Rust drops an empty blockquote", raised as an aside by the first review pass. Measuring
+it showed one cause behind three divergences. FIXED.
+
+- category: parser
+- affected_files: [qmdc-rs/src/parser.rs]
+- solution: Fixed — the blockquote comment is sliced verbatim from the source, as tables already were, and only the outermost level of a nested quote emits. Pinned by `tests/parser/221-empty-blockquote-comment`, `223-blockquote-leading-blank-line` and `224-nested-blockquote-comment`.
+
+### One cause, three symptoms [[qmd70_finding_blockquote_detail: text]]
+
+- about: [[#qmd70_finding_blockquote]]
+
+Rust reconstructed a blockquote's comment content by collecting TEXT events and re-adding the `>`
+prefixes. Python and TypeScript slice the raw source. Three consequences, all measured against a
+plain object with no array involved:
+
+| input | rs before | py and ts |
+| --- | --- | --- |
+| `>` alone | comment dropped — no text events, so the emit was skipped | `">"` |
+| `>` then `> text` | `"> text"` — the blank quoted line lost | `">\n> text"` |
+| `> > nested` | `"> nested"` — one level lost | `"> > nested"` |
+
+Only the first was reported. The other two were found while checking the fix, and neither had a
+fixture, so nothing would have caught them.
+
+Slicing the source fixes all three, and it is the pattern the codebase already uses for tables in
+comments (`raw_table_slice`, added precisely because reconstruction normalised the separator row and
+diverged from the other two parsers). The same reasoning applies here; the blockquote path had
+simply never been converted.
+
+Slicing introduced one new problem and the nested case caught it: `TagEnd::BlockQuote` fires once
+per level, so `> > nested` emitted the same slice twice. The branch now tracks depth and emits only
+when the outermost level closes.
+
 ## A second table under an array heading emits no diagnostic [[qmd70_finding_no_diagnostic: Finding]]
 
 Raised by both code-review passes with an in-repo precedent. A design question, not a defect.
@@ -546,7 +630,7 @@ plain object with no array anywhere. Recorded here only because the review surfa
 
 - category: parser
 - affected_files: [qmdc-ts/src/parser.ts]
-- solution: Fixed — TypeScript's comment slice took the maximum end line instead of overwriting it. Pinned by `tests/parser/218-header-only-table-in-comment`.
+- solution: Fixed — TypeScript's comment slice took the maximum end line instead of overwriting it. Pinned by `tests/parser/218-header-only-table-in-comment`. The empty-blockquote half turned out to be a separate, wider defect — see [[#qmd70_finding_blockquote]].
 
 ### Measurement [[qmd70_finding_hdr_only_detail: text]]
 
@@ -582,19 +666,27 @@ Each case was verified to fail for its OWN stated reason, not incidentally. Pyth
 implementation, so every expected file holds Python's output; TypeScript agrees with it everywhere
 here.
 
+Two of the five were fixed rather than left red, once the discussion settled which side was right.
+
 | case | red in | the defect it pins |
 | --- | --- | --- |
-| `parser/220-prose-between-array-heading-and-table` | rs | rs converts the table into array elements; py and ts carry prose and table together as the container's comment |
-| `parser/221-empty-blockquote-comment` | rs | rs drops an empty blockquote; py and ts keep `content: ">"` |
+| `cli/020-parse-prose-between-array-heading-and-table` | — FIXED | py and ts swallowed the table into the container's comment and left the array empty; see [[#qmd70_finding_prose_gap]] |
+| `parser/221`, `223`, `224` (blockquotes) | — FIXED | Rust rebuilt blockquote comments instead of slicing them; see [[#qmd70_finding_blockquote]] |
 | `parser/222-rebuild-content-after-array-table` | **all three** | `parse` agrees, but `rebuild` moves the trailing table above the array heading — the content-motion check catches it |
-| `cli/018-parse-yaml-field-then-prose` | rs | rs drops a paragraph following a `yaml` field heading |
+| `cli/018-parse-yaml-field-then-prose` | rs | a paragraph after a `yaml` field heading OVERWRITES the field's value, so the YAML data is lost too |
 | `cli/019-parse-indented-block-under-list-field` | rs | rs anchors an indented block on the wrong field and keeps its raw source |
 
-**Case 220 encodes a decision that was explicitly left open.** Whether prose may separate an array
-heading from its table is question 2 in [[#qmd70_finding_questions]], and both readings are
-defensible. The fixture asserts Python's, which is the reference implementation's — but that is a
-choice made by writing the test, not an answer the operator gave. If the Rust reading is preferred
-instead, this fixture is wrong rather than the code.
+**Case 020 replaced an earlier fixture that pinned the wrong side.** The first attempt asserted
+Python's reading because Python is the reference implementation; checking the precedent showed Rust
+is right and the other two deviate. It also lived in the parser corpus, where it went red in Rust
+for an unrelated second reason — the rebuild motion already pinned by case 222 — so it moved to the
+CLI corpus, which is parse-only and leaves exactly one reason for the failure. Both defects it
+exposed are now fixed, so it is green.
+
+**Three cases remain red.** `018` and `019` need the shared field accessor described in
+[[#qmd70_finding_rs_other_paths]]; `222` needs the format to gain a way to express content after an
+array's own table, per [[#qmd70_finding_rebuild_anchor]]. Neither is a small fix, and both were left
+deliberately.
 
 **Case 222 is red everywhere, so it is not a parity defect.** All three parse identically and all
 three rebuild the same wrong layout. It pins a shared limitation, which is why no implementation can
