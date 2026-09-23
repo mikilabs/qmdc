@@ -1,0 +1,12 @@
+{
+  "columns": [
+    "source_workspace",
+    "edge_type",
+    "target_workspace",
+    "target_namespace",
+    "target_id"
+  ],
+  "rows": [
+    ["qmd69_project", "includes", "qmd69_repo_a", "services", "payments_api"]
+  ]
+}

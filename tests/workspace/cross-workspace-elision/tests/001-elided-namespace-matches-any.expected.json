@@ -1,0 +1,4 @@
+{
+  "columns": ["edge_type", "target_workspace", "target_namespace", "target_id"],
+  "rows": [["elided_ns", "qmd69_elision_provider", "services", "gateway"]]
+}

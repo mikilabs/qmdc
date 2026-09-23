@@ -1,0 +1,4 @@
+{
+  "columns": ["source_workspace", "edge_type", "target_workspace", "target_id"],
+  "rows": []
+}
