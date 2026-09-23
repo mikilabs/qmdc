@@ -21,7 +21,7 @@ qualified reference but CRASHES on it, losing the whole validation run. Separate
 also silences ambiguity diagnostics, and the operator removed it — which is what makes
 three colon-separated segments unambiguous.
 
-- status: done_review
+- status: done
 - priority: high
 - category: parser
 - related_task: [[#qmd63]], [[#qmd68_converge]], [[#qmd66_dot_notation_discrepancies]]
