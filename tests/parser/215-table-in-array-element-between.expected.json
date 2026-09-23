@@ -1,0 +1,41 @@
+[
+  {
+    "__id": "bug",
+    "__label": "Bug",
+    "__kind": "Bug",
+    "goals": [
+      "[[#bug.goals.goal_a2]]"
+    ],
+    "__syntax": {
+      "goals": "headers"
+    },
+    "__level": 2,
+    "__labels": {
+      "goals": "Goals"
+    }
+  },
+  {
+    "__id": "bug.goals.goal_a2",
+    "__local_id": "goal_a2",
+    "__label": "A2",
+    "__kind": "Goal",
+    "__parent": "[[#bug]]",
+    "__parent_field": "goals",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Prose before the table.\n\n| form | means |\n|------|-------|\n| id | this workspace |\n| ns:id | that namespace |"
+      },
+      {
+        "after": "__self",
+        "content": "Prose after the table."
+      }
+    ],
+    "group": "A",
+    "done": false,
+    "__types": {
+      "group": "string",
+      "done": "boolean"
+    }
+  }
+]
