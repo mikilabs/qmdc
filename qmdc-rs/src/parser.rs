@@ -240,7 +240,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                                                                // so a SECOND table under the same heading can be reported instead of silently becoming prose.
                                                                                // Cleared at the next heading: a heading either opens an element (the table then belongs to that
                                                                                // element) or leaves the array altogether.
-    let mut array_table_consumed: Option<(String, String)> = None;
+    let mut array_table_consumed: Option<(String, String, u8)> = None;
 
     // Parser state
     let mut in_heading = false;
@@ -464,8 +464,6 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
 
         match event {
             Event::Start(Tag::Heading { level, .. }) => {
-                // QMD-70: a heading ends the container's own content — see the declaration.
-                array_table_consumed = None;
                 in_heading = true;
                 heading_text.clear();
                 heading_start_offset = range.start;
@@ -554,6 +552,36 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 }
 
                 let header = parse_header(&heading_text, &mut rng);
+
+                // QMD-70: an array fed by a TABLE cannot also take heading elements. A heading
+                // deeper than the array's own level would be such an element, but the array has
+                // already been built from the table, so the heading silently became a plain field on
+                // the parent and its declared Kind was dropped (`User` -> `__Object`). Report it.
+                //
+                // Only a heading that declares an OBJECT counts. One carrying a field type (`text`,
+                // `yaml`, `array`, ...) is a field on the parent, not an element, and is perfectly
+                // legal there — as is a heading at or above the array's own level, which is a
+                // sibling rather than an element.
+                //
+                // Checked here rather than at `Tag::Heading` because the header — and so its field
+                // type — is only known once the heading's text has been collected.
+                if let Some((ref pid, ref field, arr_level)) = array_table_consumed {
+                    if heading_level > arr_level && header.field_type.is_none() {
+                        let mut error = IndexMap::new();
+                        error.insert(
+                            "__id".to_string(),
+                            json!(format!("error_{}", parsing_errors.len())),
+                        );
+                        error.insert("__kind".to_string(), json!("__ParsingError"));
+                        error.insert("type".to_string(), json!("mixed_array"));
+                        error.insert("field".to_string(), json!(field));
+                        error.insert("object".to_string(), json!(format!("[[#{}]]", pid)));
+                        error.insert("line".to_string(), json!(heading_line));
+                        parsing_errors.push(error);
+                    }
+                }
+                // A heading ends the container's own content — see the declaration.
+                array_table_consumed = None;
 
                 // Pop objects from stack at same or deeper level
                 while !object_stack.is_empty() && object_stack.last().unwrap().1 >= heading_level {
@@ -2815,7 +2843,8 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // array ended up holding the same reference twice. Clearing it lets any
                     // following table fall through to the comment path and be preserved verbatim,
                     // the same treatment a table gets in any other prose position.
-                    array_table_consumed = Some((arr_parent_id.clone(), arr_field.clone()));
+                    array_table_consumed =
+                        Some((arr_parent_id.clone(), arr_field.clone(), *_arr_level));
                     pending_object_array = None;
                     table_rows.clear();
                     i += 1;
@@ -2831,7 +2860,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 //
                 // Same treatment as `table_in_array` and `ordered_list_in_array`: preserve the
                 // content verbatim in `__comments` for a lossless round trip and emit an error.
-                let extra_table_target = array_table_consumed.as_ref().filter(|(pid, _)| {
+                let extra_table_target = array_table_consumed.as_ref().filter(|(pid, _, _)| {
                     current_obj
                         .as_ref()
                         .map(|o| o.id == *pid)
@@ -2842,7 +2871,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                 .unwrap_or(false)
                         })
                 });
-                if let Some((ref err_parent, ref err_field)) = extra_table_target {
+                if let Some((ref err_parent, ref err_field, _)) = extra_table_target {
                     if !table_rows.is_empty() {
                         let table_md =
                             raw_table_slice(&block_tree.source, table_start_offset, range.end);

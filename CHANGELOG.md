@@ -32,6 +32,11 @@ file is maintained by hand.
   positional ids — so it is now reported instead of silently becoming the container's prose. This also
   removes a construct that could not be rebuilt faithfully under any anchor (QMD-70).
 
+- New `mixed_array` parsing error: an object array is written as a table OR as subheadings, not both.
+  A heading element after the array's table used to leave the array silently — it became a plain field
+  on the parent and its declared Kind was degraded to `__Object` — with nothing reported. A table
+  AFTER an element heading is still that element's own content (QMD-70).
+
 ### Fixed
 
 - A Markdown table written inside an object-array *element* is now that element's own content,

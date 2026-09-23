@@ -1,0 +1,20 @@
+{
+  "_comment": "QMD-70: an array built from a table cannot also take heading elements \u2014 the element leaves the array and its declared Kind is lost, so the editor must flag it. Surfacing is generic over __ParsingError, so no LSP change was needed.",
+  "diagnostics": [
+    {
+      "message": "mixed_array: field: members, object: [[#team]]",
+      "range": {
+        "start": {
+          "line": 10,
+          "character": 0
+        },
+        "end": {
+          "line": 10,
+          "character": 15
+        }
+      },
+      "severity": 1,
+      "code": "mixed_array"
+    }
+  ]
+}

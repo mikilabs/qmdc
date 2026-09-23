@@ -226,7 +226,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
   // so a SECOND table under the same heading can be reported instead of silently becoming prose.
   // Cleared at the next heading: a heading either opens an element (the table then belongs to that
   // element) or leaves the array altogether.
-  let arrayTableConsumed: [string, string] | null = null;
+  let arrayTableConsumed: [string, string, number] | null = null;
 
   // Track pending YAML field from [[field: yaml]] heading
   // [parent_id, field_name, field_label]
@@ -570,7 +570,26 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           pendingArrayField = null;
         }
 
-        // QMD-70: a heading ends the container's own content — see the declaration.
+        // QMD-70: an array fed by a TABLE cannot also take heading elements. A heading deeper than
+        // the array's own level would be such an element, but the array has already been built from
+        // the table, so the heading silently became a plain field on the parent and its declared
+        // Kind was dropped (`User` -> `__Object`). Report it.
+        //
+        // Only a heading that declares an OBJECT counts. One carrying a field type (`text`, `yaml`,
+        // `array`, ...) is a field on the parent, not an element, and is perfectly legal there — as
+        // is a heading at or above the array's own level, which is a sibling rather than an element.
+        if (arrayTableConsumed && level > arrayTableConsumed[2] && !header?.fieldType) {
+          parsingErrors.push({
+            __id: `error_${parsingErrors.length}`,
+            __kind: '__ParsingError',
+            type: 'mixed_array',
+            field: arrayTableConsumed[1],
+            object: `[[#${arrayTableConsumed[0]}]]`,
+            line: lineNum ?? null,
+          });
+        }
+
+        // A heading ends the container's own content — see the declaration.
         arrayTableConsumed = null;
 
         // Check if we're exiting an object array context
@@ -1912,7 +1931,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
       getCurrentObjectId() === pendingObjectArray[0]
     ) {
       // Table after [[field: [Kind]]] heading
-      const [arrParentId, arrField, arrKind] = pendingObjectArray;
+      const [arrParentId, arrField, arrKind, arrLevel] = pendingObjectArray;
       const parentObj = objects[arrParentId];
 
       if (parentObj) {
@@ -2001,7 +2020,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
         }
       }
 
-      arrayTableConsumed = [arrParentId, arrField];
+      arrayTableConsumed = [arrParentId, arrField, arrLevel];
       pendingObjectArray = null;
     } else if (
       token.type === 'table_open' &&

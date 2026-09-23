@@ -276,7 +276,7 @@ def parse(
     # consumed, so a SECOND table under the same heading can be reported instead of silently
     # becoming prose. Cleared at the next heading: a heading either opens an element (the table
     # then belongs to that element) or leaves the array altogether.
-    array_table_consumed: tuple[str, str] | None = None
+    array_table_consumed: tuple[str, str, int] | None = None
 
     # Track pending YAML field from [[field: yaml]] heading
     pending_yaml_field: tuple[str, str, str] | None = None  # (parent_id, field_name, label)
@@ -454,7 +454,32 @@ def parse(
                     comment_anchor = paf_field_name
                     pending_array_field = None
 
-                # QMD-70: a heading ends the container's own content — see the declaration.
+                # QMD-70: an array fed by a TABLE cannot also take heading elements. A heading
+                # deeper than the array's own level would be such an element, but the array has
+                # already been built from the table, so the heading silently became a plain field
+                # on the parent and its declared Kind was dropped (`User` -> `__Object`). Report it.
+                #
+                # Only a heading that declares an OBJECT counts. One carrying a field type
+                # (`text`, `yaml`, `array`, ...) is a field on the parent, not an element, and is
+                # perfectly legal there — as is a heading at or above the array's own level, which
+                # is a sibling rather than an element.
+                if (
+                    array_table_consumed
+                    and level > array_table_consumed[2]
+                    and not (header.get("field_type") if header else None)
+                ):
+                    parsing_errors.append(
+                        {
+                            "__id": f"error_{len(parsing_errors)}",
+                            "__kind": "__ParsingError",
+                            "type": "mixed_array",
+                            "field": array_table_consumed[1],
+                            "object": f"[[#{array_table_consumed[0]}]]",
+                            "line": line_num,
+                        }
+                    )
+
+                # A heading ends the container's own content — see the declaration.
                 array_table_consumed = None
 
                 # Check if we're exiting an object array context
@@ -1631,7 +1656,7 @@ def parse(
                 objects[obj_id] = obj
                 objects[arr_parent_id][arr_field].append(f"[[#{obj_id}]]")
 
-            array_table_consumed = (arr_parent_id, arr_field)
+            array_table_consumed = (arr_parent_id, arr_field, arr_level)
             pending_object_array = None
         elif (
             token.type == "table_open"
@@ -1647,7 +1672,7 @@ def parse(
             #
             # Same treatment as `table_in_array` and `ordered_list_in_array`: preserve the
             # content verbatim in `__comments` for a lossless round trip and emit an error.
-            parent_id_e, field_name_e = array_table_consumed
+            parent_id_e, field_name_e, _ = array_table_consumed
 
             scan_j = i + 1
             while scan_j < len(tokens) and tokens[scan_j].type != "table_close":

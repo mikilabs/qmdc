@@ -24,7 +24,8 @@ export interface WorkspaceError {
     | 'nested_subitems'
     | 'ordered_list_in_array'
     | 'table_in_array'
-    | 'extra_table_in_array';
+    | 'extra_table_in_array'
+    | 'mixed_array';
   message: string;
   file?: string;
   line?: number;

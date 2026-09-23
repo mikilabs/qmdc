@@ -349,6 +349,67 @@ Put every row in one table:
 | Bob   |
 ```
 
+## Mixed Array [[err_mixed_array: ValidationError]]
+
+An object array is fed by a table AND also has heading elements.
+
+- code: mixed_array
+- severity: error
+
+### Cause [[cause: text]]
+
+An object array is written in exactly one of two forms — a table, where each data row becomes an
+object, or subheadings, where each subheading becomes an object. Mixing them is not supported: once
+the array has been built from the table, a following element heading cannot join it, so it silently
+becomes a plain field on the parent and its declared Kind is lost.
+
+Note this fires only when the TABLE comes first. A table AFTER an element heading is that element's
+own content, which is valid — see the Arrays section.
+
+### Examples [[examples: text]]
+
+```markdown example
+## Team [[team: Group]]
+
+### Members [[members: [User]]]
+
+| name  |
+| ----- |
+| Alice |
+
+#### Bob [[bob]]
+
+- role: dev
+```
+
+Here `bob` does not join `members`: it becomes `team.bob`, a field on `team`, with its Kind degraded
+from `User` to `__Object`.
+
+### Solution [[solution: text]]
+
+Use one form for the whole array. Either put every element in the table:
+
+```markdown example
+### Members [[members: [User]]]
+
+| name  | role  |
+| ----- | ----- |
+| Alice |       |
+| Bob   | dev   |
+```
+
+Or write every element as a subheading:
+
+```markdown example
+### Members [[members: [User]]]
+
+#### Alice [[alice]]
+
+#### Bob [[bob]]
+
+- role: dev
+```
+
 ## Explicit System Type [[err_explicit_system_type: ValidationError]]
 
 Explicit declaration of a system type `__Document`, `__TextBlock`, or `__Object` in a heading.

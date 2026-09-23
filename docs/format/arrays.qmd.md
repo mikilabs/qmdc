@@ -120,7 +120,11 @@ one element.
 Only the FIRST table under an array heading feeds the array. A second table under the same heading
 describes nothing — its rows cannot extend the array, since they would collide on the generated
 positional ids — so it produces an `extra_table_in_array` error. Its content is still preserved
-verbatim in the container's `__comments`. To attach a table to an element deliberately and have it land in a named field,
+verbatim in the container's `__comments`.
+
+An array is written in ONE form, not both. Once it has been fed by a table, a following element
+heading cannot join it and produces a `mixed_array` error — it would otherwise become a plain field
+on the parent with its Kind silently dropped. To attach a table to an element deliberately and have it land in a named field,
 declare a text field for it (`#### Details [[details: text]]`) — text fields are covered in
 `docs/format/fields.qmd.md`.
 

@@ -787,6 +787,7 @@ done
 | `ordered_list_in_array` | Numbered list in heading-syntax array (bullet lists only) |
 | `table_in_array` | Markdown table under a primitive array field (use a bullet list, or declare an object array) |
 | `extra_table_in_array` | A second Markdown table under one object-array heading (only the first feeds the array) |
+| `mixed_array` | An object array fed by a table that also has heading elements (pick one form) |
 | `nested_subitems` | Nested lists `- key:\n  - item` (forbidden) |
 | `explicit_system_type` | Explicit declaration of `[[id: __Document]]` or `[[id: __TextBlock]]` |
 | `mixed_field_keys` | Mix of valid and invalid keys in one object |

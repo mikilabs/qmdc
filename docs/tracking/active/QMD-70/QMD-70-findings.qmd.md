@@ -752,6 +752,56 @@ comment saying so.
 corpus tripped on the rebuild motion, which no longer happens, so the microtest covers the shape and
 the CLI case was a duplicate input.
 
+## An array cannot be fed by a table AND heading elements [[qmd70_finding_mixed_array: Finding]]
+
+Triage question 1, left open because the corpus had no example either way. Measurement showed the
+behaviour is worse than the question assumed, and the operator decided it is an error. FIXED.
+
+- category: parser
+- related_to: [[#qmd70_finding_questions]], [[#qmd70_finding_extra_table]]
+- affected_files: [qmdc-py/qmdc/parser.py, qmdc-rs/src/parser.rs, qmdc-ts/src/parser.ts, qmdc-ts/src/workspace.ts, docs/format/validation-errors.qmd.md, docs/format/arrays.qmd.md, docs/guides/qmdc-guide.qmd.md]
+- solution: Fixed — new `mixed_array` error. Pinned by `tests/parser/226-mixed-array-table-then-heading`, with `227-element-then-table-is-element-content` pinning the valid neighbour, and `tests/lsp/microtests/diagnostics/037-mixed-array` covering the LSP and MCP.
+
+### What was actually happening [[qmd70_finding_mixed_array_detail: text]]
+
+- about: [[#qmd70_finding_mixed_array]]
+
+The triage described the mixed array as "expressible only as a side effect of this bug". It was worse
+than that. Measured on a `[User]` array fed by a table, followed by `#### Bob [[bob]]`, all three
+parsers agreed:
+
+- `bob` did NOT join `members`
+- it became a plain scalar field on the parent, `bob: "[[#team.bob]]"`
+- its Kind was degraded from the declared `User` to `__Object`
+- nothing was reported on any surface
+
+So an author who wrote a Kind got an object without it, and no warning. That is what made the
+decision easy.
+
+The rule is scoped tightly, and each boundary was measured across all three:
+
+| shape | result |
+| --- | --- |
+| **table, then an element heading** | **`mixed_array` error** |
+| element heading, then a table | the table is the element's content — valid, the main QMD-70 case |
+| two element headings, no table | valid |
+| table, then a `text` field heading | valid — a field on the parent, not an element |
+| table, then a heading at the array's own level | valid — a sibling, not an element |
+
+Two conditions therefore gate the error: the heading must be DEEPER than the array's own level, and
+it must carry no field type. The array's level had to be added to the state the
+[[#qmd70_finding_extra_table]] fix introduced, since the array context itself is already gone by
+then.
+
+The element's parse is left exactly as it is rather than being discarded. Nothing the author wrote
+disappears — they can still see the object — and the error names the problem. That differs from
+`table_in_array` and `ordered_list_in_array`, where the offending content is a list or a table with
+nowhere to go and is preserved as a comment instead.
+
+In Rust the check could not live where the existing flag is cleared (`Tag::Heading`), because the
+header — and therefore its field type — is only parsed at `TagEnd::Heading`. The clear moved there
+too.
+
 ## The suite is deliberately red [[qmd70_finding_red_suite: Finding]]
 
 Five failing tests were added ON PURPOSE, at the operator's instruction, to pin defects this task
@@ -820,13 +870,12 @@ closed the representation question by finding the precedent already in the corpu
    a diagnostic rather than silence. The corpus contains no example either way, so neither
    reading breaks a fixture.
 
-   **Answered by the implementation, for the case that matters.** With the array context scoped
-   to the container, a table after an element heading is inside that element and becomes its
-   comment content — so a mixed array is no longer expressible even by accident, and no
-   diagnostic is needed for it. What remains genuinely open is only the reverse order: a table
-   BEFORE any element heading, followed by element headings. That still converts, and the
-   elements are appended after the table's rows. Nothing pins it, and nothing in the corpus
-   writes it.
+   **Fully answered now.** With the array context scoped to the container, a table AFTER an element
+   heading is inside that element and becomes its comment content — valid, and the main case this
+   task fixed. The reverse order — a table first, then element headings — was measured and turned out
+   worse than described here: the element does NOT join the array, it becomes a plain field on the
+   parent with its Kind degraded from the declared one to `__Object`, silently. The operator decided
+   that is an error; see [[#qmd70_finding_mixed_array]].
 
 2. **Does prose between an array heading and its table break the connection?** Rust says no and
    still converts the table; Python and TypeScript say yes and treat both as comment content.
