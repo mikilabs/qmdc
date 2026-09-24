@@ -9,6 +9,10 @@ from markdown_it.token import Token
 _FIELD_PATTERN = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(.*)$", re.DOTALL)
 _INVALID_FIELD_LIKE_PATTERN = re.compile(r"^([^:]+):\s+(.*)$", re.DOTALL)
 _VALID_KEY_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+# QMD-71: the numeric grammar, decided for the format: an integer or a decimal, nothing else.
+# Everything that used to slip through Python's own `int()`/`float()` -- exponents, a leading or
+# trailing dot, a unary plus, digit separators -- is a string. Same pattern in all three parsers.
+_NUMBER_PATTERN = re.compile(r"^-?\d+(\.\d+)?$")
 
 
 def parse_yaml_array(value_str: str) -> tuple[list[Any], dict[str, str]]:
@@ -116,19 +120,11 @@ def parse_field_value(value_str: str) -> tuple[Any, str]:
     if value == "false":
         return False, "boolean"
 
-    # number (int or float)
-    # QMD-71: reject digit separators first. `int("1_000")` and `float("1_0.5")` accept
-    # underscores because that is PYTHON's numeric literal syntax, not anything QMD.md defines --
-    # Rust and TypeScript both read these as strings.
-    if "_" not in value:
-        try:
-            # Try int first
-            if "." not in value:
-                return int(value), "number"
-            # Then float
-            return float(value), "number"
-        except ValueError:
-            pass
+    # number (int or float) -- an integer or a decimal only, per _NUMBER_PATTERN
+    if _NUMBER_PATTERN.match(value):
+        if "." not in value:
+            return int(value), "number"
+        return float(value), "number"
 
     # string (default) - remove quotes if present
     if (value.startswith('"') and value.endswith('"')) or (

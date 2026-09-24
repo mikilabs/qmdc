@@ -434,6 +434,76 @@ new fixtures — so this is a decision about a construct the format does not def
 as QMD-70's four new error rules. `tests/parser/245` is committed RED against Python's output to hold the
 question open rather than let it be forgotten.
 
+## The numeric grammar, decided [[qmd71_finding_numbers: Finding]]
+
+Eight of the sweep's fifteen divergences were one family, and no two parsers agreed. The operator
+decided the rule: a number is an integer or a decimal, nothing else.
+
+- category: parser
+- priority: high
+- affected_files: [qmdc-rs/src/parser_modules/value_parser.rs, qmdc-py/qmdc/parsers/field.py, docs/format/types.qmd.md]
+- affected_functions: [parse_field_value, is_integer_or_decimal]
+- solution: All three now gate on `-?\d+(\.\d+)?`. TypeScript already did, so it became the reference.
+- test_plan: pinned by `tests/parser/248`
+
+### What each one accepted [[qmd71_finding_numbers_before: text]]
+
+- about: [[#qmd71_finding_numbers]]
+
+| value | rs | py | ts |
+| --- | --- | --- | --- |
+| `1e5` | number | string | string |
+| `1.5e-3` | number | **number** | string |
+| `2E3` | number | string | string |
+| `.5`, `5.` | number | number | string |
+| `+1`, `+1.5` | number | number | string |
+| `1_000` | string | **number** | string |
+
+Every cell that is not "string" is a host language showing through. Rust's `parse::<f64>` accepts
+exponents and a bare dot and `parse::<i64>` accepts a unary plus; Python's `int()` accepts digit
+separators and its `float()` accepts the rest. Python was also internally inconsistent — `1e5` was a
+string but `1.5e-3` a number, because the code only reached `float()` when the value contained a `.`.
+TypeScript alone had an explicit grammar, `^-?\d+(\.\d+)?$`, which is why it became the reference.
+
+Rust's check is hand-written rather than a regex: `parse_field_value` runs once per field, and
+compiling a regex there would too.
+
+### The specification promised the opposite [[qmd71_finding_numbers_spec: text]]
+
+- about: [[#qmd71_finding_numbers]]
+
+Worth recording, because this is a format CHANGE and not only an alignment. `docs/format/types.qmd.md`
+said "Integer, float, or scientific notation → Number" and gave `1.5e10` as an example. So the written
+format promised exponent support that **only Rust delivered** — Python delivered half of it and
+TypeScript none.
+
+Checked before changing it: scientific notation appears in exactly three field values across `docs/`
+and `tests/`, and all three are inside `tests/parser/248`, the fixture written for this decision. No
+real document relied on the promise, so nothing breaks. The spec now states the grammar it actually
+has, and lists every rejected form by name so the next reader does not have to rediscover which host
+language accepted what.
+
+### Still open: integers beyond 2^53 [[qmd71_finding_numbers_big: text]]
+
+- about: [[#qmd71_finding_numbers]]
+
+The grammar decision does not settle this, because a long run of digits IS an integer and the
+disagreement is about REPRESENTATION:
+
+| value | rs | py | ts |
+| --- | --- | --- | --- |
+| `9007199254740991` (2^53-1) | exact | exact | exact |
+| `9223372036854775807` (i64 max) | exact | exact | 9223372036854776000 |
+| `123456789012345678901234567890` | 1.2345678901234568e+29 | exact | 1.2345678901234568e+29 |
+
+TypeScript cannot hold an integer above 2^53-1 in a JSON number at all, so no choice makes all three
+agree AND keep the value. The options are to cap the numeric type at the safe-integer range and treat
+anything longer as a string — exact for every value, at the cost of a boundary borrowed from
+JavaScript — or to accept f64 precision loss everywhere, which would make Python start returning a
+rounded float where it currently returns the authored integer.
+
+Not fixed, and not in the `docs/` corpus, so it does not affect the parity gate.
+
 ## Open questions [[qmd71_finding_questions: Finding]]
 
 Three decisions were needed before the corresponding fixes. Two were answered by measurement rather

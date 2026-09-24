@@ -2,6 +2,25 @@
 
 use serde_json::{json, Value};
 
+/// QMD.md's numeric grammar: an optional `-`, one or more digits, and optionally a `.` followed by
+/// one or more digits. Equivalent to `^-?\d+(\.\d+)?$` in the Python and TypeScript parsers.
+///
+/// Deliberately REJECTS forms the host languages would otherwise accept: `1e5`, `1.5e-3`, `.5`,
+/// `5.`, `+1`, `1_000`, `0x10`, `Infinity`, `NaN`. Those are strings.
+fn is_integer_or_decimal(s: &str) -> bool {
+    let body = s.strip_prefix('-').unwrap_or(s);
+    let mut parts = body.splitn(2, '.');
+    let int_part = parts.next().unwrap_or("");
+    if int_part.is_empty() || !int_part.bytes().all(|b| b.is_ascii_digit()) {
+        return false;
+    }
+    match parts.next() {
+        None => true,
+        // A second `.` leaves a non-digit in `frac`, so `1.2.3` is rejected here.
+        Some(frac) => !frac.is_empty() && frac.bytes().all(|b| b.is_ascii_digit()),
+    }
+}
+
 /// Parse field value to appropriate JSON type
 pub fn parse_field_value(s: &str) -> (Value, &'static str) {
     let trimmed = s.trim();
@@ -64,15 +83,20 @@ pub fn parse_field_value(s: &str) -> (Value, &'static str) {
         return (json!(items), "array");
     }
 
-    // Try parse as integer
-    if let Ok(n) = trimmed.parse::<i64>() {
-        return (json!(n), "number");
-    }
-
-    // Try parse as float
-    if let Ok(f) = trimmed.parse::<f64>() {
-        if f.is_finite() {
-            return (json!(f), "number");
+    // QMD-71: an integer or a decimal only. `parse::<i64>` accepts a unary plus and
+    // `parse::<f64>` accepts exponents and a bare leading or trailing dot, none of which QMD.md
+    // defines -- so the grammar is checked FIRST and the parse only runs on a literal that matches.
+    // The same grammar lives in Python and TypeScript as the regex `^-?\d+(\.\d+)?$`; this is a
+    // hand-written equivalent because `parse_field_value` runs once per field and compiling a
+    // regex here would do so too.
+    if is_integer_or_decimal(trimmed) {
+        if let Ok(n) = trimmed.parse::<i64>() {
+            return (json!(n), "number");
+        }
+        if let Ok(f) = trimmed.parse::<f64>() {
+            if f.is_finite() {
+                return (json!(f), "number");
+            }
         }
     }
 
