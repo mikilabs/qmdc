@@ -243,8 +243,23 @@ Closed 3 more documents. Parity baseline 28 → 25.
 Content following a `text` field heading must anchor on that field, not on the preceding object. Covers
 the 20 plain cases and the 3 where Rust additionally loses the field's `__syntax` and `__types`.
 
+**Done (2026-09-24).** Two bugs in one branch, and the second explains the "stronger form" the triage
+counted separately.
+
+`comment_anchor` lives on Rust's in-flight `CurrentObject`. When a `text` field is declared on a
+parent that has already been finalized into `objects_map` there was nowhere to record it, so following
+content fell back to "the last field that references a child" — which picks the preceding OBJECT. Rust
+now remembers `(parent_id, field_name)` for that case, and the in-flight branch clears it when it takes
+the anchoring back.
+
+The same branch also wrote `__types` and `__syntax` only when those maps ALREADY existed, so a text
+field on a parent whose other fields are plain scalars got its value and no metadata. That is the
+3-document variant; it was one missing `or_insert_with`, not a separate cause.
+
+Closed 13 documents — parity baseline 25 → 12.
+
 - group: B_anchor
-- done: false
+- done: true
 
 #### B2: One reach rule for nested list items [[qmd71_goal_b2]]
 

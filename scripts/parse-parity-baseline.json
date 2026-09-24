@@ -3,19 +3,9 @@
   "corpora": [
     "docs"
   ],
-  "max_divergent": 25,
+  "max_divergent": 12,
   "known_divergent": {
-    "docs/guides/query-graph.qmd.md": "py+ts vs rs",
-    "docs/guides/readme.qmd.md": "py+ts vs rs",
-    "docs/guides/small-workspace.qmd.md": "py+ts vs rs",
-    "docs/guides/validate-document.qmd.md": "py+ts vs rs",
-    "docs/guides/vscode.qmd.md": "py+ts vs rs",
-    "docs/learn/human-machine-readable.qmd.md": "py+ts vs rs",
-    "docs/learn/markdown-to-graph.qmd.md": "py+ts vs rs",
     "docs/learn/qmd-md-vs-quarto.qmd.md": "py+ts vs rs",
-    "docs/learn/qmdc-for-agents.qmd.md": "py+ts vs rs",
-    "docs/learn/readme.qmd.md": "py+ts vs rs",
-    "docs/learn/why-qmdc.qmd.md": "py+ts vs rs",
     "docs/semantic/configuration.qmd.md": "py+ts vs rs",
     "docs/semantic/readme.qmd.md": "py+ts vs rs",
     "docs/semantic/storage.qmd.md": "py+ts vs rs",
@@ -26,9 +16,6 @@
     "docs/tracking/quickfix.sop.qmd.md": "py+ts vs rs",
     "docs/tracking/readme.qmd.md": "py+ts vs rs",
     "docs/tracking/screenshots-temp.qmd.md": "py+ts vs rs",
-    "docs/tracking/workflow.sop.qmd.md": "py+ts vs rs",
-    "docs/tutorials/first-file.qmd.md": "py+ts vs rs",
-    "docs/tutorials/quickstart.qmd.md": "py+ts vs rs",
-    "docs/tutorials/readme.qmd.md": "py+ts vs rs"
+    "docs/tracking/workflow.sop.qmd.md": "py+ts vs rs"
   }
 }

@@ -269,6 +269,12 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                                                                // Cleared at the next heading: a heading either opens an element (the table then belongs to that
                                                                                // element) or leaves the array altogether.
     let mut array_table_consumed: Option<(String, String, u8)> = None;
+    // QMD-71: (parent_id, field_name) of a heading-declared field whose parent is NOT the in-flight
+    // object. `comment_anchor` lives on `CurrentObject`, so for a parent already finalized into
+    // `objects_map` there was nowhere to record it, and following content fell back to "the last
+    // field that references a child" — which picks the preceding OBJECT. Cleared as soon as an
+    // in-flight object takes over the anchoring again.
+    let mut map_parent_field_anchor: Option<(String, String)> = None;
 
     // Parser state
     let mut in_heading = false;
@@ -1286,6 +1292,16 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // Get the comment anchor from current_obj or determine from parent
                     let comment_anchor = if let Some(ref obj) = current_obj {
                         obj.comment_anchor.clone()
+                    } else if let Some((ref apid, ref afield)) = map_parent_field_anchor
+                        .clone()
+                        .filter(|(apid, _)| Some(apid) == parent_id.as_ref())
+                    {
+                        // QMD-71: a heading declared a field on this parent, so content after it
+                        // belongs to that FIELD. Without this the fallback below picked the last
+                        // field referencing a child — the preceding OBJECT — which is what made 20
+                        // of the 32 divergent documents differ from Python and TypeScript.
+                        let _ = apid;
+                        afield.clone()
                     } else if let Some(ref pid) = parent_id {
                         // current_obj was finalized (child popped from stack).
                         // Find which field on the parent references the last popped child
@@ -1590,6 +1606,9 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         obj.syntax
                             .insert(header.id.clone(), "multiline_text".to_string());
                         obj.comment_anchor = header.id.clone();
+                        // QMD-71: the in-flight object carries the anchor itself now, so drop any
+                        // field remembered for a map-resident parent.
+                        map_parent_field_anchor = None;
 
                         // Add position for text field (for LSP outline)
                         let line_text = lines.get(heading_line as usize - 1).unwrap_or(&"");
@@ -1602,16 +1621,26 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             .or_default()
                             .insert(header.id.clone(), header.label.clone());
                     } else if let Some(parent_obj) = objects_map.get_mut(&parent) {
+                        // QMD-71: remember the field so content after this heading anchors on it.
+                        map_parent_field_anchor = Some((parent.clone(), header.id.clone()));
                         parent_obj.insert(header.id.clone(), json!(field_value));
-                        if let Some(types) = parent_obj.get_mut("__types") {
-                            if let Some(types_map) = types.as_object_mut() {
-                                types_map.insert(header.id.clone(), json!("string"));
-                            }
+                        // QMD-71: create `__types` / `__syntax` when absent. These used to be
+                        // written only if the maps ALREADY existed, so a text field declared on a
+                        // parent whose other fields are plain scalars got its value but no metadata
+                        // — Python and TypeScript always record `multiline_text` here. The
+                        // in-flight branch above never had the problem, because `obj.syntax` is a
+                        // map that is always present.
+                        let types = parent_obj
+                            .entry("__types".to_string())
+                            .or_insert_with(|| json!({}));
+                        if let Some(types_map) = types.as_object_mut() {
+                            types_map.insert(header.id.clone(), json!("string"));
                         }
-                        if let Some(syntax) = parent_obj.get_mut("__syntax") {
-                            if let Some(syntax_map) = syntax.as_object_mut() {
-                                syntax_map.insert(header.id.clone(), json!("multiline_text"));
-                            }
+                        let syntax = parent_obj
+                            .entry("__syntax".to_string())
+                            .or_insert_with(|| json!({}));
+                        if let Some(syntax_map) = syntax.as_object_mut() {
+                            syntax_map.insert(header.id.clone(), json!("multiline_text"));
                         }
 
                         // Add position for text field (for LSP outline)
