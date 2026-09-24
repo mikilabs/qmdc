@@ -41,6 +41,13 @@ file is maintained by hand.
   on the parent and its declared Kind was degraded to `__Object` — with nothing reported. A table
   AFTER an element heading is still that element's own content (QMD-70).
 
+- `make validate-compare` now also compares the FULL `parse` output of the three parsers over the
+  real `docs/` corpus, not just their validation-error lists. The first run found that 32 of 108
+  documents parse differently between parsers — a surface the old comparison could not see, and the
+  reason two divergences in this release were found by review rather than by CI. It runs as a ratchet
+  against `scripts/parse-parity-baseline.json`: new divergences fail, known ones may only shrink, and
+  `make parse-parity-baseline` re-records the count (QMD-70).
+
 ### Changed
 
 - **Four constructs that previously parsed silently are now validation errors**, so
