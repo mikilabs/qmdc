@@ -6,7 +6,7 @@ A Markdown table written as ordinary content inside an object-array ELEMENT is n
 mistaken for more rows of the array. The element keeps its explicit id and its fields, the table
 is carried as the element's comment content, and the three parsers agree on every shape.
 
-All six goals are complete. `make test` is green end to end: **3396 cases, 0 failures**.
+All six goals are complete. `make test` is green end to end: **3525 cases, 0 failures**.
 
 - feature: [[#qmd70_table_scope]]
 - files_changed: [qmdc-rs/src/parser.rs, qmdc-py/qmdc/parser.py, qmdc-ts/src/parser.ts, docs/format/arrays.qmd.md]
@@ -45,7 +45,7 @@ compares validation errors rather than ids.
 
 - about: [[#qmd70_result]]
 
-`make test`: 3396 cases, 0 failures, including cross-parser validation comparison, markdownlint
+`make test`: 3525 cases, 0 failures, including cross-parser validation comparison, markdownlint
 and the guide token budget.
 
 Eight regression cases were written before the fix and now pass: the four shapes of the
@@ -119,6 +119,31 @@ Documentation carried a claim this work falsifies: `docs/parsers/commands.qmd.md
 `parse | rebuild` "restores the original document". It is qualified now, naming both shapes where
 the layout shifts while the graph stays identical. `docs/format/arrays.qmd.md` also gained the rule
 that only the first table under an array heading feeds it.
+
+### Four new format rules, and what they cost [[qmd70_result_rules: text]]
+
+- about: [[#qmd70_result]]
+
+The task grew well past its triage. Four constructs were found to have no defined meaning in the
+format, each mishandled differently by the three parsers and each silently losing or mangling data.
+The operator decided all four are errors, and each was verified to occur NOWHERE in the repository
+outside the fixtures written for it, so no existing document could have depended on the old reading:
+
+| error | the construct |
+| --- | --- |
+| `table_in_array` | a table under a primitive array field — a primitive array holds scalars, a table has columns, no mapping exists |
+| `extra_table_in_array` | a SECOND table under one object-array heading — its rows would collide on the generated ids |
+| `mixed_array` | a heading element after the array was already fed by a table — the element left the array and its declared Kind was degraded |
+| `block_in_inline_field` | an indented block under an inline field that has a value — an inline field holds a scalar and has no content of its own |
+
+Each costs the same: three parsers, four surfaces (parse, `workspace validate`, LSP, MCP — all
+generic over `__ParsingError`, so no surface code changed), and five documentation files plus
+`make guide-sync`.
+
+Making them errors dissolved two problems rather than working around them. `extra_table_in_array`
+removed content that `rebuild` could not place under any anchor, and the mechanism is the corpus's own
+rule: both microtest harnesses skip the round-trip check for a document with parsing errors.
+`block_in_inline_field` replaced three different manglings with one message.
 
 ### Out of scope [[qmd70_result_scope: text]]
 

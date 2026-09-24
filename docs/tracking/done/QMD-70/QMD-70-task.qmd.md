@@ -18,7 +18,7 @@ ones labelled after the table's first column. The two tasks share nothing but th
 was found in — different code path, different symptom, different fix — so this one is tracked
 separately even though both land on the same branch.
 
-- status: in_progress
+- status: done
 - priority: high
 - category: parser
 - related_task: [[#qmd69_cross_ws_refs]], [[#qmd66_dot_notation_discrepancies]]
