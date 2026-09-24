@@ -1861,7 +1861,14 @@ def parse(
                                     scan_tok.map[0] if scan_tok.map else content_end_line
                                 )
                                 break
-                        # Nested heading without [[id]] - include in comment
+                        # QMD-71: a nested heading WITHOUT [[id]] is a comment heading, and the
+                        # format says it groups with the content BELOW it ("they and all content
+                        # below them", docs/format/comments.qmd.md). Swallowing it here also
+                        # advanced the token index past it, so the comment-heading handler never
+                        # saw it and the heading was glued to the text ABOVE instead. Stop, and
+                        # let that handler slice from the heading.
+                        content_end_line = scan_tok.map[0] if scan_tok.map else content_end_line
+                        break
 
                     # Stop at field list (only at top level)
                     # Check FIRST item - if field, whole list is field list

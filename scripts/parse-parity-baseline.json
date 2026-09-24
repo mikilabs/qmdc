@@ -3,19 +3,11 @@
   "corpora": [
     "docs"
   ],
-  "max_divergent": 12,
+  "max_divergent": 4,
   "known_divergent": {
-    "docs/learn/qmd-md-vs-quarto.qmd.md": "py+ts vs rs",
-    "docs/semantic/configuration.qmd.md": "py+ts vs rs",
-    "docs/semantic/readme.qmd.md": "py+ts vs rs",
-    "docs/semantic/storage.qmd.md": "py+ts vs rs",
-    "docs/semantic/testing.qmd.md": "py+ts vs rs",
-    "docs/testing/readme.qmd.md": "py+ts vs rs",
     "docs/tracking/active/QMD-71/QMD-71-task.qmd.md": "rs+py vs ts",
     "docs/tracking/done/QMD-69/QMD-69-task.qmd.md": "py+ts vs rs",
     "docs/tracking/quickfix.sop.qmd.md": "py+ts vs rs",
-    "docs/tracking/readme.qmd.md": "py+ts vs rs",
-    "docs/tracking/screenshots-temp.qmd.md": "py+ts vs rs",
-    "docs/tracking/workflow.sop.qmd.md": "py+ts vs rs"
+    "docs/tracking/screenshots-temp.qmd.md": "py+ts vs rs"
   }
 }

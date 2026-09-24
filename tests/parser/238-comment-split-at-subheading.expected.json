@@ -6,11 +6,11 @@
     "__comments": [
       {
         "after": "f",
-        "content": "First para.\n\n### Sub heading"
+        "content": "First para."
       },
       {
         "after": "f",
-        "content": "Second para."
+        "content": "### Sub heading\n\nSecond para."
       }
     ],
     "f": 1,

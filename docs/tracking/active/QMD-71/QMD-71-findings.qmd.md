@@ -198,7 +198,7 @@ fixed — not by classification and not by writing a regression. Rust is the out
 - priority: medium
 - affected_files: [qmdc-rs/src/parser.rs]
 - affected_functions: [parse, "Event::End(TagEnd::Paragraph)"]
-- solution: Rust ends a comment block at a nested heading; Python and TypeScript carry the heading into the preceding comment and start a new one at the paragraph AFTER it. Align Rust with them.
+- solution: Align Python and TypeScript with Rust, which matches the written format. Both already had a comment-heading handler that groups correctly; the paragraph run swallowed the heading and advanced the token index past it, so that handler never ran.
 - test_plan: pinned by `tests/parser/238-comment-split-at-subheading`
 
 ### The shape [[qmd71_finding_split_detail: text]]
@@ -224,9 +224,32 @@ All three produce two comments, and both anchor them on `f`, but they cut in dif
 | rs | `First para.` | `### Sub heading` + `Second para.` |
 | py, ts | `First para.` + `### Sub heading` | `Second para.` |
 
-Nothing is lost either way, so this one is purely about where the boundary falls — which makes it the
-mildest of the seven and the one most likely to be decided by "two out of three" rather than by
-principle.
+Nothing is lost either way, so this one looked like the mildest of the seven and the one most likely to
+be settled by "two out of three".
+
+It was settled by the specification instead, and it went AGAINST the majority.
+
+`docs/format/comments.qmd.md` already says what a comment heading does: *"comment headings — they and
+all content below them (until the next structural boundary) become part of `__comments`"*. Below them.
+That is Rust's reading, and the same page's boundary list does not include a deeper bare heading at
+all — the listed boundaries are a heading at the same or higher level, a heading with `[[field_id]]`, a
+field list, and end of document.
+
+The confirmation is that Python and TypeScript contradicted THEMSELVES. Raise the same heading by one
+level, to the object's own level, and all three group it with the text below:
+
+| heading level | rs | py | ts |
+| --- | --- | --- | --- |
+| same as the object | heading + text below | same | same |
+| deeper (this case) | heading + text below | heading joined to text ABOVE | same as py |
+
+One construct, two different answers inside one parser, decided by a level that changes nothing about
+what the heading means. So this was a defect in two parsers, not a dialect, and the majority was wrong.
+
+The operator's principle settled the same way from the other end: a heading becomes a field or an
+object when it can, and comments are what is left over. A bare heading has no id to key on, so it can
+never be a field or an object — verified in all three parsers, inside an object and at top level
+alike — which leaves it a comment, and a heading introduces what follows it.
 
 ### Why it took three passes to see [[qmd71_finding_split_why: text]]
 

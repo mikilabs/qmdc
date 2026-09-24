@@ -2404,7 +2404,13 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
                 break;
               }
             }
-            // Nested heading without [[id]] - include in comment
+            // QMD-71: a nested heading WITHOUT [[id]] is a comment heading, and the format says
+            // it groups with the content BELOW it ("they and all content below them",
+            // docs/format/comments.qmd.md). Swallowing it here also advanced the token index past
+            // it, so the comment-heading handler never saw it and the heading was glued to the
+            // text ABOVE instead. Stop, and let that handler slice from the heading.
+            contentEndLine = scanTok.map ? scanTok.map[0] : contentEndLine;
+            break;
           }
 
           // Stop at field list (only at top level)

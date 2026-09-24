@@ -296,12 +296,23 @@ siblings without a raw-slice path — the two below it already had one. Added it
 
 #### B4: One comment boundary at a sub-heading [[qmd71_goal_b4]]
 
-Rust ends a comment block at a nested heading; Python and TypeScript carry the heading into the
-preceding comment. Nothing is lost either way, so this is purely where the boundary falls — see
+All three must agree where a comment block ends at a nested bare heading — see
 [[#qmd71_finding_split]]. Found by re-measuring after B2 and B3, not by classification.
 
+**Done (2026-09-24), and it went against the majority.** `docs/format/comments.qmd.md` already says a
+comment heading takes "all content below them", which is Rust's reading, and its boundary list does not
+include a deeper bare heading. Python and TypeScript also contradicted themselves: the same heading one
+level shallower groups the other way in both.
+
+For the third time in this task the correct code already existed and was unreachable. Both parsers have
+a comment-heading handler that slices from the heading — the same shape as Rust's. The paragraph run
+swallowed the heading and advanced the token index past it, so the handler never saw the token and the
+heading ended up glued to the text ABOVE. One `break` in each makes it reachable.
+
+Closed 8 documents — parity baseline 12 → 4.
+
 - group: B_anchor
-- done: false
+- done: true
 
 #### C1: A regression per cause, plus a valid neighbour per fix [[qmd71_goal_c1]]
 
