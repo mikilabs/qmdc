@@ -412,12 +412,13 @@ collides with QMD.md's own reference syntax), math, definition lists, superscrip
 defined by the format. The sweep found no divergence from those, so they are left alone, but the flag
 choice is recorded here because "all extensions the library offers" is not a specification.
 
-### Link reference definitions: an architectural difference [[qmd71_finding_reflink: text]]
+### Link reference definitions, closed [[qmd71_finding_reflink: text]]
 
 - about: [[#qmd71_finding_sweep]]
 
-The one sweep finding NOT fixed, because it is not a bug in one parser — it is a difference in how two
-of them slice comments at all, and the honest options have real costs.
+The last one fixed, and it turned out far smaller than the architectural change I had described. The
+operator chose to align with Python — keep the definitions — and measuring the two failing parsers
+separately showed they were failing for DIFFERENT reasons, each with a contained fix.
 
 Neither `pulldown-cmark` nor `markdown-it` emits an event for `[d]: https://example.com/d`: both consume
 the definition into a link map. Python keeps it anyway because Python slices a comment by LINE RANGE, to
@@ -425,14 +426,32 @@ the next structural boundary, so anything between is preserved whether or not th
 Rust and TypeScript slice per EVENT, so an unreported construct simply vanishes.
 
 Python's behaviour is the one the format describes — "the raw markdown fragment", parser "does not
-interpret" — and the other two lose the definition, which makes every reference link in that comment
-unresolvable. But aligning them means changing how comment slices are bounded in two parsers, which is
-exactly the machinery this task spent eleven causes stabilising.
+interpret" — and the other two lost the definition, which made every reference link in that comment
+unresolvable. The cost was visible in a round trip: rebuilding from Rust's output produced a document
+whose `[d]` and `[m]` labels pointed at nothing, so they would render as literal text.
 
-Neither construct occurs anywhere in the repository's `.qmd.md` files — the only occurrences are these
-new fixtures — so this is a decision about a construct the format does not define, in the same category
-as QMD-70's four new error rules. `tests/parser/245` is committed RED against Python's output to hold the
-question open rather than let it be forgotten.
+**Measuring first is what made this cheap.** I had assumed both parsers needed the same broad change.
+They did not:
+
+| shape | py | rs before | ts before |
+| --- | --- | --- | --- |
+| para, definition, then more content | keeps it | drops it | **keeps it** |
+| para, definition, end of document | keeps it | drops it | drops it |
+
+TypeScript was already right whenever anything followed the definition. Its comment scan extends the end
+line token by token, so it only failed when the scan ran out of tokens — at which point it stopped at the
+last token's line instead of the end of the document. One `if` after the loop, and the comment-heading
+path above it already defaulted to `lineCount` for exactly this reason.
+
+Rust failed always, because its paragraph comment sliced to the paragraph's own `range.end`. It now
+slices to the NEXT EVENT's start, which is the precise statement of the rule: anything the event stream
+does not account for is content the tokenizer swallowed, and Python keeps it. A gap holding only a blank
+line is removed by the existing `trim`, so nothing else changed — and that is why this did not disturb
+the fence and thematic-break boundary rules fixed earlier in the same arm.
+
+Pinned by `tests/parser/245` (definitions at end of document, two of them) and
+`tests/parser/252` (a definition followed by a paragraph, and again inside a nested object, so both
+branches are covered). The round trip is now byte-identical to the source in all three.
 
 ## The numeric grammar, decided [[qmd71_finding_numbers: Finding]]
 

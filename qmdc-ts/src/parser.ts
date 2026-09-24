@@ -2490,6 +2490,16 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           scanIdx++;
         }
 
+        // QMD-71: the scan ran out of tokens without finding a boundary, so nothing structural
+        // follows and the comment runs to the end of the document. This matters because some
+        // constructs produce NO tokens: markdown-it consumes a link reference definition
+        // (`[d]: https://…`) into its link map, so ending at the last token's line dropped those
+        // lines and left the `[d]` labels in the text pointing at nothing. The comment-heading path
+        // above already defaults to `lineCount` for the same reason.
+        if (scanIdx >= tokens.length) {
+          contentEndLine = blockTree ? blockTree.lineCount : contentEndLine;
+        }
+
         // Extract raw slice
         let rawContent = blockTree.getLinesRaw(paraStartLine, contentEndLine).trim();
 

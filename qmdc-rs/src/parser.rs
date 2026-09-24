@@ -4097,8 +4097,20 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 // its alt text (its markup lost outright) and an autolink `<url>` was rewritten as
                 // `[url](url)`. Slice the source instead, as the text-field and blockquote paths
                 // already do; `text` stays for the non-comment uses below.
+                //
+                // The slice runs to the NEXT EVENT's start, not to this paragraph's end, because
+                // some constructs produce no events at all: `pulldown-cmark` consumes a link
+                // reference definition (`[d]: https://…`) into its link map, so slicing to
+                // `range.end` dropped those lines and left the `[d]` labels in the text pointing at
+                // nothing. Anything the event stream does not account for is content Python keeps,
+                // and the `trim` means a gap that holds only a blank line changes nothing.
+                let next_event_start = events
+                    .get(i + 1)
+                    .map(|(_, r)| r.start)
+                    .unwrap_or(markdown.len())
+                    .max(range.end);
                 let raw_text = markdown
-                    .get(paragraph_start_offset..range.end)
+                    .get(paragraph_start_offset..next_event_start)
                     .unwrap_or("")
                     .trim()
                     .to_string();

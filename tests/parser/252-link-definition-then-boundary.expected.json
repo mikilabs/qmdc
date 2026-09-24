@@ -1,0 +1,42 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "S",
+    "__comments": [
+      {
+        "after": "f",
+        "content": "First para with [a link][d].\n\n[d]: https://example.com/d"
+      },
+      {
+        "after": "f",
+        "content": "Second para after the definition."
+      }
+    ],
+    "f": 1,
+    "nested": "[[#s.nested]]",
+    "__types": {
+      "f": "number"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "s.nested",
+    "__local_id": "nested",
+    "__label": "Nested",
+    "__kind": "N",
+    "__parent": "[[#s]]",
+    "__parent_field": "nested",
+    "__comments": [
+      {
+        "after": "g",
+        "content": "Para in the child with [another][m].\n\n[m]: https://example.com/m"
+      }
+    ],
+    "g": 2,
+    "__types": {
+      "g": "number"
+    },
+    "__level": 3
+  }
+]
