@@ -32,6 +32,13 @@ file is maintained by hand.
   positional ids — so it is now reported instead of silently becoming the container's prose. This also
   removes a construct that could not be rebuilt faithfully under any anchor (QMD-70).
 
+- New `block_in_inline_field` parsing error: an indented table, list, paragraph, quote or fence under
+  an inline field that already has a value. An inline field holds a scalar and has no content of its
+  own, so the block belonged to nothing — and each parser mangled it differently: Rust glued prose
+  and quote text into the field's VALUE and lost the field entirely for an indented list, while
+  Python and TypeScript reduced every block to bullet items. The content is now preserved in
+  `__comments`, dedented and anchored on the field. YAML multiline (`- key: |`) is unaffected — there
+  the indented block IS the value (QMD-70).
 - New `mixed_array` parsing error: an object array is written as a table OR as subheadings, not both.
   A heading element after the array's table used to leave the array silently — it became a plain field
   on the parent and its declared Kind was degraded to `__Object` — with nothing reported. A table

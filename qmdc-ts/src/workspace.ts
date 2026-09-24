@@ -25,7 +25,8 @@ export interface WorkspaceError {
     | 'ordered_list_in_array'
     | 'table_in_array'
     | 'extra_table_in_array'
-    | 'mixed_array';
+    | 'mixed_array'
+    | 'block_in_inline_field';
   message: string;
   file?: string;
   line?: number;

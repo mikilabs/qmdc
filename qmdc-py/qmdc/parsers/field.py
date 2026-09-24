@@ -157,6 +157,9 @@ def parse_fields_from_list(
     syntax: dict[str, str] = {}
     invalid_items: list[dict[str, Any]] = []
     nested_subitems_errors: list[dict[str, Any]] = []
+    # QMD-70: fields with a NON-empty value followed by an indented block.
+    # {"key": str, "line": int, "content": str}
+    block_in_field_errors: list[dict[str, Any]] = []
     i = start_idx
 
     # Pattern: `- key: value` or `- key:value` (with DOTALL for multiline values)
@@ -384,6 +387,77 @@ def parse_fields_from_list(
                             del types[key]
                         i = lookahead
                         continue
+
+                # QMD-70: a field with a NON-EMPTY value followed by an indented BLOCK.
+                #
+                # `nested_subitems` above covers the empty-value form (`- key:` then indented
+                # items). This is the other one: `- key: value`, a blank line, then an indented
+                # table / list / paragraph / quote / fence. An inline field holds a scalar and has
+                # no content of its own, so the block belongs to nothing — and all three parsers
+                # mangled it differently, each applying whichever nearby rule it had. Python and
+                # TypeScript turned every block into list items (a table became its cell texts, a
+                # paragraph gained a `- ` prefix); Rust appended prose straight into the field's
+                # value with no separator (`something` + `quoted` = `somethingquoted`) and lost the
+                # field entirely for an indented list.
+                #
+                # Keep the field, preserve the block verbatim (dedented) as a comment anchored on
+                # the field, and report it — the shape `table_in_array` and `ordered_list_in_array`
+                # already use.
+                if value_str != "" and i + 1 < len(tokens):
+                    lookahead = i + 1
+                    while lookahead < len(tokens) and tokens[lookahead].type == "paragraph_close":
+                        lookahead += 1
+                    block_openers = (
+                        "table_open",
+                        "bullet_list_open",
+                        "ordered_list_open",
+                        "blockquote_open",
+                        "paragraph_open",
+                        "fence",
+                        "hr",
+                    )
+                    if lookahead < len(tokens) and tokens[lookahead].type in block_openers:
+                        block_tok = tokens[lookahead]
+                        block_line = (block_tok.map[0] + 1) if block_tok.map else current_line
+                        # Raw slice of the block, with the list indentation removed so the three
+                        # parsers agree regardless of how each one reaches the text.
+                        raw_block = ""
+                        if block_tree is not None and block_tok.map:
+                            raw_block = block_tree.get_lines_raw(block_tok.map[0], block_tok.map[1])
+                            block_lines = raw_block.split("\n")
+                            indents = [
+                                len(ln) - len(ln.lstrip()) for ln in block_lines if ln.strip()
+                            ]
+                            if indents:
+                                strip_n = min(indents)
+                                block_lines = [
+                                    ln[strip_n:] if len(ln) >= strip_n else ln for ln in block_lines
+                                ]
+                            raw_block = "\n".join(block_lines).strip()
+                        # Skip past the whole block
+                        closer = (
+                            block_tok.type.replace("_open", "_close")
+                            if block_tok.type.endswith("_open")
+                            else None
+                        )
+                        if closer:
+                            depth = 0
+                            while lookahead < len(tokens):
+                                if tokens[lookahead].type == block_tok.type:
+                                    depth += 1
+                                elif tokens[lookahead].type == closer:
+                                    depth -= 1
+                                    if depth == 0:
+                                        lookahead += 1
+                                        break
+                                lookahead += 1
+                        else:
+                            lookahead += 1
+                        block_in_field_errors.append(
+                            {"key": key, "line": block_line, "content": raw_block}
+                        )
+                        i = lookahead
+                        continue
             else:
                 # Not a valid field - check if it looks like a field with invalid key
                 invalid_match = invalid_field_like_pattern.match(first_line)
@@ -417,7 +491,15 @@ def parse_fields_from_list(
         # Unknown token, skip
         i += 1
 
-    return fields, types, syntax, invalid_items, i, nested_subitems_errors
+    return (
+        fields,
+        types,
+        syntax,
+        invalid_items,
+        i,
+        nested_subitems_errors,
+        block_in_field_errors,
+    )
 
 
 def parse_array_items_from_list(tokens: list[Token], start_idx: int) -> tuple[list[Any], int]:

@@ -789,6 +789,7 @@ done
 | `extra_table_in_array` | A second Markdown table under one object-array heading (only the first feeds the array) |
 | `mixed_array` | An object array fed by a table that also has heading elements (pick one form) |
 | `nested_subitems` | Nested lists `- key:\n  - item` (forbidden) |
+| `block_in_inline_field` | An indented block under a field that already has a value (YAML multiline `- key: \|` is fine) |
 | `explicit_system_type` | Explicit declaration of `[[id: __Document]]` or `[[id: __TextBlock]]` |
 | `mixed_field_keys` | Mix of valid and invalid keys in one object |
 | `invalid_id_character` | Dot in a NESTED heading's explicit ID (dot-IDs are legal only on top-level headings) |

@@ -635,6 +635,73 @@ Remove all content except the bullet list with `key: value` pairs:
 - port: 8080
 ```
 
+## Block In Inline Field [[err_block_in_inline_field: ValidationError]]
+
+An indented block follows an inline field that already has a value.
+
+- code: block_in_inline_field
+- severity: error
+
+### Cause [[cause: text]]
+
+An inline field (`- key: value`) holds a scalar. It has no content of its own, so an indented table,
+list, paragraph, quote or fence placed under it belongs to nothing — the format defines no meaning
+for it.
+
+This is the sibling of `nested_subitems`, which covers the EMPTY-value form (`- key:` followed by
+indented items). Here the value is present and the block follows it.
+
+Not to be confused with YAML multiline (`- key: |` or `- key: >`), where the indented block IS the
+field's value. That is valid and is not reported.
+
+The block content is preserved in `__comments`, anchored on the field and with its indentation
+removed, for lossless round-trip; the parser generates an error.
+
+### Examples [[examples: text]]
+
+```markdown example
+## P [[p: G]]
+
+- lead: Ann
+
+- note: something
+
+  | ic |
+  |----|
+  | x |
+```
+
+### Solution [[solution: text]]
+
+If the block belongs to the object, put it outside the field list:
+
+```markdown example
+## P [[p: G]]
+
+- lead: Ann
+- note: something
+
+| ic |
+|----|
+| x  |
+```
+
+If it belongs to the field, declare a heading-syntax text field instead:
+
+```markdown example
+## P [[p: G]]
+
+- lead: Ann
+
+### Note [[note: text]]
+
+something
+
+| ic |
+|----|
+| x  |
+```
+
 ## Nested Subitems [[err_nested_subitems: ValidationError]]
 
 A nested list under an inline field (`- key:` followed by indented `- item` lines).

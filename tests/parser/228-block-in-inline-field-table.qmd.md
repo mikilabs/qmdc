@@ -1,4 +1,4 @@
-# Plain [[plain: Group]]
+# P [[p: G]]
 
 - lead: Ann
 

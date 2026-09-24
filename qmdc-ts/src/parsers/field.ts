@@ -172,6 +172,13 @@ export interface NestedSubitemsError {
   line: number;
 }
 
+/** QMD-70: a field with a NON-empty value followed by an indented block. */
+export interface BlockInFieldError {
+  key: string;
+  line: number;
+  content: string;
+}
+
 /**
  * Parse fields from markdown list starting at start_idx
  *
@@ -190,12 +197,14 @@ export function parseFieldsFromList(
   number,
   Record<string, string>,
   NestedSubitemsError[],
+  BlockInFieldError[],
 ] {
   const fields: Record<string, unknown> = {};
   const types: Record<string, string> = {};
   const syntax: Record<string, string> = {};
   const invalidItems: InvalidFieldItem[] = [];
   const nestedSubitemsErrors: NestedSubitemsError[] = [];
+  const blockInFieldErrors: BlockInFieldError[] = [];
   const rawValues: Record<string, string> = {};
   let i = startIdx;
 
@@ -474,6 +483,79 @@ export function parseFieldsFromList(
               continue;
             }
           }
+
+          // QMD-70: a field with a NON-EMPTY value followed by an indented BLOCK.
+          //
+          // `nested_subitems` above covers the empty-value form (`- key:` then indented items).
+          // This is the other one: `- key: value`, a blank line, then an indented table / list /
+          // paragraph / quote / fence. An inline field holds a scalar and has no content of its own,
+          // so the block belongs to nothing — and all three parsers mangled it differently, each
+          // applying whichever nearby rule it had. TypeScript and Python turned every block into
+          // list items (a table became its cell texts, a paragraph gained a `- ` prefix); Rust
+          // appended prose straight into the field's value with no separator and lost the field
+          // entirely for an indented list.
+          //
+          // Keep the field, preserve the block verbatim (dedented) as a comment anchored on the
+          // field, and report it — the shape `table_in_array` and `ordered_list_in_array` use.
+          if (valueStr !== '' && i + 1 < tokens.length) {
+            let lookahead = i + 1;
+            while (lookahead < tokens.length && tokens[lookahead]?.type === 'paragraph_close') {
+              lookahead++;
+            }
+            const blockType = tokens[lookahead]?.type;
+            const blockOpeners = [
+              'table_open',
+              'bullet_list_open',
+              'ordered_list_open',
+              'blockquote_open',
+              'paragraph_open',
+              'fence',
+              'hr',
+            ];
+            if (lookahead < tokens.length && blockType && blockOpeners.includes(blockType)) {
+              const blockTok = tokens[lookahead]!;
+              const blockLine = blockTok.map ? blockTok.map[0] + 1 : 0;
+              // Raw slice of the block, with the list indentation removed so the three parsers
+              // agree regardless of how each one reaches the text.
+              let rawBlock = '';
+              if (blockTree && blockTok.map) {
+                const blockLines = blockTree
+                  .getLinesRaw(blockTok.map[0], blockTok.map[1])
+                  .split('\n');
+                const indents = blockLines
+                  .filter((ln) => ln.trim())
+                  .map((ln) => ln.length - ln.trimStart().length);
+                const stripN = indents.length > 0 ? Math.min(...indents) : 0;
+                rawBlock = blockLines
+                  .map((ln) => (ln.length >= stripN ? ln.slice(stripN) : ln))
+                  .join('\n')
+                  .trim();
+              }
+              // Skip past the whole block
+              if (blockType.endsWith('_open')) {
+                const closer = blockType.replace('_open', '_close');
+                let depth = 0;
+                while (lookahead < tokens.length) {
+                  const tt = tokens[lookahead]?.type;
+                  if (tt === blockType) {
+                    depth++;
+                  } else if (tt === closer) {
+                    depth--;
+                    if (depth === 0) {
+                      lookahead++;
+                      break;
+                    }
+                  }
+                  lookahead++;
+                }
+              } else {
+                lookahead++;
+              }
+              blockInFieldErrors.push({ key, line: blockLine, content: rawBlock });
+              i = lookahead;
+              continue;
+            }
+          }
         }
       } else {
         // Not a valid field - check if it looks like a field with invalid key
@@ -511,7 +593,16 @@ export function parseFieldsFromList(
     i++;
   }
 
-  return [fields, types, syntax, invalidItems, i, rawValues, nestedSubitemsErrors];
+  return [
+    fields,
+    types,
+    syntax,
+    invalidItems,
+    i,
+    rawValues,
+    nestedSubitemsErrors,
+    blockInFieldErrors,
+  ];
 }
 
 /**

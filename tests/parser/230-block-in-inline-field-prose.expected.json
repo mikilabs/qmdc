@@ -1,0 +1,28 @@
+[
+  {
+    "__id": "p",
+    "__label": "P",
+    "__kind": "G",
+    "__comments": [
+      {
+        "after": "note",
+        "content": "Some indented prose."
+      }
+    ],
+    "lead": "Ann",
+    "note": "something",
+    "__types": {
+      "lead": "string",
+      "note": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "block_in_inline_field",
+    "field": "note",
+    "object": "[[#p]]",
+    "line": 7
+  }
+]

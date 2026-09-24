@@ -1383,6 +1383,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
             nextI,
             rawValues,
             nestedSubitemsErrors,
+            blockInFieldErrors,
           ] = parseFieldsFromList(tokens, i, blockTree);
           const currentObj = objects[currentId];
           if (currentObj) {
@@ -1539,6 +1540,28 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
                 field: nsErr.key,
                 object: `[[#${currentId}]]`,
                 line: nsErr.line,
+              });
+            }
+
+            // QMD-70: an indented block under a field that HAS a value. The field is kept, the
+            // block is preserved verbatim anchored on that field, and the error names it.
+            for (const blkErr of blockInFieldErrors) {
+              if (blkErr.content) {
+                if (!currentObj.__comments) {
+                  currentObj.__comments = [];
+                }
+                (currentObj.__comments as Array<{ after: string; content: string }>).push({
+                  after: blkErr.key,
+                  content: blkErr.content,
+                });
+              }
+              parsingErrors.push({
+                __id: `error_${parsingErrors.length}`,
+                __kind: '__ParsingError',
+                type: 'block_in_inline_field',
+                field: blkErr.key,
+                object: `[[#${currentId}]]`,
+                line: blkErr.line,
               });
             }
 

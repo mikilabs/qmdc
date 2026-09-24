@@ -1,0 +1,14 @@
+{
+  "diagnostics": [
+    {
+      "file": "doc.qmd.md",
+      "line": 7,
+      "code": "block_in_inline_field",
+      "message": "block_in_inline_field: field: note, object: [[#p]]",
+      "severity": "error"
+    }
+  ],
+  "count": 1,
+  "truncated": false,
+  "success": true
+}

@@ -640,6 +640,7 @@ def parse(
                                 invalid_items,
                                 next_i,
                                 _nested_errors,
+                                _block_errors,
                             ) = parse_fields_from_list(
                                 tokens, list_scan, block_tree, raw_strings=True
                             )
@@ -1289,6 +1290,7 @@ def parse(
                         invalid_items,
                         next_i,
                         nested_subitems_errors,
+                        block_in_field_errors,
                     ) = parse_fields_from_list(tokens, i, block_tree)
 
                     # Check if any field keys already exist in the object.
@@ -1465,6 +1467,23 @@ def parse(
                                 "field": ns_err["key"],
                                 "object": f"[[#{current_id}]]",
                                 "line": ns_err["line"],
+                            }
+                        )
+
+                    # QMD-70: an indented block under a field that HAS a value. The field is
+                    # kept, the block is preserved verbatim anchored on that field, and the
+                    # error names it.
+                    for blk_err in block_in_field_errors:
+                        if blk_err["content"]:
+                            append_comment(current_id, blk_err["key"], blk_err["content"])
+                        parsing_errors.append(
+                            {
+                                "__id": f"error_{len(parsing_errors)}",
+                                "__kind": "__ParsingError",
+                                "type": "block_in_inline_field",
+                                "field": blk_err["key"],
+                                "object": f"[[#{current_id}]]",
+                                "line": blk_err["line"],
                             }
                         )
 

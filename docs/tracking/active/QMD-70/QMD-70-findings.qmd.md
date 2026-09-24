@@ -837,7 +837,7 @@ rather than a fix. The last deliberately failing case,
 
 - category: parser
 - related_to: [[#qmd70_finding_rs_other_paths]]
-- solution: Operator decision. Either the construct becomes a parsing error — consistent with [[#qmd70_finding_table_in_array]], [[#qmd70_finding_extra_table]] and [[#qmd70_finding_mixed_array]], all added this session for constructs with no defined meaning — or two separate refactors are needed, one per direction of the disagreement.
+- solution: Fixed — the operator chose the error. New `block_in_inline_field`, consistent with the three other errors added this session. Pinned by `tests/parser/228`, `229`, `230` (table, list, prose) and `tests/lsp/microtests/diagnostics/038` (LSP + MCP).
 
 ### Nobody is right [[qmd70_finding_indented_block_detail: text]]
 
@@ -874,6 +874,43 @@ The reason this is a decision and not a fix: the format has no meaning for a blo
 INLINE field. Fields are `- key: value` scalars; there is nowhere for such a block to belong. That is
 exactly the shape of the three errors added this session.
 
+**Fixed (2026-09-24) as `block_in_inline_field`,** after measuring that the shape occurs NOWHERE in
+the repository — not in `docs/`, not in the test corpus. The three apparent occurrences in `docs/`
+are inside fenced code blocks. So no existing document could rely on any reading, and the decision
+cost nothing to make.
+
+Five block kinds were measured before and after: table, list, prose, blockquote, fence. The full
+before-state was worse than first recorded — Rust glued prose and blockquote text straight into the
+field's VALUE (`something` + `quoted` = `somethingquoted`) and lost the field entirely for an
+indented list, while Python and TypeScript wrapped every block kind as a bullet item, so a paragraph became
+`- Some indented prose.` and a blockquote lost its `>`.
+
+The output keeps the field, preserves the block verbatim with its indentation removed, anchored on
+the field, and reports the error — the shape `table_in_array` and `ordered_list_in_array` use.
+Dedenting matters for parity: each implementation reaches the text by a different route, and only a
+uniform dedent makes the three agree byte-for-byte.
+
+Python and TypeScript took the check in `parse_fields_from_list` / `parseFieldsFromList`, right
+beside the existing `nested_subitems` detection, whose empty-value form this complements.
+
+Rust needed three separate corrections before it behaved, each found by a failing test rather than by
+reading:
+
+- The guard arm has to be FIRST in the event match. The ordinary Table / BlockQuote / CodeBlock /
+  List / Paragraph arms would otherwise claim the event and apply whichever nearby rule they
+  implement — which is how the three parsers came to mangle this shape three different ways.
+- The block's events must be skipped WHOLE. Skipping only the opening event let a nested list's own
+  items overwrite `list_item_text`, so the outer item's field text was gone by the time the item
+  ended and the field vanished from the object.
+- A YAML multiline field (`- key: |`) is the legitimate case where an indented block IS the value,
+  and it must be latched where the TEXT arrives rather than at the paragraph's end: a tight list item
+  emits no paragraph events at all, so a latch there never ran and the pipe's own fence was reported
+  as stray content. Three shipped fixtures caught this — `070`, `153`, `154`.
+
+Also corrected while doing this: a `Paragraph` is only offending once the item's own text is
+complete, since the item's first paragraph IS that text; the other four block kinds can never be the
+item's own text and need no such check. Requiring it for all of them missed the nested-list case.
+
 ## The suite is deliberately red [[qmd70_finding_red_suite: Finding]]
 
 Five failing tests were added ON PURPOSE, at the operator's instruction, to pin defects this task
@@ -899,7 +936,7 @@ Two of the five were fixed rather than left red, once the discussion settled whi
 | `parser/221`, `223`, `224` (blockquotes) | — FIXED | Rust rebuilt blockquote comments instead of slicing them; see [[#qmd70_finding_blockquote]] |
 | `parser/222-extra-table-under-array-heading` | — FIXED | a second table under one array heading is now an error, which removes the unplaceable content entirely; see [[#qmd70_finding_extra_table]] |
 | `cli/018-parse-yaml-field-then-prose` | — FIXED | a paragraph after a `yaml` field heading OVERWROTE the field's value, losing the YAML data; see [[#qmd70_finding_rs_other_paths]] |
-| `cli/019-parse-indented-block-under-list-field` | rs | an indented block under an inline field: all three are wrong, differently — see [[#qmd70_finding_indented_block]] |
+| `cli/019-parse-indented-block-under-list-field` | — FIXED | an indented block under an inline field: all three were wrong, differently; now `block_in_inline_field` — see [[#qmd70_finding_indented_block]] |
 
 **Case 020 replaced an earlier fixture that pinned the wrong side.** The first attempt asserted
 Python's reading because Python is the reference implementation; checking the precedent showed Rust
@@ -908,9 +945,10 @@ for an unrelated second reason — the rebuild motion already pinned by case 222
 CLI corpus, which is parse-only and leaves exactly one reason for the failure. Both defects it
 exposed are now fixed, so it is green.
 
-**One case remains red.** `019` needs an operator decision rather than a fix, because all three
-implementations are wrong in different directions — see [[#qmd70_finding_indented_block]]. Every other
-deliberately failing case was closed by fixing the defect it pinned.
+**Nothing remains red.** Every deliberately failing case was closed by fixing the defect it pinned,
+the last of them by the operator's decision to make the construct an error — see
+[[#qmd70_finding_indented_block]]. `tests/cli/019-parse-indented-block-under-list-field` was deleted
+once `tests/parser/228` covered the same shape with the error in it.
 
 **Case 222 is red everywhere, so it is not a parity defect.** All three parse identically and all
 three rebuild the same wrong layout. It pins a shared limitation, which is why no implementation can

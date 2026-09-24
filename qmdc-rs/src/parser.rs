@@ -113,6 +113,34 @@ fn raw_table_slice(source: &str, start: usize, end: usize) -> String {
     source.get(start..end).unwrap_or("").trim().to_string()
 }
 
+/// QMD-70: raw source of a block with its common leading indentation removed.
+///
+/// A block indented under a list item carries that indentation in the source. Stripping it
+/// uniformly is what lets the three parsers report identical content for the same input, since each
+/// one reaches the text by a different route.
+fn block_source_dedented(source: &str, start: usize, end: usize) -> String {
+    // Extend back to the start of the block's first line: the event's offset points at the first
+    // non-space character, so measuring indentation from it would read that line as having none and
+    // dedent nothing.
+    let line_start = source[..start.min(source.len())]
+        .rfind('\n')
+        .map(|p| p + 1)
+        .unwrap_or(0);
+    let raw = source.get(line_start..end).unwrap_or("");
+    let strip = raw
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| l.len() - l.trim_start().len())
+        .min()
+        .unwrap_or(0);
+    raw.lines()
+        .map(|l| if l.len() >= strip { &l[strip..] } else { l })
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string()
+}
+
 /// Create child objects from a markdown table inside an object array context.
 /// Returns the created objects as (id, element) pairs.
 fn create_table_child_objects(
@@ -250,6 +278,18 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     let mut heading_start_offset: usize = 0;
 
     let mut in_list_item = false;
+    // QMD-70: an indented BLOCK inside a list item whose field already has a value. `(line,
+    // start_offset, end_offset)` of that block; set when it opens, consumed at the item's end once
+    // the field itself has been committed. While it is set, text is no longer collected into
+    // `list_item_text` — that is what used to glue a trailing paragraph onto the field's value
+    // (`something` + `quoted` = `somethingquoted`).
+    let mut list_item_block: Option<(u32, usize, usize)> = None;
+    let mut list_item_paragraph_done = false;
+    // QMD-70: the item declares a YAML multiline field (`- key: |` / `- key: >`), so every block
+    // inside it is that field's VALUE and none of them is stray content. Latched for the whole item,
+    // because the pipe's own value may contain fences and paragraphs of its own — checking the item
+    // text's tail alone stopped working once that value had been accumulated.
+    let mut list_item_pipe = false;
     let mut list_item_text = String::new();
     let mut list_item_start: Option<usize> = None; // Start offset of current list item
     let mut in_text_field_list = false; // Track if we're in a list inside text field
@@ -463,6 +503,63 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
         let (event, range) = &events[i];
 
         match event {
+            // QMD-70: a BLOCK opening inside a list item, after that item's own text. An inline
+            // field holds a scalar and has no content of its own, so such a block belongs to
+            // nothing. Recorded here and turned into a comment plus a `block_in_inline_field` error
+            // at `TagEnd::Item`, once the field itself has been committed.
+            //
+            // This arm must come FIRST: the ordinary Table / BlockQuote / CodeBlock / List /
+            // Paragraph arms below would otherwise claim the event and apply whichever nearby rule
+            // they implement — which is exactly how the three parsers came to mangle this shape
+            // three different ways.
+            Event::Start(
+                tag @ (Tag::Table(_)
+                | Tag::BlockQuote
+                | Tag::CodeBlock(_)
+                | Tag::List(_)
+                | Tag::Paragraph),
+            ) if in_list_item
+                && list_item_block.is_none()
+                && !list_item_text.trim().is_empty()
+                // A PARAGRAPH is only offending once the item's own text is complete — the item's
+                // first paragraph IS that text. The other block kinds can never be the item's own
+                // text, so they need no such check; requiring it there missed a nested list, whose
+                // item emits no separate paragraph end before the list opens.
+                && (!matches!(tag, Tag::Paragraph) || list_item_paragraph_done)
+                // `- key: |` is YAML multiline: the indented block IS the field's value, not stray
+                // content, and it may itself contain fences and paragraphs. `pending_…_pipe_field`
+                // stays set for the whole of it, so it is the reliable signal — checking the item
+                // text's tail only worked until the pipe's own content had been accumulated.
+                // An empty value (`- key:`) is the `nested_subitems` shape, handled elsewhere.
+                && !list_item_pipe
+                && !list_item_text.trim_end().ends_with(':') =>
+            {
+                // Skip the block's events WHOLE. Letting them flow on is not harmless: a nested
+                // list's own items overwrite `list_item_text`, so by the time the outer item ended
+                // its field text was gone and the field disappeared from the object.
+                let mut depth = 0usize;
+                let mut end_offset = range.end;
+                let mut j = i;
+                while j < events.len() {
+                    match &events[j].0 {
+                        Event::Start(_) => depth += 1,
+                        Event::End(_) => {
+                            depth -= 1;
+                            if depth == 0 {
+                                end_offset = events[j].1.end;
+                                j += 1;
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                    j += 1;
+                }
+                list_item_block = Some((get_line(range.start), range.start, end_offset));
+                i = j;
+                continue;
+            }
+
             Event::Start(Tag::Heading { level, .. }) => {
                 in_heading = true;
                 heading_text.clear();
@@ -1901,7 +1998,17 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // Collect link text (will be formatted as [text](url) when link ends)
                     link_text.push_str(text);
                 } else if in_list_item {
-                    list_item_text.push_str(text);
+                    // Not while an offending block is open — see `list_item_block`.
+                    if list_item_block.is_none() {
+                        list_item_text.push_str(text);
+                        // Latch a YAML multiline declaration here rather than at the paragraph's
+                        // end: a TIGHT list item emits no paragraph events at all, so the latch
+                        // never ran there and the pipe's own fence was reported as stray content.
+                        let tail = list_item_text.trim_end();
+                        if tail.ends_with(": |") || tail.ends_with(": >") {
+                            list_item_pipe = true;
+                        }
+                    }
                 } else if in_paragraph {
                     paragraph_text.push_str(text);
                 } else if let Some(ref mut parts) = pending_text_block {
@@ -3172,6 +3279,9 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 in_list_item = true;
                 list_item_text.clear();
                 list_item_start = Some(range.start);
+                list_item_block = None;
+                list_item_paragraph_done = false;
+                list_item_pipe = false;
             }
 
             Event::End(TagEnd::Item) => {
@@ -3635,6 +3745,39 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                 obj.positions
                                     .insert(field_name.to_string(), (item_line, col));
                             }
+
+                            // QMD-70: the offending block recorded while this item was open. The
+                            // field above is kept; the block is preserved verbatim (dedented, so
+                            // the three parsers agree regardless of how each reaches the text) as a
+                            // comment anchored on that field, and the error names it.
+                            if let Some((block_line, block_start, block_end)) =
+                                list_item_block.take()
+                            {
+                                let raw = block_source_dedented(
+                                    &block_tree.source,
+                                    block_start,
+                                    block_end,
+                                );
+                                if !raw.is_empty() {
+                                    let mut comment = IndexMap::new();
+                                    comment.insert("after".to_string(), field_name.to_string());
+                                    comment.insert("content".to_string(), raw);
+                                    obj.comments.push(comment);
+                                }
+                                let error_id = format!("error_{}", parsing_error_counter);
+                                parsing_error_counter += 1;
+                                let mut error = IndexMap::new();
+                                error.insert("__id".to_string(), json!(error_id));
+                                error.insert("__kind".to_string(), json!("__ParsingError"));
+                                error.insert("type".to_string(), json!("block_in_inline_field"));
+                                error.insert("field".to_string(), json!(field_name));
+                                error.insert(
+                                    "object".to_string(),
+                                    json!(format!("[[#{}]]", obj.id)),
+                                );
+                                error.insert("line".to_string(), json!(block_line));
+                                parsing_errors.push(error);
+                            }
                         } // end else (not duplicate key)
                     } else if !trimmed.is_empty() && pending_object_array.is_none() {
                         // Check if this is a nested sub-item for a yaml_multiline_list field
@@ -3791,6 +3934,11 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
             }
 
             Event::End(TagEnd::Paragraph) => {
+                if in_list_item {
+                    // QMD-70: the item's own text is complete; any block-level content after this
+                    // belongs to no field — see `list_item_block`.
+                    list_item_paragraph_done = true;
+                }
                 in_paragraph = false;
                 let text = paragraph_text.trim().to_string();
 
