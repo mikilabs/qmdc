@@ -1037,6 +1037,12 @@ compare against one shared `expected.json`, so a divergence there already fails 
 What had no check at all was the real corpus, which exercises shapes no fixture was written for. That
 is exactly where the 32 live.
 
+Closing those 32 is [[#qmd71]]. Two causes are already identified by sampling: Rust anchors a comment
+on the enclosing object where the other two anchor it on the text field (24 documents), and
+TypeScript DROPS fenced code blocks from inside a `text` field's value (8 documents) — the latter is
+data loss, visible in `docs/format/validation-errors.qmd.md`, where a `solution` field loses both of
+its fences and the remaining prose stops making sense.
+
 ## The suite is deliberately red [[qmd70_finding_red_suite: Finding]]
 
 Five failing tests were added ON PURPOSE, at the operator's instruction, to pin defects this task
