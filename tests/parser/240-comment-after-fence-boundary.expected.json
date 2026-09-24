@@ -1,0 +1,38 @@
+[
+  {
+    "__id": "step",
+    "__label": "Step",
+    "__kind": "Step",
+    "__comments": [
+      {
+        "after": "order",
+        "content": "Prose before the fence.\n\n```bash\nmake test-fast\n```"
+      },
+      {
+        "after": "order",
+        "content": "Prose after the fence starts a new comment."
+      }
+    ],
+    "order": 1,
+    "__types": {
+      "order": "number"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "other",
+    "__label": "Other",
+    "__kind": "Step",
+    "__comments": [
+      {
+        "after": "order",
+        "content": "```bash\nmake test\n```\n\nProse after a fence that STARTED the comment continues it."
+      }
+    ],
+    "order": 2,
+    "__types": {
+      "order": "number"
+    },
+    "__level": 2
+  }
+]

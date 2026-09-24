@@ -16,7 +16,7 @@ unmeasurable before because the old comparison looked only at validation-error l
 - category: parser
 - related_task: [[#qmd70_table_scope]]
 - requires_changes: [qmdc-rs/src/parser.rs, qmdc-py/qmdc/parser.py, qmdc-ts/src/parser.ts]
-- findings: [[[#qmd71_finding_anchor]], [[#qmd71_finding_textfield]], [[#qmd71_finding_float]], [[#qmd71_finding_nested]], [[#qmd71_finding_renumber]], [[#qmd71_finding_split]], [[#qmd71_finding_questions]], [[#qmd71_finding_tests]]]
+- findings: [[[#qmd71_finding_anchor]], [[#qmd71_finding_textfield]], [[#qmd71_finding_float]], [[#qmd71_finding_nested]], [[#qmd71_finding_renumber]], [[#qmd71_finding_split]], [[#qmd71_finding_last_four]], [[#qmd71_finding_questions]], [[#qmd71_finding_tests]]]
 - result: null
 
 ### Why this matters more than its size suggests [[qmd71_why: text]]
@@ -319,16 +319,42 @@ Closed 8 documents — parity baseline 12 → 4.
 Four regressions land during triage and must fail for their own documented reason. Each fix then adds a
 fixture for its nearest valid neighbour, per [[#qmd71_finding_tests]].
 
+**Done (2026-09-24).** Seven fixtures: the four from triage, plus `239` (image and autolink kept raw in
+a comment), `240` (both fence-boundary shapes in one file, so the merge rule cannot be half-satisfied)
+and `241` (comment anchor for a text field fed by a list).
+
+Two things worth recording about `241`. Its first shape put the comment after an object-array heading,
+and that made the ROUND-TRIP test fail in all three: `rebuild` re-emits a comment directly after the
+field it is anchored on, which moved it above the array heading, and re-parsing then read it as text
+field content. Not a divergence and not something this task introduced — a pre-existing `rebuild`
+limitation of the anchor model, the same shape QMD-70 already hit. Reshaped the fixture to pin the same
+anchor without crossing an array heading; the limitation is recorded in [[#qmd71_finding_questions]]
+rather than papered over.
+
+Second, `241` was verified the way the operator asks for: the TypeScript fix was temporarily reverted,
+the fixture was confirmed to produce `status` instead of `why`, and the fix restored. It fails for its
+own reason, not by luck.
+
 - group: C_tests
-- done: false
+- done: true
 
 #### D1: The baseline file is deleted, not zeroed [[qmd71_goal_d1]]
 
 `make validate-compare` reports 0 divergent documents and `scripts/parse-parity-baseline.json` is
 removed, so a future divergence fails immediately instead of fitting under a cap.
 
+**Done (2026-09-24).** 0 divergent of 110, and the file is deleted. Deleting it needed a change to
+`scripts/compare_parse_output.py`, which treated a missing baseline as a hard error: an absent baseline
+now means parity must be EXACT, and the ratchet stays available via `--update-baseline` for the case it
+was built for. A baseline of `0` was rejected deliberately — it would still invite a future
+`--update-baseline` to raise it again.
+
+The gate was verified to FAIL, not just to pass: planting one divergent document made it exit 1 and name
+the file. The probe used the `- items:` shape from [[#qmd71_finding_questions]], which also confirms that
+divergence is real.
+
 - group: D_gate
-- done: false
+- done: true
 
 ### Acceptance [[qmd71_acceptance: text]]
 

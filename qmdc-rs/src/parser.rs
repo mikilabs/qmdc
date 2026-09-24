@@ -2921,6 +2921,12 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             comment.insert("after".to_string(), obj.comment_anchor.clone());
                             comment.insert("content".to_string(), raw_code_text);
                             obj.comments.push(comment);
+                            // QMD-71: a comment STARTED by a fence continues into the paragraph
+                            // that follows it, the way `---` and blockquotes already do. Only in
+                            // this branch: when the fence merely appends to a comment a PARAGRAPH
+                            // started, the next paragraph must still begin a new entry, which is
+                            // what the other two parsers do and what the flag already encoded.
+                            last_comment_was_block = true;
                         }
                     }
                 } else if pending_text_block.is_some() {
@@ -4037,6 +4043,18 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 }
                 in_paragraph = false;
                 let text = paragraph_text.trim().to_string();
+                // QMD-71: comment content is "the raw markdown fragment between structural
+                // boundaries" and the parser "does not interpret" it (docs/format/comments.qmd.md).
+                // `paragraph_text` is REBUILT from inline events, which handles text, code spans,
+                // strong, em, strikethrough and links — and nothing else. So an image collapsed to
+                // its alt text (its markup lost outright) and an autolink `<url>` was rewritten as
+                // `[url](url)`. Slice the source instead, as the text-field and blockquote paths
+                // already do; `text` stays for the non-comment uses below.
+                let raw_text = markdown
+                    .get(paragraph_start_offset..range.end)
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
 
                 if !text.is_empty() {
                     // Handle blockquote - collect lines for later formatting
@@ -4062,7 +4080,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             if let Some(ref mut obj) = current_obj {
                                 let mut cm = IndexMap::new();
                                 cm.insert("after".to_string(), field_name.clone());
-                                cm.insert("content".to_string(), text.clone());
+                                cm.insert("content".to_string(), raw_text.clone());
                                 obj.comments.push(cm);
                                 obj.comment_anchor = field_name.clone();
                             }
@@ -4093,7 +4111,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                 if let Some(arr) = comments.as_array_mut() {
                                     arr.push(json!({
                                         "after": field_name.clone(),
-                                        "content": text.clone()
+                                        "content": raw_text.clone()
                                     }));
                                 }
                                 // Can't restore current_obj here (parent already finalized),
@@ -4121,7 +4139,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             // Merge with previous block comment
                             if let Some(last_comment) = obj.comments.last_mut() {
                                 if let Some(existing) = last_comment.get_mut("content") {
-                                    *existing = format!("{}\n\n{}", existing, text);
+                                    *existing = format!("{}\n\n{}", existing, raw_text);
                                 }
                             }
                             // Keep last_comment_was_block = true to continue merging
@@ -4129,7 +4147,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             // Create new comment
                             let mut comment = IndexMap::new();
                             comment.insert("after".to_string(), obj.comment_anchor.clone());
-                            comment.insert("content".to_string(), text.clone());
+                            comment.insert("content".to_string(), raw_text.clone());
                             obj.comments.push(comment);
                             // Reset block flag for new comment
                             last_comment_was_block = false;

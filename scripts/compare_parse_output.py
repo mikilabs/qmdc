@@ -19,12 +19,16 @@ three runners compare against one shared `expected.json`, so a divergence there 
 least one of them. What was never checked is the REAL corpus -- the project's own `.qmd.md`
 documents, which exercise shapes no fixture was written for.
 
-The ratchet
------------
-32 of the 108 documents under `docs/` already diverge, so a strict gate is not reachable
-today. Instead the count is recorded in `scripts/parse-parity-baseline.json` and this script
-fails when it goes UP. New divergences break the build; the pre-existing ones are visible,
-counted, and can only shrink. Lower the baseline whenever one is fixed.
+The gate
+--------
+QMD-71 drove the corpus to ZERO divergent documents, so the gate is now absolute: with no
+baseline file present, ANY divergence fails. That is the intended end state, and deleting
+`scripts/parse-parity-baseline.json` is what expresses it -- a baseline of `0` would still
+invite a future `--update-baseline` to raise it again.
+
+The ratchet remains available for the case it was built for: a known-bad state that cannot be
+fixed in one change. Recreate it with `--update-baseline`, and the script then fails only when
+the count RISES or a document diverges in a way the file does not record.
 
 Usage
 -----
@@ -142,13 +146,29 @@ def main() -> int:
         print(f"\n✅ Baseline written: max_divergent = {len(divergent)}")
         return 0
 
+    if not os.path.exists(BASELINE_FILE):
+        # No baseline: parity is absolute. Reached in QMD-71 and kept that way deliberately --
+        # see the module docstring for why the file is deleted rather than set to 0.
+        print("")
+        if divergent:
+            print(f"❌ {len(divergent)} document(s) diverge, and parity is required to be exact:")
+            for path, detail in divergent:
+                print(f"    {path}  [{detail}]")
+            print(
+                "\n   Fix the divergence. Only if it genuinely cannot be fixed in this change,"
+                "\n   record it with --update-baseline and say why in the task."
+            )
+            return 1
+        print(f"✅ Parse parity is exact across all {len(documents)} documents.")
+        return 0
+
     try:
         with open(BASELINE_FILE, encoding="utf-8") as handle:
             baseline = json.load(handle)
     except (OSError, json.JSONDecodeError):
         print(
-            f"\n❌ Missing or unreadable baseline {BASELINE_FILE}."
-            "\n   Create it with: python3 scripts/compare_parse_output.py --update-baseline",
+            f"\n❌ Unreadable baseline {BASELINE_FILE}."
+            "\n   Fix or delete it: with no baseline, parity is required to be exact.",
             file=sys.stderr,
         )
         return 2

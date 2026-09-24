@@ -1404,6 +1404,11 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           (parentObj.__labels as Record<string, string>)[fieldName] = fieldLabel;
         }
 
+        // QMD-71: the field this heading declared is now the comment anchor. This branch wrote the
+        // field but never recorded the anchor, so following content fell back to whatever was
+        // anchored before the heading — the last scalar field of the parent object. The
+        // `pendingArrayField` branch just below has always done this; only this one forgot.
+        commentAnchor = fieldName;
         pendingTextField = null;
         pendingTextFieldStartLine = null;
         i = scanIdx;

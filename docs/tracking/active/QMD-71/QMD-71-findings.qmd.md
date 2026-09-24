@@ -268,15 +268,103 @@ The practical rule: after fixing any cause, RE-MEASURE the documents it was supp
 that does not drop as predicted means another cause is hiding behind the one just fixed. Here the count
 stayed at 25 after two fixes that should have closed a document, which is exactly how this surfaced.
 
+## The last four documents held four more causes [[qmd71_finding_last_four: Finding]]
+
+Causes eight through eleven, all found the same way: by re-measuring after each fix instead of
+trusting the original classification. The triage counted five causes in 32 documents; the real number
+was ELEVEN.
+
+- category: parser
+- priority: high
+- affected_files: [qmdc-rs/src/parser.rs, qmdc-ts/src/parser.ts]
+- affected_functions: [parse]
+- solution: Three defects in Rust and one in TypeScript, described below.
+- test_plan: pinned by `tests/parser/239`, `tests/parser/240`, `tests/parser/241`
+
+### Rust rebuilt comment text instead of slicing it [[qmd71_finding_rebuild_inline: text]]
+
+- about: [[#qmd71_finding_last_four]]
+
+The worst of the four, because it LOST data. The format is explicit that comment content is
+"the raw markdown fragment between structural boundaries" and that "the parser does not interpret"
+it. Rust's paragraph path rebuilt the text from inline events, handling text, code spans, strong, em,
+strikethrough and links — and nothing else.
+
+Two consequences, one of them silent data loss:
+
+| input | Rust produced | py, ts |
+| --- | --- | --- |
+| `![Alt](../img/p.png)` | `Alt` | the image, unchanged |
+| `<https://example.com/x>` | `[https://example.com/x](https://example.com/x)` | the autolink, unchanged |
+
+An image in a comment lost its markup and its path entirely, keeping only the alt text — which is why
+`docs/tracking/screenshots-temp.qmd.md` diverged: every one of its screenshots was reduced to a
+caption. The autolink case merely rewrote the author's text, and it is what `docs/tracking/done/QMD-69/QMD-69-task.qmd.md`
+hit when citing the upstream issue.
+
+Fixed by slicing the source, which the text-field and blockquote paths already did — the blockquote one
+since QMD-70. Patching the reconstruction instead would have meant chasing every inline construct
+forever: footnotes, inline HTML, hard breaks, reference links.
+
+### Rust did not treat a fence as a block for comment merging [[qmd71_finding_fence_block: text]]
+
+- about: [[#qmd71_finding_last_four]]
+
+Rust already had the right concept — a `last_comment_was_block` flag — and set it for `---` and
+blockquotes but not for fences. So prose after a code block started a SECOND comment entry where the
+other two continue the first.
+
+Getting this right needed the rule measured rather than guessed, because the first attempt overshot and
+merged a case that must stay split:
+
+| shape | py, ts | rs before | rs after first attempt |
+| --- | --- | --- | --- |
+| field, fence, prose | 1 comment | 2 | 1 |
+| field, prose, fence, prose | 2 comments | 2 | 1 (wrong) |
+| field, prose, fence | 1 comment | 1 | 1 |
+
+The distinction is what STARTED the comment. A comment started by a fence continues into the prose
+after it; a comment started by prose does not, even once a fence has been appended to it. So the flag
+belongs only in the branch where the fence CREATES the comment, not in the branch where it appends to
+one. Rust's flag already encoded exactly this — it was simply never set for fences.
+
+### TypeScript forgot the anchor for a text field fed by a list [[qmd71_finding_ts_anchor: text]]
+
+- about: [[#qmd71_finding_last_four]]
+
+The one document where TypeScript was the outlier, and the same class of defect as [[#qmd71_finding_split]]
+and A1: the mechanism existed and one path skipped it.
+
+When a `text` field's content begins with a bullet list, TypeScript writes the field, its `__syntax`
+and its `__labels` — and never records the field as the comment anchor. Following content then fell back
+to whatever was anchored before the heading, which is the last SCALAR field of the parent object. In
+`QMD-71-task.qmd.md` that put a comment belonging to the goals section onto `result`, a field about
+forty lines earlier.
+
+The branch immediately below it, for `pendingArrayField`, has always set the anchor. One line, and the
+sibling two lines down showed what it should be.
+
+### The method, stated once more [[qmd71_finding_remeasure: text]]
+
+- about: [[#qmd71_finding_last_four]]
+
+Eleven causes were found where classification predicted five, and every one of the six extras came
+from the same step: after fixing a cause, re-measure the documents it was supposed to close.
+
+Three of them hid inside `docs/tracking/workflow.sop.qmd.md` alone. An aggregate per-key diff reports
+THAT a document differs, never how many independent reasons it differs for, so the count not dropping
+as predicted is the only signal that another cause is behind the one just fixed.
+
 ## Open questions [[qmd71_finding_questions: Finding]]
 
-Three decisions are needed before the corresponding fixes, and one of them may move work out of this
-task entirely.
+Three decisions were needed before the corresponding fixes. Two were answered by measurement rather
+than preference, as recorded below. The third, plus two divergences found while closing the corpus,
+remain OPEN and are follow-up work rather than part of this task.
 
 - category: parser
 - priority: high
 - affected_files: []
-- solution: Answer before implementing the affected cause; the other two causes can proceed regardless.
+- solution: Questions 1 and 2 answered during implementation. Question 3 and the two carried-over divergences need an operator decision and belong in their own task.
 - test_plan: [[#qmd71_finding_tests]]
 
 ### The questions [[qmd71_finding_questions_detail: text]]
@@ -297,7 +385,29 @@ task entirely.
 3. **Do the three divergences recorded in the task belong here?** The YAML block-scalar one
    (chomping indicators `|-`, `|+`, `>`, `>-`, `>+` are broken three different ways) looks like a
    missing FEATURE rather than a divergence to reconcile — no implementation handles them, they just
-   fail differently. That may be its own task.
+   fail differently. That may be its own task. **Still open** — none of these appear in the `docs/`
+   corpus, so they did not block the acceptance criterion.
+
+### Carried forward, found while closing the corpus [[qmd71_finding_carried: text]]
+
+- about: [[#qmd71_finding_questions]]
+
+Two divergences outside the `docs/` corpus, so neither blocked the parity gate. Both are recorded here
+rather than fixed, because each needs a decision about what the construct MEANS rather than a
+reconciliation between implementations.
+
+**A non-field bullet nested under an empty-valued field.** For `- items:` followed by an indented
+`- ![Alt](p.png)`, Rust emits a `nested_subitems` parsing error while Python and TypeScript emit a
+comment holding the raw list. This is the same neighbourhood as [[#qmd71_finding_nested]] and it is what
+the parity gate was verified against, so it is definitely real. `nested_subitems` exists in all three
+parsers and in `docs/format/`, so the question is which shapes should raise it — not whether it exists.
+
+**`rebuild` cannot place a comment anchored on a field that sits after a later heading.** A comment
+anchored on a `text` field but written after a following object-array heading is re-emitted directly
+after the field, which moves it above that heading; re-parsing then reads it as the field's content.
+This is a limitation of the anchor model itself, not a parser divergence — all three do the same thing —
+and QMD-70 hit the same wall from a different direction. Any fix means giving a comment a position as
+well as an anchor, which is a format decision.
 
 ## Test plan [[qmd71_finding_tests: Finding]]
 
