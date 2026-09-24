@@ -37,21 +37,92 @@ remainder, in defined space, and they are bugs rather than open questions.
 
 - about: [[#qmd71]]
 
-Two groups, by which parser is the odd one out:
+All 32 were classified by diffing every `(object-id, key)` pair across the three parsers, so these are
+measured counts rather than a sample. Exactly one parser is the outlier in every case — 24 times Rust,
+8 times TypeScript — and no document has all three disagreeing.
 
-| split | count | first identified cause |
+| # | differing key | cause |
 | --- | --- | --- |
-| `py+ts vs rs` | 24 | Rust anchors a comment on the enclosing OBJECT where the other two anchor it on the text FIELD the content follows |
-| `rs+py vs ts` | 8 | TypeScript DROPS fenced code blocks from inside a `text` field's value |
+| 20 | `__comments` | comment anchor (Rust) |
+| 3 | `__comments`, `__syntax`, `__types` | comment anchor plus a field-type effect, needs its own look |
+| 3 | `version` | trailing-zero float (TypeScript) |
+| 5 | a named `text` field | content lost inside a text field (TypeScript) |
+| 1 | seven keys at once | `docs/tracking/workflow.sop.qmd.md`, probably several causes in one file |
 
-Both were identified by sampling one document from each group, not by reading all 32, so the counts
-are the size of each group and not a claim that one cause explains every member. Confirming that is
-the first step of the work.
+Three causes are already reduced to minimal reproducers. Each is a few lines and each is a genuine
+bug in ONE implementation, not an undefined construct.
 
-The TypeScript one is data loss and looks like the more serious of the two. In
-`docs/format/validation-errors.qmd.md` a `solution` field whose value contains two
-```markdown example``` fences comes out as `"1. Split into two headings:\n\nOr use a single definition
-with fields:"` — both fences gone, leaving prose that no longer makes sense.
+### Cause 1 — Rust anchors a comment on the wrong thing [[qmd71_cause_anchor: text]]
+
+- about: [[#qmd71]]
+
+Twenty documents, and the single biggest group.
+
+```markdown example
+# D [[d: HowTo]]
+
+- goal: g
+
+## Gen [[gen: ContentGenerator]]
+
+- target: [[#d.content]]
+
+## Content [[content: text]]
+
+Intro line.
+
+## A plain heading
+
+Body under it.
+```
+
+Rust anchors the comment on `gen` — the preceding OBJECT — where Python and TypeScript anchor it on
+`content`, the text FIELD the content actually follows. The `docs/` corpus hits this constantly
+because the generated-content pattern (`ContentGenerator` object, then a `content` text field) is used
+throughout the guides.
+
+Python and TypeScript agree, and they are right: the content sits under the `content` heading.
+
+### Cause 2 — TypeScript loses content inside a text field [[qmd71_cause_textfield: text]]
+
+- about: [[#qmd71]]
+
+Five documents, and the most damaging of the three: it is silent data loss in a field's VALUE.
+
+```markdown example
+# D [[d: G]]
+
+## Solution [[solution: text]]
+
+1. First:
+
+(a fenced json block)
+
+1. Second:
+
+(a second fenced json block)
+```
+
+Rust and Python keep the whole thing verbatim. TypeScript yields `"1. First:\n\nSecond:"` — both
+fences gone AND the second item's ordered-list marker gone with them. A plain fence inside a text field is
+fine in all three; it takes an ORDERED LIST followed by a fence to trigger it, which is why the
+earlier probe with a bare fence did not reproduce it.
+
+Visible today in `docs/format/validation-errors.qmd.md`, where the `err_multiple_definitions`
+section's `solution` field loses both of its examples and the remaining prose stops making sense.
+
+### Cause 3 — TypeScript drops a trailing zero from a float [[qmd71_cause_float: text]]
+
+- about: [[#qmd71]]
+
+Three documents, and the cheapest to fix.
+
+`- version: 2.0` parses to `2.0` in Rust and Python and to `2` in TypeScript; `- z: 0.0` likewise
+becomes `0`. `1.50` and `3.10` agree, because their value is not integral — so this is JavaScript
+number formatting, not parsing: a float whose fractional part is zero serialises without it.
+
+The `__types` entry says `number` in all three, so only the value differs. Worth deciding whether the
+fix belongs in the value parse or in the JSON serialisation.
 
 ### Separately measured divergences, outside the 32 [[qmd71_extra: text]]
 
@@ -78,8 +149,9 @@ all three agree.
 
 - about: [[#qmd71]]
 
-1. Classify all 32 by cause — sample every document, not one per group. Expect a handful of causes,
-   not 32.
+1. ~~Classify all 32 by cause.~~ **Done during analysis** — see the three cause sections above. Five
+   causes account for 31 of the 32; `docs/tracking/workflow.sop.qmd.md` differs on seven keys at once
+   and is the one file still to be broken down.
 2. For each cause, decide which behaviour is correct BEFORE changing code. Python is the reference
    implementation, but QMD-70 showed that deferring to it mechanically is wrong: the prose-gap
    question was settled against Python by looking at what all three already agreed on for the
@@ -91,6 +163,26 @@ all three agree.
 5. Decide separately whether the three extra divergences above belong in this task or their own — the
    YAML block-scalar one is arguably a missing FEATURE (chomping indicators are unimplemented) rather
    than a divergence to reconcile.
+
+### Suggested order [[qmd71_order: text]]
+
+- about: [[#qmd71]]
+
+Not by document count — by risk and by cost.
+
+1. **Cause 2 first** (TypeScript losing text-field content). It is the only one that destroys data an
+   author wrote, and it is already visible in a shipped documentation file. Five documents.
+2. **Cause 3 next** (trailing-zero float). Almost certainly a one-line serialisation fix and it
+   removes three documents from the count for very little risk.
+3. **Cause 1 last** (Rust's comment anchor), despite being 20 of the 32. It is the largest group but
+   also the only one touching comment anchoring, which QMD-70 showed is delicate — the anchor model
+   was behind three separate findings there, including one where no anchor value gave a faithful
+   round trip. Expect to need a decision, not just a fix.
+4. Then the seven-key file, which likely resolves itself once the three causes above are closed.
+
+A note carried from QMD-70: `parse | rebuild` is not a safe way to verify these. The round-trip has
+its own known limitations (text-field heading levels shift, top-level arrays gain a wrapper), so
+compare parse output directly — which `make validate-compare` now does.
 
 ### Non-goals [[qmd71_non_goals: text]]
 
