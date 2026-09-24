@@ -12,5 +12,21 @@
       "c": "string"
     },
     "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "a",
+    "object": "[[#s]]",
+    "line": 3
+  },
+  {
+    "__id": "error_1",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "c",
+    "object": "[[#s]]",
+    "line": 5
   }
 ]

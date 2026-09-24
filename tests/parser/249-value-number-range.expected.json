@@ -24,5 +24,53 @@
       "dec_overflow": "string"
     },
     "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "over_safe",
+    "object": "[[#s]]",
+    "line": 4
+  },
+  {
+    "__id": "error_1",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "i64_max",
+    "object": "[[#s]]",
+    "line": 5
+  },
+  {
+    "__id": "error_2",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "huge",
+    "object": "[[#s]]",
+    "line": 6
+  },
+  {
+    "__id": "error_3",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "neg_over",
+    "object": "[[#s]]",
+    "line": 8
+  },
+  {
+    "__id": "error_4",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "dec_big_int",
+    "object": "[[#s]]",
+    "line": 10
+  },
+  {
+    "__id": "error_5",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "dec_overflow",
+    "object": "[[#s]]",
+    "line": 11
   }
 ]

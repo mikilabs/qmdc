@@ -3,43 +3,45 @@
     "__id": "s",
     "__label": "S",
     "__kind": "S",
-    "int": 42,
-    "neg": -7,
-    "dec": 3.14,
-    "neg_dec": -0.5,
-    "zero_dec": 0.0,
+    "ok_int": 42,
+    "ok_neg": -7,
+    "ok_dec": 3.14,
+    "ok_zero": 0.0,
     "exp": "1e5",
     "exp_neg": "1.5e-3",
     "exp_caps": "2E3",
     "leading_dot": ".5",
     "trailing_dot": "5.",
     "plus": "+1",
-    "plus_dec": "+1.5",
-    "underscore": "1_000",
-    "hex": "0x10",
+    "separators": "1_000",
+    "hex": "0x1f",
     "octal": "0o17",
-    "inf": "Infinity",
-    "nan": "NaN",
-    "spaced": "1 000",
+    "too_big": "9223372036854775807",
+    "too_small": "0.00001",
+    "date_stays_string": "2026-09-24",
+    "time_stays_string": "12:30:00",
+    "words_stay_string": "1 000",
+    "version_stays_string": "1.0.2",
     "__types": {
-      "int": "number",
-      "neg": "number",
-      "dec": "number",
-      "neg_dec": "number",
-      "zero_dec": "number",
+      "ok_int": "number",
+      "ok_neg": "number",
+      "ok_dec": "number",
+      "ok_zero": "number",
       "exp": "string",
       "exp_neg": "string",
       "exp_caps": "string",
       "leading_dot": "string",
       "trailing_dot": "string",
       "plus": "string",
-      "plus_dec": "string",
-      "underscore": "string",
+      "separators": "string",
       "hex": "string",
       "octal": "string",
-      "inf": "string",
-      "nan": "string",
-      "spaced": "string"
+      "too_big": "string",
+      "too_small": "string",
+      "date_stays_string": "string",
+      "time_stays_string": "string",
+      "words_stay_string": "string",
+      "version_stays_string": "string"
     },
     "__level": 2
   },
@@ -49,7 +51,7 @@
     "type": "unsupported_number_format",
     "field": "exp",
     "object": "[[#s]]",
-    "line": 8
+    "line": 7
   },
   {
     "__id": "error_1",
@@ -57,7 +59,7 @@
     "type": "unsupported_number_format",
     "field": "exp_neg",
     "object": "[[#s]]",
-    "line": 9
+    "line": 8
   },
   {
     "__id": "error_2",
@@ -65,7 +67,7 @@
     "type": "unsupported_number_format",
     "field": "exp_caps",
     "object": "[[#s]]",
-    "line": 10
+    "line": 9
   },
   {
     "__id": "error_3",
@@ -73,7 +75,7 @@
     "type": "unsupported_number_format",
     "field": "leading_dot",
     "object": "[[#s]]",
-    "line": 11
+    "line": 10
   },
   {
     "__id": "error_4",
@@ -81,7 +83,7 @@
     "type": "unsupported_number_format",
     "field": "trailing_dot",
     "object": "[[#s]]",
-    "line": 12
+    "line": 11
   },
   {
     "__id": "error_5",
@@ -89,37 +91,45 @@
     "type": "unsupported_number_format",
     "field": "plus",
     "object": "[[#s]]",
-    "line": 13
+    "line": 12
   },
   {
     "__id": "error_6",
     "__kind": "__ParsingError",
     "type": "unsupported_number_format",
-    "field": "plus_dec",
+    "field": "separators",
     "object": "[[#s]]",
-    "line": 14
+    "line": 13
   },
   {
     "__id": "error_7",
     "__kind": "__ParsingError",
     "type": "unsupported_number_format",
-    "field": "underscore",
+    "field": "hex",
     "object": "[[#s]]",
-    "line": 15
+    "line": 14
   },
   {
     "__id": "error_8",
     "__kind": "__ParsingError",
     "type": "unsupported_number_format",
-    "field": "hex",
+    "field": "octal",
     "object": "[[#s]]",
-    "line": 16
+    "line": 15
   },
   {
     "__id": "error_9",
     "__kind": "__ParsingError",
     "type": "unsupported_number_format",
-    "field": "octal",
+    "field": "too_big",
+    "object": "[[#s]]",
+    "line": 16
+  },
+  {
+    "__id": "error_10",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "too_small",
     "object": "[[#s]]",
     "line": 17
   }

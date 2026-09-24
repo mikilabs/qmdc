@@ -641,6 +641,7 @@ def parse(
                                 next_i,
                                 _nested_errors,
                                 _block_errors,
+                                _unsupported_numbers,
                             ) = parse_fields_from_list(
                                 tokens, list_scan, block_tree, raw_strings=True
                             )
@@ -1291,6 +1292,7 @@ def parse(
                         next_i,
                         nested_subitems_errors,
                         block_in_field_errors,
+                        unsupported_number_errors,
                     ) = parse_fields_from_list(tokens, i, block_tree)
 
                     # Check if any field keys already exist in the object.
@@ -1456,6 +1458,20 @@ def parse(
                                     "line": error_line,
                                 }
                             )
+
+                    # QMD-71: a value that looks like a number QMD.md cannot carry. The authored
+                    # text is kept as the field's value, so nothing is lost; the error names it.
+                    for num_err in unsupported_number_errors:
+                        parsing_errors.append(
+                            {
+                                "__id": f"error_{len(parsing_errors)}",
+                                "__kind": "__ParsingError",
+                                "type": "unsupported_number_format",
+                                "field": num_err["key"],
+                                "object": f"[[#{current_id}]]",
+                                "line": num_err["line"],
+                            }
+                        )
 
                     # nested_subitems errors
                     for ns_err in nested_subitems_errors:

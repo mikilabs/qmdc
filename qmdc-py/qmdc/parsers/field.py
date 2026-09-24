@@ -18,6 +18,24 @@ _NUMBER_PATTERN = re.compile(r"^-?\d+(\.\d+)?$")
 # survives a round trip through an IEEE-754 double. Same constant in the Rust and TypeScript
 # parsers.
 _MAX_EXACT_INTEGER = 9007199254740991
+# The smallest non-zero decimal magnitude that every host writes WITHOUT an exponent. QMD.md's
+# numeric grammar has no exponent form, so a smaller value could not be written back as a number
+# at all -- and the three hosts disagree on where they switch and how they pad the exponent.
+_MIN_PLAIN_DECIMAL = 1e-4
+# Numeric-looking shapes QMD.md does not define. Each one was measured to be accepted by at least
+# one host language and refused by another, which is how they diverged in the first place. Ordinary
+# strings must not match: `2026-09-24`, `12:30:00`, `1.0.2` and `1 000` all fall through.
+_UNSUPPORTED_NUMBER_SHAPES = re.compile(
+    r"^(?:"
+    r"[+-]?\d+\.?\d*[eE][+-]?\d+"  # exponent: 1e5, 1.5e-3, 2E3
+    r"|[+-]?\.\d+"  # leading dot: .5
+    r"|[+-]?\d+\."  # trailing dot: 5.
+    r"|\+\d+(?:\.\d+)?"  # unary plus: +1, +1.5
+    r"|[+-]?0[xXoObB][0-9a-fA-F]+"  # other bases: 0x1f, 0o17
+    r")$"
+)
+# Digit separators are checked separately, because the shape also matches a plain integer.
+_SEPARATOR_NUMBER = re.compile(r"^[+-]?\d[\d_]*(\.[\d_]+)?$")
 
 
 def parse_yaml_array(value_str: str) -> tuple[list[Any], dict[str, str]]:
@@ -74,6 +92,56 @@ def _split_yaml_array(s: str) -> list[str]:
     return result
 
 
+def _parse_supported_number(value: str) -> int | float | None:
+    """
+    Parse a value as a number, or return None when QMD.md cannot carry it.
+
+    The single place the numeric bounds live, so `is_unsupported_number` cannot drift from it.
+    """
+    if not _NUMBER_PATTERN.match(value):
+        return None
+    if "." not in value:
+        # QMD-71: an integer is a number only while it survives a round trip through an IEEE-754
+        # double, which is all an interoperable JSON reader promises. Python would happily carry an
+        # arbitrary-precision integer the other two cannot represent -- TypeScript already rounds
+        # i64 max -- so a longer literal stays the authored string.
+        number: int | float = int(value)
+        return number if abs(number) <= _MAX_EXACT_INTEGER else None
+    # The upper bound applies to a decimal too, and it earns its place twice over: beyond it the
+    # three JSON writers disagree on the SPELLING of the same double (Python and Rust reach for
+    # exponent form where JavaScript prints all the digits), so stopping here removes that whole
+    # class rather than chasing it. It also excludes a literal long enough to overflow, which
+    # `json.dumps` would write as a bare `Infinity` -- not valid JSON at all. The lower bound is the
+    # same argument from the other end: below it every host switches to exponent form, and the
+    # grammar has no spelling for that.
+    number = float(value)
+    if not math.isfinite(number) or abs(number) > _MAX_EXACT_INTEGER:
+        return None
+    if number != 0 and abs(number) < _MIN_PLAIN_DECIMAL:
+        return None
+    return number
+
+
+def is_unsupported_number(value_str: str) -> bool:
+    """
+    True when a value LOOKS like a number but QMD.md cannot carry it.
+
+    Two groups, both reported as `unsupported_number_format` rather than silently becoming strings:
+    a shape the format does not define (`1e5`, `.5`, `+1`, `1_000`, `0x1f`), and a shape it does
+    define carrying a magnitude outside the range it can represent and write back.
+
+    Ordinary strings must never match -- `2026-09-24`, `12:30:00`, `1.0.2`, `1 000` are values, not
+    failed numbers.
+    """
+    value = value_str.strip()
+    if _NUMBER_PATTERN.match(value):
+        # A supported shape, so only the magnitude bounds can reject it.
+        return _parse_supported_number(value) is None
+    if "_" in value and _SEPARATOR_NUMBER.match(value):
+        return True
+    return bool(_UNSUPPORTED_NUMBER_SHAPES.match(value))
+
+
 def parse_field_value(value_str: str) -> tuple[Any, str]:
     """
     Parse field value and auto-detect type.
@@ -126,26 +194,9 @@ def parse_field_value(value_str: str) -> tuple[Any, str]:
         return False, "boolean"
 
     # number (int or float) -- an integer or a decimal only, per _NUMBER_PATTERN
-    if _NUMBER_PATTERN.match(value):
-        if "." not in value:
-            # QMD-71: an integer is a number only while it survives a round trip through an
-            # IEEE-754 double, which is all an interoperable JSON reader promises. Python would
-            # happily carry an arbitrary-precision integer the other two cannot represent --
-            # TypeScript already rounds i64 max -- so a longer literal stays the authored string.
-            number = int(value)
-            if abs(number) <= _MAX_EXACT_INTEGER:
-                return number, "number"
-        else:
-            # The bound applies to a decimal too, and it earns its place twice over: beyond it the
-            # three JSON writers disagree on the SPELLING of the same double (Python and Rust
-            # reach
-            # for exponent form where JavaScript prints all the digits), so stopping here removes
-            # that whole class of divergence rather than chasing it. It also excludes a literal
-            # long enough to overflow: `float("1" + "0" * 309 + ".5")` is `inf`, and `json.dumps`
-            # writes that as a bare `Infinity`, which is not valid JSON at all.
-            number = float(value)
-            if math.isfinite(number) and abs(number) <= _MAX_EXACT_INTEGER:
-                return number, "number"
+    parsed_number = _parse_supported_number(value)
+    if parsed_number is not None:
+        return parsed_number, "number"
 
     # string (default) - remove quotes if present
     if (value.startswith('"') and value.endswith('"')) or (
@@ -171,6 +222,8 @@ def parse_fields_from_list(
                    that look like fields but have invalid keys (e.g. Cyrillic).
                    "after" is the last valid field key before this item, or "__self".
     nested_subitems_errors: list of {"key": str, "line": int} for fields with nested sub-items
+    unsupported_number_errors: list of {"key": str, "line": int} for values that look like a number
+                   QMD.md cannot carry (see `is_unsupported_number`)
                            (pattern `- key:\n  - item` which is forbidden).
     """
     fields: dict[str, Any] = {}
@@ -181,6 +234,8 @@ def parse_fields_from_list(
     # QMD-70: fields with a NON-empty value followed by an indented block.
     # {"key": str, "line": int, "content": str}
     block_in_field_errors: list[dict[str, Any]] = []
+    # QMD-71: fields whose value looks like a number QMD.md cannot carry. {"key": str, "line": int}
+    unsupported_number_errors: list[dict[str, Any]] = []
     i = start_idx
 
     # Pattern: `- key: value` or `- key:value` (with DOTALL for multiline values)
@@ -360,6 +415,12 @@ def parse_fields_from_list(
                     types[key] = "array" if type_name == "ref_array" else type_name
                     last_valid_field = key
 
+                    # QMD-71: a value that looks like a number QMD.md cannot carry is kept as the
+                    # authored text -- nothing is lost -- and reported, so the author is told the
+                    # spelling is unsupported instead of silently receiving a string.
+                    if is_unsupported_number(value_str):
+                        unsupported_number_errors.append({"key": key, "line": current_line})
+
                     # Track syntax for arrays
                     if type_name == "ref_array":
                         syntax[key] = "comma_refs"
@@ -527,6 +588,7 @@ def parse_fields_from_list(
         i,
         nested_subitems_errors,
         block_in_field_errors,
+        unsupported_number_errors,
     )
 
 

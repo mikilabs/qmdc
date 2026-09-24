@@ -1442,6 +1442,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
             rawValues,
             nestedSubitemsErrors,
             blockInFieldErrors,
+            unsupportedNumberErrors,
           ] = parseFieldsFromList(tokens, i, blockTree);
           const currentObj = objects[currentId];
           if (currentObj) {
@@ -1587,6 +1588,19 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
                   line: errorLine,
                 });
               }
+            }
+
+            // QMD-71: a value that looks like a number QMD.md cannot carry. The authored text is
+            // kept as the field's value, so nothing is lost; the error names it.
+            for (const numErr of unsupportedNumberErrors) {
+              parsingErrors.push({
+                __id: `error_${parsingErrors.length}`,
+                __kind: '__ParsingError',
+                type: 'unsupported_number_format',
+                field: numErr.key,
+                object: `[[#${currentId}]]`,
+                line: numErr.line,
+              });
             }
 
             // nested_subitems errors

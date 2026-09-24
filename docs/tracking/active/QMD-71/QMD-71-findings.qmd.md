@@ -518,16 +518,21 @@ decimal carries double semantics, so authored precision beyond a double's is los
 reports that as content loss. The fixture uses a clean decimal instead, and the spec now says so
 outright.
 
-## Still divergent: how a tiny decimal is spelled [[qmd71_finding_spelling: Finding]]
+## Closed by refusing the value: unsupported number formats [[qmd71_finding_spelling: Finding]]
 
 The last divergence found, isolated to decimals with a magnitude below `1e-4`. Not a type question —
-all three agree it is a number and agree on its VALUE. They disagree on how to write it down.
+all three agreed it was a number and agreed on its VALUE. They disagreed on how to write it down.
+
+The operator declined both options I put up and asked for a third: raise an error saying the format is
+not supported. That turned out to be the best of the three by a wide margin, and it closed more than the
+case it was asked about.
 
 - category: parser
 - priority: high
-- affected_files: [qmdc-py/qmdc, qmdc-rs/src, qmdc-ts/src]
-- solution: Needs a decision — see the two options below. Not cosmetic: it breaks the round trip.
-- test_plan: pinned RED by `tests/parser/250-value-decimal-spelling`
+- affected_files: [qmdc-py/qmdc/parsers/field.py, qmdc-rs/src/parser_modules/value_parser.rs, qmdc-ts/src/parsers/field.ts, docs/format/validation-errors.qmd.md]
+- affected_functions: [is_unsupported_number, parse_field_value]
+- solution: New error `unsupported_number_format`. The value keeps its authored text; the error names the spelling.
+- test_plan: pinned by `tests/parser/251-unsupported-number-format`, and `250` went green
 
 ### The measured boundary [[qmd71_finding_spelling_table: text]]
 
@@ -565,24 +570,56 @@ exercised, because no fixture carried a decimal that small. In Rust the round tr
 the grammar decision broke it — Rust used to accept `1e-6` on re-read and now does not. The red fixture
 records that honestly rather than hiding it.
 
-### Two options, with what each costs [[qmd71_finding_spelling_options: text]]
+### Why the third option beat both of mine [[qmd71_finding_spelling_options: text]]
 
 - about: [[#qmd71_finding_spelling]]
 
-**Never print an exponent.** Serialise every number in plain decimal, so anything the parser accepts
-survives the round trip and no value changes type. Costs a hand-written float formatter in all three,
-because no two of the host defaults agree, and a very small double spells out long (`5e-324` becomes 324
-digits).
+I offered two, and both were worse than what was asked for.
 
-**Bound the magnitude from below, as the upper bound already does.** A non-zero decimal below `1e-4` is a
-String, mirroring "anything the format cannot spell plainly stays text". One line per parser, in code
-already touched, and the round trip is safe by construction. Costs the ability to write `- rate: 0.00001`
-as a number, and the threshold is borrowed from Python's `repr` switch point rather than derived from
-anything in the format.
+**Never print an exponent** would have kept every value a number, at the cost of a hand-written float
+formatter in all three — no two host defaults agree — and a very small double spells out long (`5e-324`
+becomes 324 digits).
 
-`tests/parser/250` is committed RED against Python's output to hold the question open, the same way
-`tests/parser/245` holds the link reference definitions. Neither shape occurs in the `docs/` corpus, so
-the parity gate is unaffected and stays exact.
+**Bound the magnitude from below** was one line per parser but silently demoted `- rate: 0.00001` to a
+string with no explanation, and its threshold was borrowed from Python's `repr` switch point rather
+than derived from anything in the format.
+
+**Raise an error** does the same demotion but SAYS SO, which is the part both of mine were missing. It
+also generalises: the same error covers every numeric spelling the format does not define, so `1e5`,
+`.5`, `+1`, `1_000` and `0x1f` stopped being silent strings too. One rule replaced a list of special
+cases, and `tests/parser/250` went green on its own — the spelling divergence disappeared rather than
+being reconciled, because a value that is never a number is never spelled as one.
+
+Nothing is lost: the field keeps the text the author wrote, so the document still round-trips. Quoting
+is the escape hatch — `- max: "9223372036854775807"` raises no error, because the quotes state that the
+text is the value.
+
+### What the detector must not match [[qmd71_finding_spelling_detector: text]]
+
+- about: [[#qmd71_finding_spelling]]
+
+The predicate is two questions, and the second is the one worth care. If the value matches the numeric
+grammar, only the magnitude bounds can reject it, and that check delegates to the same function
+`parse_field_value` uses — so the bounds live in ONE place in each parser and cannot drift. Otherwise the
+value is matched against an enumerated list of unsupported numeric shapes.
+
+Enumerated, not heuristic, because "looks like a number" is a trap. These must all stay plain strings
+with NO error: `2026-09-24`, `12:30:00`, `1.0.2`, `1 000`. A version number and a date are values, not
+failed numbers, and a detector loose enough to flag them would make the error worse than the silence it
+replaced. `tests/parser/251` pins all four alongside the eleven shapes that do raise it.
+
+Two more deliberate non-errors: a bare `~` is a String because that spelling belongs to YAML, and
+`Infinity` and `NaN` are Strings for the same reason — nobody mis-spelled a number, they wrote a word.
+
+### A regression this refactor introduced and the test caught [[qmd71_finding_spelling_regression: text]]
+
+- about: [[#qmd71_finding_spelling]]
+
+Extracting the shared bounds into one function in TypeScript moved the integer and decimal paths behind a
+single call — and the spelling logic after it then fired for plain integers too, so `42` came back as
+`42.0`. The `value.includes('.')` guard is what separates "a decimal whose value is integral, which needs
+its fraction written back" from "an integer, which never did". Worth recording because the earlier
+trailing-zero work had the same shape of bug twice: the spelling mechanism is easy to apply too widely.
 
 ## Open questions [[qmd71_finding_questions: Finding]]
 

@@ -82,6 +82,73 @@ function bigAbs(n: bigint): bigint {
   return n < 0n ? -n : n;
 }
 
+/** QMD.md's numeric grammar: an integer or a decimal, optionally negative. */
+const NUMBER_PATTERN = /^-?\d+(\.\d+)?$/;
+
+/**
+ * The smallest non-zero decimal magnitude every host writes WITHOUT an exponent. QMD.md's numeric
+ * grammar has no exponent form, so a smaller value could not be written back as a number at all --
+ * and the three hosts disagree on where they switch and how they pad the exponent.
+ */
+const MIN_PLAIN_DECIMAL = 1e-4;
+
+/**
+ * Numeric-looking shapes QMD.md does not define. Each was measured to be accepted by at least one
+ * host language and refused by another, which is how they diverged in the first place. Ordinary
+ * strings must not match: `2026-09-24`, `12:30:00`, `1.0.2` and `1 000` all fall through.
+ */
+const UNSUPPORTED_NUMBER_SHAPES =
+  /^(?:[+-]?\d+\.?\d*[eE][+-]?\d+|[+-]?\.\d+|[+-]?\d+\.|\+\d+(?:\.\d+)?|[+-]?0[xXoObB][0-9a-fA-F]+)$/;
+
+/** Digit separators, checked apart because the shape also matches a plain integer. */
+const SEPARATOR_NUMBER = /^[+-]?\d[\d_]*(\.[\d_]+)?$/;
+
+/**
+ * Parse a value as a number, or return undefined when QMD.md cannot carry it. The single place the
+ * numeric bounds live, so `isUnsupportedNumber` cannot drift from them.
+ */
+function parseSupportedNumber(value: string): number | undefined {
+  if (!NUMBER_PATTERN.test(value)) {
+    return undefined;
+  }
+  if (!value.includes('.')) {
+    // An integer is a number only while it survives a round trip through a double, which is all an
+    // interoperable JSON reader promises. Compared with BigInt rather than with the parsed value,
+    // because parseFloat has already rounded by then -- 9223372036854775807 arrives as
+    // 9223372036854776000, which would pass a test against itself.
+    return bigAbs(BigInt(value)) <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(value) : undefined;
+  }
+  // The upper bound applies to a decimal too, and it earns its place twice over: beyond it the three
+  // JSON writers disagree on the SPELLING of the same double. The lower bound is the same argument
+  // from the other end -- below it every host switches to exponent form.
+  const num = parseFloat(value);
+  if (!Number.isFinite(num) || Math.abs(num) > Number.MAX_SAFE_INTEGER) {
+    return undefined;
+  }
+  if (num !== 0 && Math.abs(num) < MIN_PLAIN_DECIMAL) {
+    return undefined;
+  }
+  return num;
+}
+
+/**
+ * True when a value LOOKS like a number but QMD.md cannot carry it, so the caller reports
+ * `unsupported_number_format` instead of letting it become a string in silence.
+ *
+ * Mirrors `is_unsupported_number` in the Python and Rust parsers.
+ */
+export function isUnsupportedNumber(valueStr: string): boolean {
+  const value = valueStr.trim();
+  if (NUMBER_PATTERN.test(value)) {
+    // A supported shape, so only the magnitude bounds can reject it.
+    return parseSupportedNumber(value) === undefined;
+  }
+  if (value.includes('_') && SEPARATOR_NUMBER.test(value)) {
+    return true;
+  }
+  return UNSUPPORTED_NUMBER_SHAPES.test(value);
+}
+
 /**
  * Parse field value and auto-detect type
  *
@@ -147,35 +214,22 @@ export function parseFieldValue(
     return [false, 'boolean', undefined];
   }
 
-  // number (int or float)
-  if (/^-?\d+(\.\d+)?$/.test(value)) {
-    if (!value.includes('.')) {
-      // QMD-71: an integer is a number only while it survives a round trip through a double, which
-      // is all an interoperable JSON reader promises. Compared with BigInt rather than with the
-      // parsed value, because parseFloat has already rounded by then -- 9223372036854775807 arrives
-      // as 9223372036854776000, which would pass a test against itself. A longer literal stays the
-      // string the author wrote. Same bound in the Rust and Python parsers.
-      if (bigAbs(BigInt(value)) <= BigInt(Number.MAX_SAFE_INTEGER)) {
-        return [Number(value), 'number', undefined];
-      }
-    } else {
-      // The bound applies to a decimal too, and it earns its place twice over: beyond it the three
-      // JSON writers disagree on the SPELLING of the same double (Rust and Python reach for
-      // exponent form where JavaScript prints all the digits), so stopping here removes that whole
-      // class of divergence rather than chasing it.
-      const num = parseFloat(value);
-      if (Number.isFinite(num) && Math.abs(num) <= Number.MAX_SAFE_INTEGER) {
-        // QMD-71: when a decimal's value is integral, JSON.stringify would drop the fraction and
-        // write `2`, so a spelling is carried for the writer. Derive it from the VALUE rather than
-        // echoing the author's text: `100.000` must come back as `100.0`, which is what the Python
-        // and Rust writers produce. Echoing the text also mis-handled a decimal whose fraction was
-        // lost to rounding, reprinting digits the double no longer held.
-        // `Object.is` is what distinguishes negative zero -- `${-0}` is "0", so a plain template
-        // would drop the sign the other two keep.
-        const raw = Number.isInteger(num) ? (Object.is(num, -0) ? '-0.0' : `${num}.0`) : undefined;
-        return [num, 'number', raw];
-      }
-    }
+  // number (int or float) -- an integer or a decimal only, within the representable range
+  const parsedNumber = parseSupportedNumber(value);
+  if (parsedNumber !== undefined) {
+    // When a DECIMAL's value is integral, JSON.stringify would drop the fraction and write `2`, so a
+    // spelling is carried for the writer. The `value.includes('.')` guard matters: without it a
+    // plain integer like `42` would also be given a `.0`, which the other two never write.
+    // Derive the spelling from the VALUE rather than echoing the author's text: `100.000` must come
+    // back as `100.0`, which is what the Python and Rust writers produce. `Object.is` is what
+    // distinguishes negative zero -- `${-0}` is "0", so a plain template would drop the sign.
+    const raw =
+      value.includes('.') && Number.isInteger(parsedNumber)
+        ? Object.is(parsedNumber, -0)
+          ? '-0.0'
+          : `${parsedNumber}.0`
+        : undefined;
+    return [parsedNumber, 'number', raw];
   }
 
   // string (default) - remove quotes if present
@@ -197,6 +251,12 @@ export interface InvalidFieldItem {
 }
 
 export interface NestedSubitemsError {
+  key: string;
+  line: number;
+}
+
+/** QMD-71: a field whose value looks like a number QMD.md cannot carry. */
+export interface UnsupportedNumberError {
   key: string;
   line: number;
 }
@@ -227,6 +287,7 @@ export function parseFieldsFromList(
   Record<string, string>,
   NestedSubitemsError[],
   BlockInFieldError[],
+  UnsupportedNumberError[],
 ] {
   const fields: Record<string, unknown> = {};
   const types: Record<string, string> = {};
@@ -234,6 +295,7 @@ export function parseFieldsFromList(
   const invalidItems: InvalidFieldItem[] = [];
   const nestedSubitemsErrors: NestedSubitemsError[] = [];
   const blockInFieldErrors: BlockInFieldError[] = [];
+  const unsupportedNumberErrors: UnsupportedNumberError[] = [];
   const rawValues: Record<string, string> = {};
   let i = startIdx;
 
@@ -447,6 +509,12 @@ export function parseFieldsFromList(
             const [value, typeName, rawStr, arrayRawTokens] = parseFieldValue(valueStr);
             fields[key] = value;
             types[key] = typeName === 'ref_array' ? 'array' : typeName;
+            // QMD-71: a value that looks like a number QMD.md cannot carry. The authored text is
+            // kept as the field's value, so nothing is lost; the error names it instead of letting
+            // it become a string in silence.
+            if (isUnsupportedNumber(valueStr)) {
+              unsupportedNumberErrors.push({ key, line: token.map ? token.map[0] + 1 : 0 });
+            }
             if (rawStr !== undefined) {
               rawValues[key] = rawStr;
             }
@@ -638,6 +706,7 @@ export function parseFieldsFromList(
     rawValues,
     nestedSubitemsErrors,
     blockInFieldErrors,
+    unsupportedNumberErrors,
   ];
 }
 

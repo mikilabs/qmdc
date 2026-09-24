@@ -7,6 +7,116 @@ use serde_json::{json, Value};
 /// no more than that, and TypeScript cannot exceed it at all, so a longer literal stays a string.
 const MAX_EXACT_INTEGER: u64 = 9_007_199_254_740_991;
 
+/// The smallest non-zero decimal magnitude every host writes WITHOUT an exponent. QMD.md's numeric
+/// grammar has no exponent form, so a smaller value could not be written back as a number at
+/// all -- and the three hosts disagree on where they switch and how they pad the exponent.
+const MIN_PLAIN_DECIMAL: f64 = 1e-4;
+
+/// True when a value LOOKS like a number but QMD.md cannot carry it, so the caller reports
+/// `unsupported_number_format` instead of letting it become a string in silence.
+///
+/// Two groups: a shape the format does not define (`1e5`, `.5`, `5.`, `+1`, `1_000`, `0x1f`), and a
+/// shape it does define carrying a magnitude outside the range it can represent and write back.
+/// Ordinary strings must never match -- `2026-09-24`, `12:30:00`, `1.0.2`, `1 000` are values, not
+/// failed numbers. Mirrors `is_unsupported_number` in the Python and TypeScript parsers.
+pub fn is_unsupported_number(s: &str) -> bool {
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    if is_integer_or_decimal(trimmed) {
+        // A supported shape, so only the magnitude bounds can reject it. Asking
+        // `parse_supported_number` keeps those bounds in ONE place.
+        return parse_supported_number(trimmed).is_none();
+    }
+    let body = trimmed
+        .strip_prefix('-')
+        .or_else(|| trimmed.strip_prefix('+'))
+        .unwrap_or(trimmed);
+    if body.is_empty() {
+        return false;
+    }
+    // Digit separators: 1_000, 1_0.5
+    if body.contains('_')
+        && body.starts_with(|c: char| c.is_ascii_digit())
+        && body
+            .bytes()
+            .all(|b| b.is_ascii_digit() || b == b'_' || b == b'.')
+        && body.matches('.').count() <= 1
+    {
+        return true;
+    }
+    // Another base: 0x1f, 0o17, 0b1010
+    if let Some(rest) = body
+        .strip_prefix("0x")
+        .or_else(|| body.strip_prefix("0X"))
+        .or_else(|| body.strip_prefix("0o"))
+        .or_else(|| body.strip_prefix("0O"))
+        .or_else(|| body.strip_prefix("0b"))
+        .or_else(|| body.strip_prefix("0B"))
+    {
+        return !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_hexdigit());
+    }
+    // A bare leading dot (.5) or trailing dot (5.), and exponent forms (1e5, 1.5e-3, 2E3).
+    let (mantissa, exponent) = match body.find(['e', 'E']) {
+        Some(idx) => (&body[..idx], Some(&body[idx + 1..])),
+        None => (body, None),
+    };
+    if !is_decimal_shape(mantissa) {
+        return false;
+    }
+    match exponent {
+        None => {
+            // No exponent, so the only unsupported shapes left are the dot ones and a unary plus.
+            mantissa.starts_with('.') || mantissa.ends_with('.') || trimmed.starts_with('+')
+        }
+        Some(exp) => {
+            let digits = exp.strip_prefix(['+', '-']).unwrap_or(exp);
+            !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())
+        }
+    }
+}
+
+/// `123`, `1.5`, `.5` or `5.` -- at least one digit, at most one dot, digits elsewhere.
+fn is_decimal_shape(s: &str) -> bool {
+    if s.is_empty() || s.matches('.').count() > 1 {
+        return false;
+    }
+    s.bytes().any(|b| b.is_ascii_digit()) && s.bytes().all(|b| b.is_ascii_digit() || b == b'.')
+}
+
+/// Parse a value as a number, or `None` when QMD.md cannot carry it. The single place the numeric
+/// bounds live, so `is_unsupported_number` cannot drift from them.
+fn parse_supported_number(trimmed: &str) -> Option<Value> {
+    if !is_integer_or_decimal(trimmed) {
+        return None;
+    }
+    if trimmed.contains('.') {
+        // The upper bound applies to a decimal too, and it earns its place twice over: beyond it the
+        // three JSON writers disagree on the SPELLING of the same double (Rust and Python reach for
+        // exponent form where JavaScript prints all the digits), so stopping here removes that whole
+        // class rather than chasing it. The lower bound is the same argument from the other end.
+        let f = trimmed.parse::<f64>().ok()?;
+        if !f.is_finite() || f.abs() > MAX_EXACT_INTEGER as f64 {
+            return None;
+        }
+        if f != 0.0 && f.abs() < MIN_PLAIN_DECIMAL {
+            return None;
+        }
+        Some(json!(f))
+    } else {
+        // An integer is a number only while it survives a round trip through a double, which is all
+        // an interoperable JSON reader promises. A parse failure here means the literal is past i64
+        // too, which is well past this bound.
+        let n = trimmed.parse::<i64>().ok()?;
+        if n.unsigned_abs() <= MAX_EXACT_INTEGER {
+            Some(json!(n))
+        } else {
+            None
+        }
+    }
+}
+
 /// QMD.md's numeric grammar: an optional `-`, one or more digits, and optionally a `.` followed by
 /// one or more digits. Equivalent to `^-?\d+(\.\d+)?$` in the Python and TypeScript parsers.
 ///
@@ -94,27 +204,8 @@ pub fn parse_field_value(s: &str) -> (Value, &'static str) {
     // The same grammar lives in Python and TypeScript as the regex `^-?\d+(\.\d+)?$`; this is a
     // hand-written equivalent because `parse_field_value` runs once per field and compiling a
     // regex here would do so too.
-    if is_integer_or_decimal(trimmed) {
-        if trimmed.contains('.') {
-            if let Ok(f) = trimmed.parse::<f64>() {
-                // The bound applies to a decimal too, and it earns its place twice over: beyond it
-                // the three JSON writers disagree on the SPELLING of the same double (Rust and
-                // Python reach for exponent form where JavaScript prints all the digits), so
-                // stopping here removes that whole class of divergence rather than chasing it.
-                if f.is_finite() && f.abs() <= MAX_EXACT_INTEGER as f64 {
-                    return (json!(f), "number");
-                }
-            }
-        } else if let Ok(n) = trimmed.parse::<i64>() {
-            // An integer is a number only while it survives a round trip through a double, which is
-            // all an interoperable JSON reader promises. Beyond that the three parsers could not
-            // agree -- i64 max alone came back as 9223372036854776000 in TypeScript -- so anything
-            // larger stays the string the author wrote. A parse failure here means the literal is
-            // past i64 too, which is well past this bound.
-            if n.unsigned_abs() <= MAX_EXACT_INTEGER {
-                return (json!(n), "number");
-            }
-        }
+    if let Some(number) = parse_supported_number(trimmed) {
+        return (number, "number");
     }
 
     // Handle quoted strings - strip quotes

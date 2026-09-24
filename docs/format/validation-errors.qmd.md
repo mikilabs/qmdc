@@ -732,6 +732,49 @@ Valid keys match `[a-zA-Z][a-zA-Z0-9_]*`. When SOME items in one object's list a
 
 Fix the invalid keys (`First Name:` → `first_name:`), or convert the list to a text field if it is prose.
 
+## Unsupported Number Format [[err_unsupported_number_format: ValidationError]]
+
+A field value looks like a number QMD.md cannot carry.
+
+- code: unsupported_number_format
+- severity: error
+
+### Cause [[cause: text]]
+
+QMD.md's numeric grammar is deliberately narrow: `-?\d+(\.\d+)?`, with a magnitude between `1e-4`
+and 2^53-1. Two kinds of value trip this error.
+
+A spelling the format does not define — `1e5`, `1.5e-3`, `2E3`, `.5`, `5.`, `+1`, `1_000`, `0x1f`,
+`0o17`. Each of these only ever worked in whichever host language happened to accept it, which is
+exactly why the three parsers used to disagree about them.
+
+A value in a supported spelling but outside the range. Above 2^53-1 an integer cannot survive a round
+trip through a double — `9223372036854775807` comes back as a different number in a JavaScript
+reader — and below `1e-4` a decimal can only be written with an exponent, which the grammar has no
+form for.
+
+The field keeps the text the author wrote, as a String, so nothing is lost and the document still
+round-trips. The error exists so the spelling is refused out loud instead of silently becoming a
+string.
+
+```markdown example
+## Config [[config: Settings]]
+
+- retries: 3            ← fine
+- rate: 1e-3            ← error: exponent
+- max: 9223372036854775807   ← error: beyond 2^53-1
+- epsilon: 0.00001      ← error: needs an exponent to write back
+- released: 2026-09-24  ← fine, a plain string and no error
+```
+
+### Solution [[solution: text]]
+
+Write the value in the supported grammar (`0.001` rather than `1e-3`), or quote it to say a String
+was meant all along (`- max: "9223372036854775807"`).
+
+A quoted value raises no error, which is the intended escape hatch: the quotes state that the text is
+the value.
+
 ## Invalid ID Character [[err_invalid_id_character: ValidationError]]
 
 A dot in a NESTED heading's explicit ID.
