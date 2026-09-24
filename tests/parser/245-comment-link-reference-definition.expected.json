@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "S",
+    "__comments": [
+      {
+        "after": "f",
+        "content": "See [the docs][d] and [more][m].\n\n[d]: https://example.com/d\n[m]: https://example.com/m"
+      }
+    ],
+    "f": 1,
+    "__types": {
+      "f": "number"
+    },
+    "__level": 2
+  }
+]

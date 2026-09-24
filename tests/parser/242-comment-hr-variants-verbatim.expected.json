@@ -1,0 +1,30 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "S",
+    "__comments": [
+      {
+        "after": "f",
+        "content": "Before the first rule.\n\n***"
+      },
+      {
+        "after": "f",
+        "content": "Between the rules.\n\n___"
+      },
+      {
+        "after": "f",
+        "content": "After the second rule.\n\n- - -"
+      },
+      {
+        "after": "f",
+        "content": "After the third."
+      }
+    ],
+    "f": 1,
+    "__types": {
+      "f": "number"
+    },
+    "__level": 2
+  }
+]

@@ -355,6 +355,85 @@ Three of them hid inside `docs/tracking/workflow.sop.qmd.md` alone. An aggregate
 THAT a document differs, never how many independent reasons it differs for, so the count not dropping
 as predicted is the only signal that another cause is behind the one just fixed.
 
+## A construct sweep found five more, and one option flag behind them [[qmd71_finding_sweep: Finding]]
+
+The `docs/` corpus only exercises shapes the project's own documents happen to use. An 82-probe sweep
+over Markdown constructs — inline, block, field values, structure — found **15 divergent shapes**, of
+which five were outright defects and eight are the numeric-literal question below. All five are fixed.
+
+- category: parser
+- priority: high
+- affected_files: [qmdc-rs/src/parser.rs, qmdc-rs/src/parser_modules/value_parser.rs, qmdc-py/qmdc/parsers/field.py]
+- affected_functions: [parse, parse_field_value]
+- solution: Four fixes in Rust, one in Python. One remaining divergence needs a decision — the link reference definitions, in the last section below.
+- test_plan: pinned by `tests/parser/242` through `247`
+
+### What the sweep found [[qmd71_finding_sweep_table: text]]
+
+- about: [[#qmd71_finding_sweep]]
+
+| shape | outlier | what it did | fixture |
+| --- | --- | --- | --- |
+| `***`, `___`, `- - -` | rs | rewrote every thematic break as `---`, and merged the paragraph after it | `242` |
+| a list inside a blockquote | rs | emitted the quoted list TWICE, one copy missing its first marker | `243` |
+| `[^1]: note` | rs | dropped the `[^1]:` label | `244` |
+| `[d]: url` | rs, ts | dropped the definition entirely | `245`, unfixed |
+| `- k: ~` | rs | read YAML's null | `246` |
+| `- k: 1_000` | py | read 1000, via Python's own numeric literal syntax | `247` |
+
+The thematic break was a literal `"---".to_string()` in the source, which is the same class of defect as
+the autolink rewrite in [[#qmd71_finding_last_four]] — content asserted rather than sliced. Its
+merge behaviour needed the same narrowing the fence path had just received: the flag belongs only where
+the rule STARTS the comment.
+
+The duplicated blockquote is the only true data CORRUPTION found in this task. Two of the three list
+accumulation sites in Rust appended quoted items to the comment list, while the blockquote handler
+already emitted the whole quote verbatim — so the content appeared twice, and because the accumulator's
+raw-slice start points past the quote prefix, the first copy had lost its quote marker.
+
+### The option flag behind the footnote [[qmd71_finding_options: text]]
+
+- about: [[#qmd71_finding_sweep]]
+
+Worth more attention than the footnote itself. Rust built its Markdown parser with:
+
+```rust
+let md_options = Options::all() - Options::ENABLE_SMART_PUNCTUATION;
+```
+
+`Options::all()` is every extension `pulldown-cmark` happens to ship — a set that GROWS on a dependency
+bump. So Rust's idea of Markdown was defined by the library's feature list rather than by QMD.md, and it
+could change without a single line changing here. Footnotes are the harm that surfaced: with them on,
+`[^1]: text` becomes a `FootnoteDefinition` whose inner paragraph begins AFTER the label, which is how
+the label and the space after it were lost. QMD.md defines no footnote syntax, so the construct must stay ordinary text.
+
+Now pinned explicitly. That version of `Options::all()` also carries wikilinks (`[[...]]`, which
+collides with QMD.md's own reference syntax), math, definition lists, superscript and subscript — none
+defined by the format. The sweep found no divergence from those, so they are left alone, but the flag
+choice is recorded here because "all extensions the library offers" is not a specification.
+
+### Link reference definitions: an architectural difference [[qmd71_finding_reflink: text]]
+
+- about: [[#qmd71_finding_sweep]]
+
+The one sweep finding NOT fixed, because it is not a bug in one parser — it is a difference in how two
+of them slice comments at all, and the honest options have real costs.
+
+Neither `pulldown-cmark` nor `markdown-it` emits an event for `[d]: https://example.com/d`: both consume
+the definition into a link map. Python keeps it anyway because Python slices a comment by LINE RANGE, to
+the next structural boundary, so anything between is preserved whether or not the tokenizer reported it.
+Rust and TypeScript slice per EVENT, so an unreported construct simply vanishes.
+
+Python's behaviour is the one the format describes — "the raw markdown fragment", parser "does not
+interpret" — and the other two lose the definition, which makes every reference link in that comment
+unresolvable. But aligning them means changing how comment slices are bounded in two parsers, which is
+exactly the machinery this task spent eleven causes stabilising.
+
+Neither construct occurs anywhere in the repository's `.qmd.md` files — the only occurrences are these
+new fixtures — so this is a decision about a construct the format does not define, in the same category
+as QMD-70's four new error rules. `tests/parser/245` is committed RED against Python's output to hold the
+question open rather than let it be forgotten.
+
 ## Open questions [[qmd71_finding_questions: Finding]]
 
 Three decisions were needed before the corresponding fixes. Two were answered by measurement rather

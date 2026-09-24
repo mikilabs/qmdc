@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "S",
+    "__comments": [
+      {
+        "after": "f",
+        "content": "> - one\n> - two\n\nProse after the quote."
+      }
+    ],
+    "f": 1,
+    "__types": {
+      "f": "number"
+    },
+    "__level": 2
+  }
+]

@@ -17,7 +17,9 @@ pub fn parse_field_value(s: &str) -> (Value, &'static str) {
         return (json!(false), "boolean");
     }
 
-    if trimmed == "null" || trimmed == "~" {
+    // QMD-71: `null` only. A bare `~` is YAML's null, and QMD.md is deliberately NOT YAML --
+    // Python and TypeScript both read it as the one-character string it looks like.
+    if trimmed == "null" {
         return (Value::Null, "null");
     }
 
@@ -149,7 +151,10 @@ mod tests {
         assert_eq!(parse_field_value("true").0, json!(true));
         assert_eq!(parse_field_value("false").0, json!(false));
         assert_eq!(parse_field_value("null").0, Value::Null);
-        assert_eq!(parse_field_value("~").0, Value::Null);
+        // QMD-71: a bare `~` is YAML's null, and QMD.md is deliberately not YAML. This assertion
+        // used to require `Value::Null`, which is what made Rust disagree with the other two.
+        assert_eq!(parse_field_value("~").0, json!("~"));
+        assert_eq!(parse_field_value("~").1, "string");
         assert_eq!(parse_field_value("42").0, json!(42));
         assert_eq!(parse_field_value("3.15").0, json!(3.15));
         assert_eq!(parse_field_value("hello").0, json!("hello"));

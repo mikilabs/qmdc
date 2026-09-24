@@ -117,14 +117,18 @@ def parse_field_value(value_str: str) -> tuple[Any, str]:
         return False, "boolean"
 
     # number (int or float)
-    try:
-        # Try int first
-        if "." not in value:
-            return int(value), "number"
-        # Then float
-        return float(value), "number"
-    except ValueError:
-        pass
+    # QMD-71: reject digit separators first. `int("1_000")` and `float("1_0.5")` accept
+    # underscores because that is PYTHON's numeric literal syntax, not anything QMD.md defines --
+    # Rust and TypeScript both read these as strings.
+    if "_" not in value:
+        try:
+            # Try int first
+            if "." not in value:
+                return int(value), "number"
+            # Then float
+            return float(value), "number"
+        except ValueError:
+            pass
 
     # string (default) - remove quotes if present
     if (value.startswith('"') and value.endswith('"')) or (

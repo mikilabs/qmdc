@@ -358,8 +358,16 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
 
     let field_re = re_field_kv();
 
-    // Use all options EXCEPT smart punctuation (which converts quotes to curly quotes)
-    let md_options = Options::all() - Options::ENABLE_SMART_PUNCTUATION;
+    // QMD-71: pin the extension set instead of taking `Options::all()`, which enabled every
+    // extension the library happens to ship -- a set that GROWS on a dependency bump, so Rust's
+    // idea of Markdown could change without a code change here. Footnotes are the concrete harm
+    // found: with them on, `[^1]: text` becomes a FootnoteDefinition whose inner paragraph starts
+    // AFTER the label, so a comment slice lost the `[^1]: ` prefix that Python and TypeScript keep.
+    // QMD.md defines no footnote syntax, so the construct must stay ordinary text.
+    let md_options = Options::all()
+        - Options::ENABLE_SMART_PUNCTUATION
+        - Options::ENABLE_FOOTNOTES
+        - Options::ENABLE_OLD_FOOTNOTES;
     let parser = MdParser::new_ext(markdown, md_options);
 
     // Collect events with source positions
@@ -2381,7 +2389,14 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         } else {
                             String::new()
                         };
-                        comment_list_items.push(format!("{}{} {}", indent, item_prefix, trimmed));
+                        // QMD-71: a list INSIDE a blockquote is already carried by the blockquote's
+                        // own raw slice (see `Event::End(TagEnd::BlockQuote)`). Accumulating it here
+                        // too emitted the quoted list twice — once rebuilt from item text, with the
+                        // `>` prefixes stripped so the first line lost its marker, and once verbatim.
+                        if blockquote_depth == 0 {
+                            comment_list_items
+                                .push(format!("{}{} {}", indent, item_prefix, trimmed));
+                        }
                     }
                     list_item_text.clear();
                 }
@@ -3980,9 +3995,16 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                 } else {
                                     String::new()
                                 };
-                                comment_list_items
-                                    .push(format!("{}{} {}", indent, item_prefix, trimmed));
-                                current_list_item_num += 1;
+                                // QMD-71: a list INSIDE a blockquote is already carried by the
+                                // blockquote's own raw slice, so accumulating it here emitted the
+                                // quoted list TWICE. `comment_list_raw_start` points at the first
+                                // item's content, past the `> ` prefix, so the duplicate also lost
+                                // that line's quote marker.
+                                if blockquote_depth == 0 {
+                                    comment_list_items
+                                        .push(format!("{}{} {}", indent, item_prefix, trimmed));
+                                    current_list_item_num += 1;
+                                }
                             }
                         } // end else (not yaml_multiline_list sub-item)
                     }
@@ -4192,7 +4214,16 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
             }
 
             Event::Rule => {
-                // Horizontal rule (---) - add to current object's comments
+                // Horizontal rule - add to current object's comments
+                // QMD-71: slice the source instead of writing a literal `---`. A thematic break is
+                // spelled `***`, `___`, `- - -` and several other ways, and comment content is
+                // "the raw markdown fragment" the parser "does not interpret" -- normalising the
+                // spelling rewrote the author's document.
+                let rule_text = markdown
+                    .get(range.start..range.end)
+                    .unwrap_or("---")
+                    .trim()
+                    .to_string();
                 if let Some(ref mut obj) = current_obj {
                     // Check if we can append to the last comment with the same anchor
                     let should_append = obj
@@ -4202,21 +4233,24 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         .unwrap_or(false);
 
                     if should_append {
-                        // Append --- to existing comment
+                        // Append the rule to existing comment
                         if let Some(last_comment) = obj.comments.last_mut() {
                             if let Some(existing) = last_comment.get_mut("content") {
-                                *existing = format!("{}\n\n---", existing);
+                                *existing = format!("{}\n\n{}", existing, rule_text);
                             }
                         }
                     } else {
-                        // Create new comment with just ---
+                        // Create new comment with just the rule
                         let mut comment = IndexMap::new();
                         comment.insert("after".to_string(), obj.comment_anchor.clone());
-                        comment.insert("content".to_string(), "---".to_string());
+                        comment.insert("content".to_string(), rule_text);
                         obj.comments.push(comment);
+                        // QMD-71: only a comment STARTED by the rule continues into the paragraph
+                        // after it. When the rule merely appends to a comment a paragraph started,
+                        // the next paragraph begins a new entry — same distinction as the fence
+                        // path, and the same overshoot when the flag was set unconditionally.
+                        last_comment_was_block = true;
                     }
-                    // Mark that last comment was a block element
-                    last_comment_was_block = true;
                 }
             }
 

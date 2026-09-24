@@ -1,0 +1,16 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "S",
+    "a": "~",
+    "b": "~ plus text",
+    "c": null,
+    "__types": {
+      "a": "string",
+      "b": "string",
+      "c": "null"
+    },
+    "__level": 2
+  }
+]
