@@ -11,12 +11,12 @@ The README's central promise is that the three are "kept at byte-for-byte parity
 conformance test corpus". That is true of the corpus and false of real documents, and it was
 unmeasurable before because the old comparison looked only at validation-error lists.
 
-- status: triage_review
+- status: in_progress
 - priority: high
 - category: parser
 - related_task: [[#qmd70_table_scope]]
 - requires_changes: [qmdc-rs/src/parser.rs, qmdc-py/qmdc/parser.py, qmdc-ts/src/parser.ts]
-- findings: [[[#qmd71_finding_anchor]], [[#qmd71_finding_textfield]], [[#qmd71_finding_float]], [[#qmd71_finding_nested]], [[#qmd71_finding_renumber]], [[#qmd71_finding_questions]], [[#qmd71_finding_tests]]]
+- findings: [[[#qmd71_finding_anchor]], [[#qmd71_finding_textfield]], [[#qmd71_finding_float]], [[#qmd71_finding_nested]], [[#qmd71_finding_renumber]], [[#qmd71_finding_split]], [[#qmd71_finding_questions]], [[#qmd71_finding_tests]]]
 - result: null
 
 ### Why this matters more than its size suggests [[qmd71_why: text]]
@@ -206,16 +206,37 @@ An ordered list followed by a fence inside a `text` field must keep both the fen
 markers, matching Rust and Python. This is the only cause that destroys what an author wrote, and it is
 already wrong in a shipped documentation page.
 
+**Done (2026-09-24).** The fix was to DELETE code rather than add any. A raw-slice branch for lists in
+text fields already existed; it was simply unreachable for ordered lists, because an earlier arm in the
+same chain matched `ordered_list_open` unconditionally and rebuilt the value from `inline` tokens.
+Excluding `pendingTextField` from that arm hands ordered lists to the branch bullet lists already used,
+and the 60-line reconstruction became dead code and was removed.
+
+Closed 5 of the 32 divergent documents, not the 5 predicted plus nothing — among them
+`docs/format/validation-errors.qmd.md`, the shipped page whose `solution` field was wrong. Parity
+baseline lowered 32 → 28.
+
 - group: A_dataloss
-- done: false
+- done: true
 
 #### A2: Floats keep their fractional part [[qmd71_goal_a2]]
 
 `- version: 2.0` must read back as `2.0` in all three, not `2`. Blocked on open question 2 — parse or
 serialisation.
 
+**Done (2026-09-24), and the open question answered by measurement rather than preference.** The raw
+authored text was ALREADY recorded: `parseFieldValue` keeps it whenever a value contains a `.` and
+parses to an integer, and it is stashed on each object as a non-enumerable `__raw_values` for `rebuild`.
+So the machinery existed and simply was not used on the parse-output path — which settles the question
+in favour of serialisation, with one source of truth rather than a second parallel mechanism.
+
+Implemented as a post-pass over `JSON.stringify` rather than a replacer or a `toJSON` hook: neither can
+emit an unquoted `2.0`, because whatever they return is itself serialised.
+
+Closed 3 more documents. Parity baseline 28 → 25.
+
 - group: A_dataloss
-- done: false
+- done: true
 
 #### B1: One comment anchor rule across the three [[qmd71_goal_b1]]
 
@@ -230,14 +251,39 @@ the 20 plain cases and the 3 where Rust additionally loses the field's `__syntax
 All three must agree on whether a nested list item's field-like entries become fields. Blocked on open
 question 1.
 
+**Done (2026-09-24), and the open question answered by what happened when the guard was too broad.**
+Rust no longer extracts fields from a list nested under an ORDERED item, matching the other two.
+
+The first attempt gated on nesting depth alone, and that traded one divergence for another: for a
+bullet list under an EMPTY-valued bullet item (`- items:` then `- product: x`) suppressing the field
+made Rust emit `nested_subitems` where the other two emit nothing — and it also changed LSP completion
+output, because completion consults the parsed fields. Narrowing the guard to "an ancestor list is
+ordered" fixes the real divergence and leaves both alone.
+
+That also answers question 1 in the direction the evidence pointed: the one real occurrence is the
+SOP's own prose describing what a Finding contains, and Rust was turning documentation text into
+fields.
+
 - group: B_anchor
-- done: false
+- done: true
 
 #### B3: Python stops renumbering nested bullets [[qmd71_goal_b3]]
 
 A nested bullet list captured as comment content must keep its indentation and markers, not be folded
 into the outer ordered list and renumbered. Independent of B2 despite sharing a document — see
 [[#qmd71_finding_renumber]].
+
+**Done (2026-09-24).** Python's "ordered list before fields" case was the only one of its three
+siblings without a raw-slice path — the two below it already had one. Added it, so all three now slice.
+
+- group: B_anchor
+- done: true
+
+#### B4: One comment boundary at a sub-heading [[qmd71_goal_b4]]
+
+Rust ends a comment block at a nested heading; Python and TypeScript carry the heading into the
+preceding comment. Nothing is lost either way, so this is purely where the boundary falls — see
+[[#qmd71_finding_split]]. Found by re-measuring after B2 and B3, not by classification.
 
 - group: B_anchor
 - done: false

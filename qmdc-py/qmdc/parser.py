@@ -2064,18 +2064,38 @@ def parse(
             else:
                 current_id = get_current_object_id()
                 if current_id and comment_anchor == "__self":
-                    # Ordered list before fields - add as comment
-                    list_items: list[str] = []
-                    item_num = 1
-                    i += 1  # skip ordered_list_open
-                    while i < len(tokens) and tokens[i].type != "ordered_list_close":
-                        if tokens[i].type == "inline":
-                            list_items.append(f"{item_num}. {tokens[i].content}")
-                            item_num += 1
-                        i += 1
-                    i += 1  # skip ordered_list_close
-                    if list_items:
-                        append_comment(current_id, comment_anchor, "\n".join(list_items))
+                    # Ordered list before fields - add as comment.
+                    #
+                    # QMD-71: raw slice, like the two sibling cases below already do. Rebuilding the
+                    # list from its `inline` tokens flattened any NESTED list into the outer one and
+                    # renumbered it, so `1. First:` with indented `- a` / `- b` under it came out as
+                    # `1. First:` / `2. a` / `3. b` — indentation and bullet markers gone, and two
+                    # items that were never numbered given numbers. Rust and TypeScript slice here.
+                    if token.map:
+                        scan_j = i + 1
+                        while scan_j < len(tokens) and tokens[scan_j].type != "ordered_list_close":
+                            scan_j += 1
+                        end_line = (
+                            tokens[scan_j].map[1]
+                            if scan_j < len(tokens) and tokens[scan_j].map
+                            else token.map[1]
+                        )
+                        raw_list = block_tree.get_lines_raw(token.map[0], end_line).strip()
+                        if raw_list:
+                            append_comment(current_id, comment_anchor, raw_list)
+                        i = scan_j + 1
+                    else:
+                        list_items: list[str] = []
+                        item_num = 1
+                        i += 1  # skip ordered_list_open
+                        while i < len(tokens) and tokens[i].type != "ordered_list_close":
+                            if tokens[i].type == "inline":
+                                list_items.append(f"{item_num}. {tokens[i].content}")
+                                item_num += 1
+                            i += 1
+                        i += 1  # skip ordered_list_close
+                        if list_items:
+                            append_comment(current_id, comment_anchor, "\n".join(list_items))
                 elif current_id and comment_anchor and comment_anchor != "__self":
                     # Ordered list after fields (e.g. trailing ordered list
                     # after array) — single merged comment

@@ -189,6 +189,62 @@ This is why `tests/cli/022` fails in TypeScript as well as Rust: the two parsers
 FIELDS (cause 4) and Python disagrees about the COMMENT (this one), so no two of the three match on
 that input.
 
+## Rust splits a comment block at a sub-heading [[qmd71_finding_split: Finding]]
+
+The SEVENTH cause, found by re-measuring `docs/tracking/workflow.sop.qmd.md` after its other two were
+fixed — not by classification and not by writing a regression. Rust is the outlier.
+
+- category: parser
+- priority: medium
+- affected_files: [qmdc-rs/src/parser.rs]
+- affected_functions: [parse, "Event::End(TagEnd::Paragraph)"]
+- solution: Rust ends a comment block at a nested heading; Python and TypeScript carry the heading into the preceding comment and start a new one at the paragraph AFTER it. Align Rust with them.
+- test_plan: pinned by `tests/parser/238-comment-split-at-subheading`
+
+### The shape [[qmd71_finding_split_detail: text]]
+
+- about: [[#qmd71_finding_split]]
+
+```markdown example
+## S [[s: S]]
+
+- f: 1
+
+First para.
+
+### Sub heading
+
+Second para.
+```
+
+All three produce two comments, and both anchor them on `f`, but they cut in different places:
+
+| impl | comment 1 | comment 2 |
+| --- | --- | --- |
+| rs | `First para.` | `### Sub heading` + `Second para.` |
+| py, ts | `First para.` + `### Sub heading` | `Second para.` |
+
+Nothing is lost either way, so this one is purely about where the boundary falls — which makes it the
+mildest of the seven and the one most likely to be decided by "two out of three" rather than by
+principle.
+
+### Why it took three passes to see [[qmd71_finding_split_why: text]]
+
+- about: [[#qmd71_finding_split]]
+
+Worth recording as a method finding, because it is the same lesson for the third time.
+
+`docs/tracking/workflow.sop.qmd.md` was originally classified as ONE divergent document with ten
+differing keys. It turned out to hold three independent causes in three different parsers: Rust
+inventing fields from a nested list ([[#qmd71_finding_nested]]), Python renumbering a nested bullet
+list ([[#qmd71_finding_renumber]]), and this one. Each became visible only once the previous was
+fixed, because an aggregate per-key diff reports that a file differs, not how many independent reasons
+it differs for.
+
+The practical rule: after fixing any cause, RE-MEASURE the documents it was supposed to close. A count
+that does not drop as predicted means another cause is hiding behind the one just fixed. Here the count
+stayed at 25 after two fixes that should have closed a document, which is exactly how this surfaced.
+
 ## Open questions [[qmd71_finding_questions: Finding]]
 
 Three decisions are needed before the corresponding fixes, and one of them may move work out of this

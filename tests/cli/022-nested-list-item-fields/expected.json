@@ -6,7 +6,7 @@
     "__comments": [
       {
         "after": "__self",
-        "content": "1. Create Finding objects with:\n2. affected_files: concrete file paths\n3. affected_functions: function names\n4. solution: implementation approach"
+        "content": "1. Create Finding objects with:\n   - affected_files: concrete file paths\n   - affected_functions: function names\n   - solution: implementation approach"
       }
     ],
     "__level": 2

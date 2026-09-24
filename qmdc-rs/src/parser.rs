@@ -2190,7 +2190,24 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // Ordered list items (1. 2. 3.) are always comment content.
                     // Items inside a yaml_multiline pipe field are raw content, not fields.
                     let first_line = trimmed.lines().next().unwrap_or(trimmed);
-                    if current_list_order.is_none()
+                    // QMD-71: top-level list items only. A NESTED item's `key: value` entries used
+                    // to become real fields on the object, which Python and TypeScript never do —
+                    // they treat the whole construct as comment content. The one real occurrence in
+                    // the corpus is `docs/tracking/workflow.sop.qmd.md`, where the SOP's own prose
+                    // describes what a Finding should contain; Rust turned that description into
+                    // `affected_files`, `affected_functions` and `solution` fields on the Step
+                    // object. Inventing fields out of documentation text settles which side is
+                    // right, so Rust now matches the other two.
+                    // Only when an ANCESTOR list is ordered. Nesting alone was too blunt: for a
+                    // bullet list nested under an EMPTY-valued bullet item (`- items:` then
+                    // `- product: x`) suppressing the field made Rust emit `nested_subitems` where
+                    // the other two emit nothing, trading one divergence for another. The real
+                    // divergence is an ordered item with an indented field-like list under it.
+                    if !list_order_stack
+                        .iter()
+                        .take(list_nesting_level.saturating_sub(1))
+                        .any(|o| o.is_some())
+                        && current_list_order.is_none()
                         && pending_yaml_multiline_pipe_field.is_none()
                         && field_re.is_match(first_line)
                     {
@@ -3506,7 +3523,24 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // Ordered list items (1. 2. 3.) are always comment content.
                     // Items inside a yaml_multiline pipe field are raw content, not fields.
                     let first_line = trimmed.lines().next().unwrap_or(trimmed);
-                    if current_list_order.is_none()
+                    // QMD-71: top-level list items only. A NESTED item's `key: value` entries used
+                    // to become real fields on the object, which Python and TypeScript never do —
+                    // they treat the whole construct as comment content. The one real occurrence in
+                    // the corpus is `docs/tracking/workflow.sop.qmd.md`, where the SOP's own prose
+                    // describes what a Finding should contain; Rust turned that description into
+                    // `affected_files`, `affected_functions` and `solution` fields on the Step
+                    // object. Inventing fields out of documentation text settles which side is
+                    // right, so Rust now matches the other two.
+                    // Only when an ANCESTOR list is ordered. Nesting alone was too blunt: for a
+                    // bullet list nested under an EMPTY-valued bullet item (`- items:` then
+                    // `- product: x`) suppressing the field made Rust emit `nested_subitems` where
+                    // the other two emit nothing, trading one divergence for another. The real
+                    // divergence is an ordered item with an indented field-like list under it.
+                    if !list_order_stack
+                        .iter()
+                        .take(list_nesting_level.saturating_sub(1))
+                        .any(|o| o.is_some())
+                        && current_list_order.is_none()
                         && pending_yaml_multiline_pipe_field.is_none()
                         && field_re.is_match(first_line)
                     {

@@ -4,7 +4,7 @@
 
 import { Command } from 'commander';
 import { readFileSync } from 'fs';
-import { parse, rebuild } from './parser.js';
+import { parse, rebuild, stringifyParseResult } from './parser.js';
 import {
   resolveWorkspace,
   scanWorkspace,
@@ -54,9 +54,9 @@ program
         }
       }
 
-      // Output (default pretty=true unless --no-pretty)
-      const json =
-        options.pretty === false ? JSON.stringify(result) : JSON.stringify(result, null, 2);
+      // Output (default pretty=true unless --no-pretty).
+      // QMD-71: via stringifyParseResult, so a float keeps the precision the author wrote.
+      const json = stringifyParseResult(result, options.pretty !== false);
 
       if (options.output) {
         const { writeFileSync } = await import('fs');

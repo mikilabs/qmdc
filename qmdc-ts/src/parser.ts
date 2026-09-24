@@ -115,6 +115,59 @@ function classifyReference(inner: string): string {
 /**
  * Check if position is inside backticks (inline code)
  */
+/**
+ * QMD-71: JSON for parse output, with a float's authored precision preserved.
+ *
+ * `JSON.stringify(2.0)` is `"2"` in JavaScript, so `- version: 2.0` came back as `2` where Rust and
+ * Python both emit `2.0`. The value and its `__types` entry (`number`) were already right — only the
+ * rendering lost the trailing zero.
+ *
+ * The raw text is already kept: `parseFieldValue` records it whenever a value contains a `.` and
+ * parses to an integer, and it is stashed on each object as a non-enumerable `__raw_values` for
+ * `rebuild` to use. This re-uses that, so there is one source of truth for the authored form rather
+ * than a second parallel mechanism.
+ *
+ * Implemented as a post-pass over `JSON.stringify`'s output rather than a replacement for it: a
+ * `toJSON` hook or a replacer cannot emit an unquoted `2.0`, because whatever it returns is itself
+ * serialised.
+ */
+export function stringifyParseResult(result: unknown, pretty = true): string {
+  const placeholders = new Map<string, string>();
+  let counter = 0;
+
+  const substitute = (node: unknown): unknown => {
+    if (Array.isArray(node)) {
+      return node.map(substitute);
+    }
+    if (node === null || typeof node !== 'object') {
+      return node;
+    }
+    const raws = Object.getOwnPropertyDescriptor(node, '__raw_values')?.value as
+      | Record<string, string>
+      | undefined;
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      const raw = raws?.[key];
+      if (raw !== undefined && typeof value === 'number' && Number(raw) === value) {
+        const token = `__QMDC_NUM_${counter++}__`;
+        placeholders.set(token, raw);
+        out[key] = token;
+      } else {
+        out[key] = substitute(value);
+      }
+    }
+    return out;
+  };
+
+  let json = pretty
+    ? JSON.stringify(substitute(result), null, 2)
+    : JSON.stringify(substitute(result));
+  for (const [token, raw] of placeholders) {
+    json = json.replace(`"${token}"`, raw);
+  }
+  return json;
+}
+
 export function isInsideBackticks(text: string, pos: number): boolean {
   let inBacktick = false;
   for (let i = 0; i < text.length && i < pos; i++) {
@@ -1592,7 +1645,20 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           i++;
         }
       }
-    } else if (token.type === 'ordered_list_open') {
+    } else if (token.type === 'ordered_list_open' && !pendingTextField) {
+      // QMD-71: an ordered list inside a `[[field: text]]` section is NOT handled here.
+      //
+      // This handler used to claim it and build the field's value by re-emitting
+      // `${n}. ${inline.content}` per item, then appending any further `inline` content. Two things
+      // were lost that way: a fenced block's token type is `fence`, not `inline`, so every fence
+      // inside the field vanished, and a second item arriving after one did so through the
+      // trailing-content loop, which appends without a number, so its marker vanished too.
+      // `1. First:` + fence + `1. Second:` + fence came out as "1. First:\n\nSecond:".
+      //
+      // A raw-slice branch for lists in text fields already existed further down the chain — it was
+      // simply unreachable for ordered lists, because this arm matched first. Excluding
+      // `pendingTextField` here hands them to it, so bullet and ordered lists now take the same
+      // path, which is what Rust and Python do.
       if (pendingArrayField) {
         // Ordered lists are forbidden in array fields (rule_no_ordered_list_array).
         // Emit error, keep array empty, preserve content in __comments.
@@ -1651,68 +1717,6 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
         pendingArrayField = null;
         commentAnchor = fieldName;
         i = scanJ + 1; // skip past ordered_list_close
-      } else if (pendingTextField) {
-        // Collect ordered list as text for [[field: text]] section
-        const [parentId, fieldName, _fieldLevel, fieldLabel] = pendingTextField;
-        const textParts: string[] = [];
-        let itemNum = 1;
-
-        // Collect all list items as text
-        while (i < tokens.length && tokens[i]?.type !== 'ordered_list_close') {
-          const tok = tokens[i];
-          if (tok?.type === 'inline' && tok.content) {
-            textParts.push(`${itemNum}. ${tok.content}`);
-            itemNum++;
-          }
-          i++;
-        }
-        i++; // skip ordered_list_close
-
-        // Check if there's more content after the list (paragraphs until next heading)
-        const moreText: string[] = [];
-        while (i < tokens.length) {
-          const tok = tokens[i];
-          if (!tok) break;
-          if (tok.type === 'heading_open') {
-            break;
-          }
-          if (tok.type === 'inline' && tok.content) {
-            moreText.push(tok.content);
-          }
-          i++;
-        }
-
-        // Combine all text
-        let allText = textParts.join('\n');
-        if (moreText.length > 0) {
-          allText += '\n\n' + moreText.join('\n\n');
-        }
-
-        const parentObj = objects[parentId];
-        if (parentObj) {
-          parentObj[fieldName] = allText;
-
-          // Add __types for string field
-          if (!parentObj.__types) {
-            parentObj.__types = {};
-          }
-          (parentObj.__types as Record<string, string>)[fieldName] = 'string';
-
-          // Add __syntax for multiline_text
-          if (!parentObj.__syntax) {
-            parentObj.__syntax = {};
-          }
-          (parentObj.__syntax as Record<string, string>)[fieldName] = 'multiline_text';
-
-          // Add __labels for field label
-          if (!parentObj.__labels) {
-            parentObj.__labels = {};
-          }
-          (parentObj.__labels as Record<string, string>)[fieldName] = fieldLabel;
-        }
-
-        pendingTextField = null;
-        pendingTextFieldStartLine = null;
       } else if (!pendingTextBlockStarted) {
         // Ordered list as comment inside an object (e.g. trailing ordered list after array)
         const currentId = getCurrentObjectId();
