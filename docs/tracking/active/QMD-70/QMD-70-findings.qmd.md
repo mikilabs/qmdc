@@ -472,7 +472,7 @@ reachable through anything QMD-70 changed.
 - category: parser
 - related_to: [[#qmd70_finding_rs_after_array]]
 - affected_files: [qmdc-rs/src/parser.rs]
-- solution: Its own ticket, and it is a REFACTOR rather than a fix — see the structural assessment below. Pinned as deliberately failing tests: `tests/cli/018-parse-yaml-field-then-prose` and `tests/cli/019-parse-indented-block-under-list-field`, both red in Rust only.
+- solution: The `yaml` half is FIXED — `tests/cli/018-parse-yaml-field-then-prose` is green in all three. The indented-block half is NOT, and it is not the same defect: see [[#qmd70_finding_indented_block]].
 
 ### Measurements [[qmd70_finding_rs_other_paths_detail: text]]
 
@@ -504,7 +504,33 @@ raw indented text; Python and TypeScript anchor on the list field and normalise 
 Both were measured with a plain object and no array, which is what separates them from the array
 case that this task fixed.
 
-### Why the array fix does not simply generalize [[qmd70_finding_rs_other_paths_why: text]]
+### The yaml half, and how it turned out contained [[qmd70_finding_rs_other_paths_fixed: text]]
+
+- about: [[#qmd70_finding_rs_other_paths]]
+
+**Fixed (2026-09-24).** The measurement below said this needed a shared accessor across five
+`pending_text_field` write sites. It turned out to need one, because a second defect in the same
+place removed the need for the other four.
+
+Rust never closed the field after its fence. Python clears `pending_yaml_field` straight after, and
+Rust kept `pending_text_field` live, so a paragraph following the fence was appended INTO the field
+as text and overwrote the parsed object — `conf: {a: 1}` became `conf: "Note after the yaml field."`.
+That is the data loss recorded above, and closing the field on the fence fixes it.
+
+With the field closed there, the parent can stay in flight — which is what gives the trailing
+paragraph somewhere to go — and only the FENCE site still needs to know where the parent lives. The
+other four `pending_text_field` consumers are never reached for a `yaml`/`json` field any more. So
+the fix is two small changes rather than a refactor, and the accessor is not needed after all.
+
+A `text` field is deliberately left alone: a fence there is part of the content and more content may
+follow, so the field stays open and the parent stays finalized exactly as before.
+
+One pre-existing divergence in the same area was measured and NOT touched: for INVALID YAML, Rust
+stores the fence markers with the text (`` ```yaml\n…\n``` ``) and no `__syntax`, where Python and
+TypeScript store the content alone with `yaml_object`. Verified against the pre-fix build — identical
+there, so it is not a regression.
+
+### Why the array fix does not generalize to the indented-block case [[qmd70_finding_rs_other_paths_why: text]]
 
 - about: [[#qmd70_finding_rs_other_paths]]
 
@@ -802,6 +828,52 @@ In Rust the check could not live where the existing flag is cleared (`Tag::Headi
 header — and therefore its field type — is only parsed at `TagEnd::Heading`. The clear moved there
 too.
 
+## An indented block under an inline field is broken in all three [[qmd70_finding_indented_block: Finding]]
+
+Split out of [[#qmd70_finding_rs_other_paths]] once the `yaml` half was fixed: this is a DIFFERENT
+defect, it affects all three implementations rather than Rust alone, and closing it needs a decision
+rather than a fix. The last deliberately failing case,
+`tests/cli/019-parse-indented-block-under-list-field`.
+
+- category: parser
+- related_to: [[#qmd70_finding_rs_other_paths]]
+- solution: Operator decision. Either the construct becomes a parsing error — consistent with [[#qmd70_finding_table_in_array]], [[#qmd70_finding_extra_table]] and [[#qmd70_finding_mixed_array]], all added this session for constructs with no defined meaning — or two separate refactors are needed, one per direction of the disagreement.
+
+### Nobody is right [[qmd70_finding_indented_block_detail: text]]
+
+- about: [[#qmd70_finding_indented_block]]
+
+A Markdown table indented under an inline field (`- note: something`, then the table two spaces in):
+
+| impl | anchor | content |
+| --- | --- | --- |
+| py, ts | `note` — correct | `- ic` / `- x` — the table is DESTROYED, reduced to its cell texts as list items |
+| rs | `lead` — wrong, that is the field before it | the table verbatim — correct, though with the source indentation |
+
+So Python and TypeScript have the right anchor and Rust has the right content, and the correct output
+is neither: `after: note` with the dedented table. Confirmed by `parse | rebuild`, which round-trips
+in none of them — Python emits the table as a bullet list, Rust emits it above `note`.
+
+Why each is wrong is structural, and the two causes are unrelated:
+
+- Rust commits a list field and moves the comment anchor at `TagEnd::Item`, but the table lives
+  INSIDE that item, so `TagEnd::Table` fires first and the anchor is still on the previous field.
+  Fixing it means committing list fields earlier — a restructure of the list path.
+- Python and TypeScript are token-based and commit `note` first, so their anchor is right; they then
+  collect the table's inline cells into `comment_list_items`, which is what turns it into
+  `- ic` / `- x`. Fixing that is in their list-comment path.
+
+The neighbouring shape is worse in Rust and was measured too: with an indented LIST instead of a
+table (`- sub_a` / `- sub_b`), Rust loses the `note` FIELD entirely (`note: None`) where Python and
+TypeScript keep it. Same cause — the field is committed too late.
+
+Worth noting that `nested_subitems` does not fire on either shape, because the blank line makes the
+indented content a separate block rather than a sub-item.
+
+The reason this is a decision and not a fix: the format has no meaning for a block attached to an
+INLINE field. Fields are `- key: value` scalars; there is nowhere for such a block to belong. That is
+exactly the shape of the three errors added this session.
+
 ## The suite is deliberately red [[qmd70_finding_red_suite: Finding]]
 
 Five failing tests were added ON PURPOSE, at the operator's instruction, to pin defects this task
@@ -826,8 +898,8 @@ Two of the five were fixed rather than left red, once the discussion settled whi
 | `cli/020-parse-prose-between-array-heading-and-table` | — FIXED | py and ts swallowed the table into the container's comment and left the array empty; see [[#qmd70_finding_prose_gap]] |
 | `parser/221`, `223`, `224` (blockquotes) | — FIXED | Rust rebuilt blockquote comments instead of slicing them; see [[#qmd70_finding_blockquote]] |
 | `parser/222-extra-table-under-array-heading` | — FIXED | a second table under one array heading is now an error, which removes the unplaceable content entirely; see [[#qmd70_finding_extra_table]] |
-| `cli/018-parse-yaml-field-then-prose` | rs | a paragraph after a `yaml` field heading OVERWRITES the field's value, so the YAML data is lost too |
-| `cli/019-parse-indented-block-under-list-field` | rs | rs anchors an indented block on the wrong field and keeps its raw source |
+| `cli/018-parse-yaml-field-then-prose` | — FIXED | a paragraph after a `yaml` field heading OVERWROTE the field's value, losing the YAML data; see [[#qmd70_finding_rs_other_paths]] |
+| `cli/019-parse-indented-block-under-list-field` | rs | an indented block under an inline field: all three are wrong, differently — see [[#qmd70_finding_indented_block]] |
 
 **Case 020 replaced an earlier fixture that pinned the wrong side.** The first attempt asserted
 Python's reading because Python is the reference implementation; checking the precedent showed Rust
@@ -836,9 +908,9 @@ for an unrelated second reason — the rebuild motion already pinned by case 222
 CLI corpus, which is parse-only and leaves exactly one reason for the failure. Both defects it
 exposed are now fixed, so it is green.
 
-**Two cases remain red.** `018` and `019` need the shared field accessor described in
-[[#qmd70_finding_rs_other_paths]], which is a refactor of the most-tested path in the Rust parser and
-belongs in its own change.
+**One case remains red.** `019` needs an operator decision rather than a fix, because all three
+implementations are wrong in different directions — see [[#qmd70_finding_indented_block]]. Every other
+deliberately failing case was closed by fixing the defect it pinned.
 
 **Case 222 is red everywhere, so it is not a parity defect.** All three parse identically and all
 three rebuild the same wrong layout. It pins a shared limitation, which is why no implementation can

@@ -707,19 +707,38 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     matches!(header.field_type.as_deref(), Some("json") | Some("yaml"));
                 if is_content_field {
                     if let Some(ref pid) = parent_id {
-                        // Finalize current object (the parent) before setting up text field
-                        if let Some(obj) = current_obj.take() {
-                            finalize_object(
-                                &mut objects_map,
-                                &mut duplicate_objects,
-                                &mut parsing_errors,
-                                &mut first_seen_lines,
-                                obj,
-                            );
+                        // QMD-70: a `json` / `yaml` field heading declares a FIELD on the parent, so
+                        // it must not close the parent — the same reasoning as the object-array
+                        // heading. Keeping the parent in flight is what lets content AFTER the fence
+                        // still find somewhere to go; it used to be dropped outright.
+                        //
+                        // This is only safe now that the field closes as soon as its fence is read
+                        // (see the fence handler): the write sites that consume `pending_text_field`
+                        // still address the map, and with the field closed none of them is reached
+                        // for a yaml/json field any more.
+                        if !objects_map.contains_key(pid) {
+                            let mut skeleton = IndexMap::new();
+                            skeleton.insert("__id".to_string(), json!(pid));
+                            if let Some(ref obj) = current_obj {
+                                if let Some(ref k) = obj.kind {
+                                    skeleton.insert("__kind".to_string(), json!(k));
+                                }
+                            }
+                            objects_map.insert(pid.clone(), skeleton);
                         }
 
-                        // Initialize empty string in parent
-                        if let Some(parent) = objects_map.get_mut(pid) {
+                        // Initialize the field on the parent, wherever it currently lives.
+                        if let Some(ref mut obj) = current_obj {
+                            obj.fields.insert(header.id.clone(), json!(""));
+                            let line_text = lines.get(heading_line as usize - 1).unwrap_or(&"");
+                            let col =
+                                line_text.find(&format!("[[{}", header.id)).unwrap_or(0) as u32;
+                            obj.positions.insert(header.id.clone(), (heading_line, col));
+                            text_field_labels
+                                .entry(pid.clone())
+                                .or_default()
+                                .insert(header.id.clone(), header.label.clone());
+                        } else if let Some(parent) = objects_map.get_mut(pid) {
                             parent.insert(header.id.clone(), json!(""));
 
                             // Save label for text field (for rebuild)
@@ -2528,10 +2547,60 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         .join("\n");
                     list_item_text.push_str(&indented_code);
                 } else if let Some((ref parent_id, ref field_name, _, ref field_type)) =
-                    pending_text_field
+                    pending_text_field.clone()
                 {
+                    // QMD-70: a `yaml` / `json` field's value is COMPLETE once its fence is read, so
+                    // close the field here. Python does the same (it clears `pending_yaml_field`
+                    // straight after the fence). Rust kept the field open, so a paragraph following
+                    // the fence was appended into it as text and OVERWROTE the parsed object —
+                    // `conf: {a: 1}` became `conf: "Note after the yaml field."`, losing the data.
+                    // A `text` field is different: a fence there is just part of the content and more
+                    // content may legitimately follow, so it stays open.
+                    let closes_after_fence = field_type == "yaml" || field_type == "json";
+
+                    // The parent now stays in flight for a yaml/json field (see the heading
+                    // handler), so write the value there when that is where it lives. Only the
+                    // yaml/json shapes are handled here — a `text` field keeps the parent finalized
+                    // and falls through to the map path below unchanged.
+                    let parent_in_flight = current_obj
+                        .as_ref()
+                        .map(|o| o.id == *parent_id)
+                        .unwrap_or(false);
+                    if closes_after_fence && parent_in_flight {
+                        if let Some(ref mut obj) = current_obj {
+                            let parsed = if field_type == "yaml" {
+                                serde_yaml::from_str::<serde_json::Value>(&code_block_content).ok()
+                            } else {
+                                serde_json::from_str::<serde_json::Value>(&code_block_content).ok()
+                            };
+                            match parsed {
+                                Some(value) => {
+                                    obj.fields.insert(field_name.clone(), value);
+                                    obj.syntax.insert(
+                                        field_name.clone(),
+                                        if field_type == "yaml" {
+                                            "yaml_object".to_string()
+                                        } else {
+                                            "json_object".to_string()
+                                        },
+                                    );
+                                    // It is an object, not a string
+                                    obj.types.shift_remove(field_name);
+                                }
+                                None => {
+                                    // Fall back to the raw text, as the map path does
+                                    obj.fields
+                                        .insert(field_name.clone(), json!(code_text.clone()));
+                                }
+                            }
+                        }
+                        pending_text_field = None;
+                        i += 1;
+                        continue;
+                    }
+
                     // Code block inside text/yaml/json field
-                    if let Some(parent) = objects_map.get_mut(parent_id) {
+                    if let Some(parent) = objects_map.get_mut(parent_id.as_str()) {
                         // Check if this is an array field
                         let is_array_field = parent
                             .get(field_name)
@@ -2623,6 +2692,9 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                 }
                             }
                         }
+                    }
+                    if closes_after_fence {
+                        pending_text_field = None;
                     }
                 } else if let Some(ref mut obj) = current_obj {
                     // Code block as comment content

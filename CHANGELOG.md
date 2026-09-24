@@ -49,6 +49,10 @@ file is maintained by hand.
 - A second Markdown table under one object-array heading no longer loses a row. Rust converted both
   tables, both children took the same local id, and the second overwrote the first; the construct is
   now an `extra_table_in_array` error with the content preserved in `__comments` (QMD-70).
+- Rust no longer destroys a `yaml` / `json` field's value with the text that follows its fence. The
+  field stayed open after the fence, so a following paragraph was appended into it and overwrote the
+  parsed object (`conf: {a: 1}` became the paragraph's text); the field now closes on its fence, as in
+  Python, and the paragraph is kept as a comment on the parent (QMD-70).
 - Rust no longer discards content that follows an object array's own table. A trailing paragraph was
   dropped and a trailing `- field: value` was lost entirely, because the array's parent object was
   closed at the array heading and the paths that write fields and comments had nothing left to write
