@@ -1,4 +1,4 @@
-.PHONY: init help build test test-fast lint format clean install check speedtest validate-compare
+.PHONY: init help build test test-fast lint format clean install check speedtest validate-compare parse-parity-baseline
 .PHONY: py-build py-test py-lint py-format py-install py-bump qmdc-py
 .PHONY: ts-build ts-test ts-lint ts-format ts-install ts-bump qmdc-ts
 .PHONY: rs-build rs-test rs-lint rs-format rs-bump qmdc-rs
@@ -194,6 +194,14 @@ check: test
 validate-compare: py-build ts-build rs-build-debug
 	@echo "=== Comparing validation errors across parsers ==="
 	./scripts/compare_validate_errors.sh docs
+	@echo ""
+	@echo "=== Comparing full parse output across parsers ==="
+	@uv run --no-project python scripts/compare_parse_output.py
+
+# Re-record the parse-parity baseline after fixing (or knowingly accepting) a
+# divergence. The count may go DOWN but never up — see the script's docstring.
+parse-parity-baseline: py-build ts-build rs-build-debug
+	@uv run --no-project python scripts/compare_parse_output.py --update-baseline
 
 # ============================================================================
 # VERSION BUMPING (ALL)

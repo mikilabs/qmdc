@@ -988,7 +988,7 @@ deserves its own change.
 
 - category: tooling
 - affected_files: [scripts/compare_validate_errors.sh, Makefile]
-- solution: Its own ticket — a parse-output comparison harness, plus a corpus that exercises each new error shape.
+- solution: FIXED — `scripts/compare_parse_output.py`, wired into `make validate-compare`. It compares the FULL parse output of all three parsers over the real `docs/` corpus, as a ratchet against a recorded baseline.
 
 ### Why it is blind [[qmd70_finding_compare_gap_detail: text]]
 
@@ -1009,6 +1009,33 @@ exercises none of them even at the level the target does compare.
 This explains several findings in this task in hindsight: the id-composition divergence
 (`root_items_0` against `items_0`) and TypeScript's lost separator row both lived undetected for the
 same reason.
+
+### What the fix is, and what it found [[qmd70_finding_compare_gap_fix: text]]
+
+- about: [[#qmd70_finding_compare_gap]]
+
+**Fixed (2026-09-24)** by `scripts/compare_parse_output.py`, added to `make validate-compare`. It
+parses every `.qmd.md` under `docs/` with all three parsers and compares the FULL output.
+
+The first run answered the question the old target could not: **32 of the 108 real documents parse
+differently between the three parsers.** That surface was completely invisible before.
+
+A strict gate is therefore not reachable today, so the script is a RATCHET against
+`scripts/parse-parity-baseline.json`: the count may go down, never up, and `make parse-parity-baseline`
+re-records it after a fix. New divergences fail the build; the 32 known ones are listed by name and
+by the shape of their split.
+
+One design point is worth keeping, because the first attempt was wrong in the same way the old target
+was. Keying the baseline on FILE PATHS alone let a new divergence hide inside an
+already-divergent file — verified by planting one, which the script happily passed. It now keys on
+the path AND the shape of the split (`py+ts vs rs`, `py vs rs vs ts`, …), so a file whose divergence
+changes character is caught. Both scenarios were then tested: a new divergence in a known-divergent
+file, and an entirely new file. Both fail with exit 1.
+
+Scope note: parity over `tests/parser/**` and `tests/cli/**` was never the gap — all three runners
+compare against one shared `expected.json`, so a divergence there already fails at least one of them.
+What had no check at all was the real corpus, which exercises shapes no fixture was written for. That
+is exactly where the 32 live.
 
 ## The suite is deliberately red [[qmd70_finding_red_suite: Finding]]
 
