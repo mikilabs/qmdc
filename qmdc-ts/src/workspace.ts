@@ -26,7 +26,8 @@ export interface WorkspaceError {
     | 'table_in_array'
     | 'extra_table_in_array'
     | 'mixed_array'
-    | 'block_in_inline_field';
+    | 'block_in_inline_field'
+    | 'unsupported_number_format';
   message: string;
   file?: string;
   line?: number;

@@ -47,6 +47,14 @@ file is maintained by hand.
   reason two divergences in this release were found by review rather than by CI. It runs as a ratchet
   against `scripts/parse-parity-baseline.json`: new divergences fail, known ones may only shrink, and
   `make parse-parity-baseline` re-records the count (QMD-70).
+- New `unsupported_number_format` parsing error: a field value that looks like a number QMD.md cannot
+  carry. Two groups — a spelling the format does not define (`1e5`, `1.5e-3`, `2E3`, `.5`, `5.`, `+1`,
+  `1_000`, `0x1f`, `0o17`) and a supported spelling outside the representable range (above 2^53-1 an
+  integer cannot survive a round trip through a double; below `1e-4` a decimal can only be written with
+  an exponent, which the grammar has no form for). The field keeps the text the author wrote, as a
+  String, so nothing is lost and the document still round-trips; quoting is the escape hatch
+  (`- max: "9223372036854775807"` raises nothing). Previously every one of these became a String in
+  silence, and which of them did so differed per parser (QMD-71).
 
 ### Changed
 
@@ -56,11 +64,48 @@ file is maintained by hand.
   measured to LOSE or MANGLE data before — a row dropped, a declared `Kind` degraded to `__Object`,
   a table reduced to its cell texts, or prose concatenated into a field's value — and each was
   silent on every surface, so no document could have depended on the old reading for correct output.
+- **The numeric grammar is now `-?\d+(\.\d+)?` with a magnitude between `1e-4` and 2^53-1**, and
+  anything else is a String plus an `unsupported_number_format` error. This narrows the documented
+  format: `docs/format/types.qmd.md` previously promised "scientific notation" with `1.5e10` as an
+  example, a promise only the Rust parser kept — Python accepted `1.5e-3` but not `1e5`, and TypeScript
+  accepted neither. Exponent notation appears in no field value anywhere in the repository outside the
+  fixture written for this decision, so nothing in tree relied on it. The upper bound also removes a
+  class of divergence rather than reconciling it: beyond 2^53-1 the three JSON writers disagree on the
+  SPELLING of the same double (QMD-71).
+- A bare `~` in a field value is a String, not null. That spelling belongs to YAML, and QMD.md is not
+  YAML; Rust was the only parser reading it as null, pinned there by its own unit test (QMD-71).
   The offending content is now preserved in `__comments` in every case. None of the four shapes
   occurs anywhere in this repository outside the fixtures written for them (QMD-70).
 
 ### Fixed
 
+- **The three parsers now produce identical `parse` output for every document in the repository** —
+  0 divergent of 111, measured by `make validate-compare`, which had reported 32 when the check was
+  first added. `scripts/parse-parity-baseline.json` is deleted rather than set to 0, so any new
+  divergence fails immediately instead of fitting under a cap. Eleven independent causes, where a
+  per-key diff had suggested five (QMD-71).
+- Comment content is now the raw markdown fragment in every path, as the format has always specified.
+  Rust rebuilt it from inline events in the paragraph path, which silently LOST or rewrote content: an
+  image kept only its alt text (markup and path gone), an autolink `<url>` was rewritten as
+  `[url](url)`, `***` and `___` and `- - -` were all normalised to `---`, a footnote definition lost its
+  `[^1]:` label, and a list inside a blockquote was emitted TWICE with the first copy's marker
+  stripped. The Rust extension set is now pinned explicitly instead of taking every extension
+  `pulldown-cmark` ships, which is what enabled the footnote handling (QMD-71).
+- A link reference definition (`[d]: https://…`) inside a comment is no longer dropped by Rust and
+  TypeScript. Neither tokenizer emits an event for it, so rebuilding produced a document whose `[d]`
+  labels pointed at nothing and would render as literal text. Rust now slices a comment to the next
+  event's start rather than to the paragraph's end, and TypeScript extends to end of document when no
+  boundary follows (QMD-71).
+- A comment anchored on a `text` field no longer attaches to the preceding OBJECT in Rust — the single
+  largest group, 13 of the divergent documents — and a `text` field declared on an already-finalized
+  parent now gets its `__types` and `__syntax` entries. In TypeScript a `text` field whose content
+  begins with a bullet list now records the comment anchor, instead of leaving it on the parent's last
+  scalar field (QMD-71).
+- An ordered list followed by a fence inside a `text` field keeps both in TypeScript; a float's
+  fractional part survives serialisation (`2.0` no longer emits as `2`); Python no longer renumbers a
+  nested bullet list into the outer ordered list; Rust no longer extracts `key: value` entries from a
+  list nested under an ordered item as real fields; and Python no longer reads `1_000` as 1000, which
+  was Python's own numeric literal syntax leaking through (QMD-71).
 - A Markdown table written inside an object-array *element* is now that element's own content,
   carried in `__comments`, instead of being converted into extra rows of the parent array. In
   Rust some shapes also lost the element entirely — its explicit id became an empty array and its

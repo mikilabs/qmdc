@@ -13,7 +13,7 @@ _VALID_KEY_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 # QMD-71: the numeric grammar, decided for the format: an integer or a decimal, nothing else.
 # Everything that used to slip through Python's own `int()`/`float()` -- exponents, a leading or
 # trailing dot, a unary plus, digit separators -- is a string. Same pattern in all three parsers.
-_NUMBER_PATTERN = re.compile(r"^-?\d+(\.\d+)?$")
+_NUMBER_PATTERN = re.compile(r"^-?[0-9]+(\.[0-9]+)?$")
 # The largest integer magnitude read as a number: 2^53 - 1, the point up to which every integer
 # survives a round trip through an IEEE-754 double. Same constant in the Rust and TypeScript
 # parsers.
@@ -25,17 +25,21 @@ _MIN_PLAIN_DECIMAL = 1e-4
 # Numeric-looking shapes QMD.md does not define. Each one was measured to be accepted by at least
 # one host language and refused by another, which is how they diverged in the first place. Ordinary
 # strings must not match: `2026-09-24`, `12:30:00`, `1.0.2` and `1 000` all fall through.
+#
+# Every digit class here is written `[0-9]`, never `\d`: Python's `\d` matches Unicode decimal
+# digits, so a fullwidth `３` or an Arabic-Indic `٥` would be a number here and a string in the
+# other two parsers, which is exactly the kind of divergence this task exists to remove.
 _UNSUPPORTED_NUMBER_SHAPES = re.compile(
     r"^(?:"
-    r"[+-]?\d+\.?\d*[eE][+-]?\d+"  # exponent: 1e5, 1.5e-3, 2E3
-    r"|[+-]?\.\d+"  # leading dot: .5
-    r"|[+-]?\d+\."  # trailing dot: 5.
-    r"|\+\d+(?:\.\d+)?"  # unary plus: +1, +1.5
+    r"[+-]?[0-9]+\.?[0-9]*[eE][+-]?[0-9]+"  # exponent: 1e5, 1.5e-3, 2E3
+    r"|[+-]?\.[0-9]+"  # leading dot: .5
+    r"|[+-]?[0-9]+\."  # trailing dot: 5.
+    r"|\+[0-9]+(?:\.[0-9]+)?"  # unary plus: +1, +1.5
     r"|[+-]?0[xXoObB][0-9a-fA-F]+"  # other bases: 0x1f, 0o17
     r")$"
 )
 # Digit separators are checked separately, because the shape also matches a plain integer.
-_SEPARATOR_NUMBER = re.compile(r"^[+-]?\d[\d_]*(\.[\d_]+)?$")
+_SEPARATOR_NUMBER = re.compile(r"^[+-]?[0-9][0-9_]*(\.[0-9_]+)?$")
 
 
 def parse_yaml_array(value_str: str) -> tuple[list[Any], dict[str, str]]:
@@ -105,6 +109,15 @@ def _parse_supported_number(value: str) -> int | float | None:
         # double, which is all an interoperable JSON reader promises. Python would happily carry an
         # arbitrary-precision integer the other two cannot represent -- TypeScript already rounds
         # i64 max -- so a longer literal stays the authored string.
+        #
+        # The digit-count guard comes BEFORE `int()` because CPython refuses to convert a string of
+        # more than 4300 digits at all (`ValueError`, sys.set_int_max_str_digits). The old code
+        # wrapped the conversion in `try/except ValueError`, which absorbed that; checking the
+        # grammar first made the except look redundant and removing it turned a long digit run into
+        # a crash. 16 digits cannot exceed 2^53-1 by more than the bound check catches, so this is a
+        # cheap pre-filter, not a second bound.
+        if len(value.lstrip("-")) > 16:
+            return None
         number: int | float = int(value)
         return number if abs(number) <= _MAX_EXACT_INTEGER else None
     # The upper bound applies to a decimal too, and it earns its place twice over: beyond it the

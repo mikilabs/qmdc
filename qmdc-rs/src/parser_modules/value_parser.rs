@@ -87,6 +87,13 @@ fn is_decimal_shape(s: &str) -> bool {
 
 /// Parse a value as a number, or `None` when QMD.md cannot carry it. The single place the numeric
 /// bounds live, so `is_unsupported_number` cannot drift from them.
+///
+/// The grammar is checked with hand-written byte inspection rather than the regex Python and
+/// TypeScript use. Not because a regex would be recompiled per call — the crate's `OnceLock<Regex>`
+/// idiom (see `utils.rs`, `graph.rs`, `workspace.rs`) would compile it once — but because even a
+/// cached regex MATCH costs more than scanning a handful of ASCII bytes, and this runs once per
+/// field of every object in the workspace. `is_integer_or_decimal` is the equivalent of
+/// `^-?\d+(\.\d+)?$`.
 fn parse_supported_number(trimmed: &str) -> Option<Value> {
     if !is_integer_or_decimal(trimmed) {
         return None;
@@ -201,9 +208,8 @@ pub fn parse_field_value(s: &str) -> (Value, &'static str) {
     // QMD-71: an integer or a decimal only. `parse::<i64>` accepts a unary plus and
     // `parse::<f64>` accepts exponents and a bare leading or trailing dot, none of which QMD.md
     // defines -- so the grammar is checked FIRST and the parse only runs on a literal that matches.
-    // The same grammar lives in Python and TypeScript as the regex `^-?\d+(\.\d+)?$`; this is a
-    // hand-written equivalent because `parse_field_value` runs once per field and compiling a
-    // regex here would do so too.
+    // The same grammar lives in Python and TypeScript as the regex `^-?\d+(\.\d+)?$`; see
+    // `parse_supported_number` for why this one is hand-written instead.
     if let Some(number) = parse_supported_number(trimmed) {
         return (number, "number");
     }

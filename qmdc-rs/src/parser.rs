@@ -1301,7 +1301,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // Get the comment anchor from current_obj or determine from parent
                     let comment_anchor = if let Some(ref obj) = current_obj {
                         obj.comment_anchor.clone()
-                    } else if let Some((ref apid, ref afield)) = map_parent_field_anchor
+                    } else if let Some((_, ref afield)) = map_parent_field_anchor
                         .clone()
                         .filter(|(apid, _)| Some(apid) == parent_id.as_ref())
                     {
@@ -1309,7 +1309,6 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         // belongs to that FIELD. Without this the fallback below picked the last
                         // field referencing a child — the preceding OBJECT — which is what made 20
                         // of the 32 divergent documents differ from Python and TypeScript.
-                        let _ = apid;
                         afield.clone()
                     } else if let Some(ref pid) = parent_id {
                         // current_obj was finalized (child popped from stack).
