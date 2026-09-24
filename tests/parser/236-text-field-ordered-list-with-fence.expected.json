@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "d",
+    "__label": "D",
+    "__kind": "G",
+    "solution": "1. First:\n\n```json\n{\"a\": 1}\n```\n\n1. Second:\n\n```json\n{\"b\": 2}\n```",
+    "__types": {
+      "solution": "string"
+    },
+    "__syntax": {
+      "solution": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "solution": "Solution"
+    }
+  }
+]

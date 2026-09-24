@@ -1,0 +1,14 @@
+[
+  {
+    "__id": "step",
+    "__label": "Step",
+    "__kind": "S",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "1. Create Finding objects with:\n2. affected_files: concrete file paths\n3. affected_functions: function names\n4. solution: implementation approach"
+      }
+    ],
+    "__level": 2
+  }
+]

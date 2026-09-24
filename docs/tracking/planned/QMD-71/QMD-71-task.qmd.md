@@ -11,12 +11,12 @@ The README's central promise is that the three are "kept at byte-for-byte parity
 conformance test corpus". That is true of the corpus and false of real documents, and it was
 unmeasurable before because the old comparison looked only at validation-error lists.
 
-- status: planned
+- status: triage_review
 - priority: high
 - category: parser
 - related_task: [[#qmd70_table_scope]]
 - requires_changes: [qmdc-rs/src/parser.rs, qmdc-py/qmdc/parser.py, qmdc-ts/src/parser.ts]
-- findings: []
+- findings: [[[#qmd71_finding_anchor]], [[#qmd71_finding_textfield]], [[#qmd71_finding_float]], [[#qmd71_finding_nested]], [[#qmd71_finding_renumber]], [[#qmd71_finding_questions]], [[#qmd71_finding_tests]]]
 - result: null
 
 ### Why this matters more than its size suggests [[qmd71_why: text]]
@@ -47,10 +47,12 @@ measured counts rather than a sample. Exactly one parser is the outlier in every
 | 3 | `__comments`, `__syntax`, `__types` | comment anchor plus a field-type effect, needs its own look |
 | 3 | `version` | trailing-zero float (TypeScript) |
 | 5 | a named `text` field | content lost inside a text field (TypeScript) |
-| 1 | seven keys at once | `docs/tracking/workflow.sop.qmd.md`, probably several causes in one file |
+| 1 | ten keys at once | `docs/tracking/workflow.sop.qmd.md` — Rust extracting fields from a nested list item, plus Python renumbering a nested bullet list |
 
-Three causes are already reduced to minimal reproducers. Each is a few lines and each is a genuine
-bug in ONE implementation, not an undefined construct.
+SIX causes, all reduced to minimal reproducers during triage. Each is a few lines and each is a genuine
+bug in ONE implementation, not an undefined construct. The last two share a single document, which is
+why the first pass counted five: an aggregate per-key diff shows that a file differs, not that it
+differs for two independent reasons in two different parsers.
 
 ### Cause 1 — Rust anchors a comment on the wrong thing [[qmd71_cause_anchor: text]]
 
@@ -149,9 +151,8 @@ all three agree.
 
 - about: [[#qmd71]]
 
-1. ~~Classify all 32 by cause.~~ **Done during analysis** — see the three cause sections above. Five
-   causes account for 31 of the 32; `docs/tracking/workflow.sop.qmd.md` differs on seven keys at once
-   and is the one file still to be broken down.
+1. ~~Classify all 32 by cause.~~ **Done during triage** — six causes, every one with a minimal
+   reproducer and a failing regression. See the findings document.
 2. For each cause, decide which behaviour is correct BEFORE changing code. Python is the reference
    implementation, but QMD-70 showed that deferring to it mechanically is wrong: the prose-gap
    question was settled against Python by looking at what all three already agreed on for the
@@ -178,7 +179,8 @@ Not by document count — by risk and by cost.
    also the only one touching comment anchoring, which QMD-70 showed is delicate — the anchor model
    was behind three separate findings there, including one where no anchor value gave a faithful
    round trip. Expect to need a decision, not just a fix.
-4. Then the seven-key file, which likely resolves itself once the three causes above are closed.
+4. Then the two causes in `workflow.sop.qmd.md` — Rust's nested-field extraction (blocked on open
+   question 1) and Python's renumbering, which is independent of it and can go with the earlier group.
 
 A note carried from QMD-70: `parse | rebuild` is not a safe way to verify these. The round-trip has
 its own known limitations (text-field heading levels shift, top-level arrays gain a wrapper), so
@@ -193,6 +195,68 @@ compare parse output directly — which `make validate-compare` now does.
   data — but that is its own decision, and every divergence here is fixable without it.
 - Not new format rules. Anything that turns out to be UNDEFINED rather than divergent belongs in a
   separate decision, the way QMD-70's four errors did.
+
+### Goals [[goals: [Goal]]]
+
+Ordered by risk, not by document count — see the suggested order above.
+
+#### A1: TypeScript keeps text-field content intact [[qmd71_goal_a1]]
+
+An ordered list followed by a fence inside a `text` field must keep both the fences and the list
+markers, matching Rust and Python. This is the only cause that destroys what an author wrote, and it is
+already wrong in a shipped documentation page.
+
+- group: A_dataloss
+- done: false
+
+#### A2: Floats keep their fractional part [[qmd71_goal_a2]]
+
+`- version: 2.0` must read back as `2.0` in all three, not `2`. Blocked on open question 2 — parse or
+serialisation.
+
+- group: A_dataloss
+- done: false
+
+#### B1: One comment anchor rule across the three [[qmd71_goal_b1]]
+
+Content following a `text` field heading must anchor on that field, not on the preceding object. Covers
+the 20 plain cases and the 3 where Rust additionally loses the field's `__syntax` and `__types`.
+
+- group: B_anchor
+- done: false
+
+#### B2: One reach rule for nested list items [[qmd71_goal_b2]]
+
+All three must agree on whether a nested list item's field-like entries become fields. Blocked on open
+question 1.
+
+- group: B_anchor
+- done: false
+
+#### B3: Python stops renumbering nested bullets [[qmd71_goal_b3]]
+
+A nested bullet list captured as comment content must keep its indentation and markers, not be folded
+into the outer ordered list and renumbered. Independent of B2 despite sharing a document — see
+[[#qmd71_finding_renumber]].
+
+- group: B_anchor
+- done: false
+
+#### C1: A regression per cause, plus a valid neighbour per fix [[qmd71_goal_c1]]
+
+Four regressions land during triage and must fail for their own documented reason. Each fix then adds a
+fixture for its nearest valid neighbour, per [[#qmd71_finding_tests]].
+
+- group: C_tests
+- done: false
+
+#### D1: The baseline file is deleted, not zeroed [[qmd71_goal_d1]]
+
+`make validate-compare` reports 0 divergent documents and `scripts/parse-parity-baseline.json` is
+removed, so a future divergence fails immediately instead of fitting under a cap.
+
+- group: D_gate
+- done: false
 
 ### Acceptance [[qmd71_acceptance: text]]
 
