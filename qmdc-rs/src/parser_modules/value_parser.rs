@@ -2,6 +2,11 @@
 
 use serde_json::{json, Value};
 
+/// The largest integer magnitude QMD.md reads as a number: 2^53 - 1, the point up to which every
+/// integer survives a round trip through an IEEE-754 double. An interoperable JSON reader promises
+/// no more than that, and TypeScript cannot exceed it at all, so a longer literal stays a string.
+const MAX_EXACT_INTEGER: u64 = 9_007_199_254_740_991;
+
 /// QMD.md's numeric grammar: an optional `-`, one or more digits, and optionally a `.` followed by
 /// one or more digits. Equivalent to `^-?\d+(\.\d+)?$` in the Python and TypeScript parsers.
 ///
@@ -90,12 +95,24 @@ pub fn parse_field_value(s: &str) -> (Value, &'static str) {
     // hand-written equivalent because `parse_field_value` runs once per field and compiling a
     // regex here would do so too.
     if is_integer_or_decimal(trimmed) {
-        if let Ok(n) = trimmed.parse::<i64>() {
-            return (json!(n), "number");
-        }
-        if let Ok(f) = trimmed.parse::<f64>() {
-            if f.is_finite() {
-                return (json!(f), "number");
+        if trimmed.contains('.') {
+            if let Ok(f) = trimmed.parse::<f64>() {
+                // The bound applies to a decimal too, and it earns its place twice over: beyond it
+                // the three JSON writers disagree on the SPELLING of the same double (Rust and
+                // Python reach for exponent form where JavaScript prints all the digits), so
+                // stopping here removes that whole class of divergence rather than chasing it.
+                if f.is_finite() && f.abs() <= MAX_EXACT_INTEGER as f64 {
+                    return (json!(f), "number");
+                }
+            }
+        } else if let Ok(n) = trimmed.parse::<i64>() {
+            // An integer is a number only while it survives a round trip through a double, which is
+            // all an interoperable JSON reader promises. Beyond that the three parsers could not
+            // agree -- i64 max alone came back as 9223372036854776000 in TypeScript -- so anything
+            // larger stays the string the author wrote. A parse failure here means the literal is
+            // past i64 too, which is well past this bound.
+            if n.unsigned_abs() <= MAX_EXACT_INTEGER {
+                return (json!(n), "number");
             }
         }
     }

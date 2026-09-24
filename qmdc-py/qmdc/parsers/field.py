@@ -1,5 +1,6 @@
 """Field parser - extracts fields from list items."""
 
+import math
 import re
 from typing import Any
 
@@ -13,6 +14,10 @@ _VALID_KEY_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 # Everything that used to slip through Python's own `int()`/`float()` -- exponents, a leading or
 # trailing dot, a unary plus, digit separators -- is a string. Same pattern in all three parsers.
 _NUMBER_PATTERN = re.compile(r"^-?\d+(\.\d+)?$")
+# The largest integer magnitude read as a number: 2^53 - 1, the point up to which every integer
+# survives a round trip through an IEEE-754 double. Same constant in the Rust and TypeScript
+# parsers.
+_MAX_EXACT_INTEGER = 9007199254740991
 
 
 def parse_yaml_array(value_str: str) -> tuple[list[Any], dict[str, str]]:
@@ -123,8 +128,24 @@ def parse_field_value(value_str: str) -> tuple[Any, str]:
     # number (int or float) -- an integer or a decimal only, per _NUMBER_PATTERN
     if _NUMBER_PATTERN.match(value):
         if "." not in value:
-            return int(value), "number"
-        return float(value), "number"
+            # QMD-71: an integer is a number only while it survives a round trip through an
+            # IEEE-754 double, which is all an interoperable JSON reader promises. Python would
+            # happily carry an arbitrary-precision integer the other two cannot represent --
+            # TypeScript already rounds i64 max -- so a longer literal stays the authored string.
+            number = int(value)
+            if abs(number) <= _MAX_EXACT_INTEGER:
+                return number, "number"
+        else:
+            # The bound applies to a decimal too, and it earns its place twice over: beyond it the
+            # three JSON writers disagree on the SPELLING of the same double (Python and Rust
+            # reach
+            # for exponent form where JavaScript prints all the digits), so stopping here removes
+            # that whole class of divergence rather than chasing it. It also excludes a literal
+            # long enough to overflow: `float("1" + "0" * 309 + ".5")` is `inf`, and `json.dumps`
+            # writes that as a bare `Infinity`, which is not valid JSON at all.
+            number = float(value)
+            if math.isfinite(number) and abs(number) <= _MAX_EXACT_INTEGER:
+                return number, "number"
 
     # string (default) - remove quotes if present
     if (value.startswith('"') and value.endswith('"')) or (

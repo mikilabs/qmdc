@@ -1,0 +1,30 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "S",
+    "a": -0.0,
+    "b": 0.0,
+    "c": 1.0,
+    "d": 100.0,
+    "e": 0.01,
+    "f": 0.0001,
+    "g": 1e-05,
+    "h": 1e-06,
+    "i": 1e-07,
+    "j": 0.30000000000000004,
+    "__types": {
+      "a": "number",
+      "b": "number",
+      "c": "number",
+      "d": "number",
+      "e": "number",
+      "f": "number",
+      "g": "number",
+      "h": "number",
+      "i": "number",
+      "j": "number"
+    },
+    "__level": 2
+  }
+]

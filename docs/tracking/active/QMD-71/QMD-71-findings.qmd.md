@@ -483,12 +483,12 @@ real document relied on the promise, so nothing breaks. The spec now states the 
 has, and lists every rejected form by name so the next reader does not have to rediscover which host
 language accepted what.
 
-### Still open: integers beyond 2^53 [[qmd71_finding_numbers_big: text]]
+### Decided: nothing beyond 2^53-1 is a number [[qmd71_finding_numbers_big: text]]
 
 - about: [[#qmd71_finding_numbers]]
 
-The grammar decision does not settle this, because a long run of digits IS an integer and the
-disagreement is about REPRESENTATION:
+The grammar decision did not settle this, because a long run of digits IS an integer and the
+disagreement was about REPRESENTATION:
 
 | value | rs | py | ts |
 | --- | --- | --- | --- |
@@ -496,13 +496,93 @@ disagreement is about REPRESENTATION:
 | `9223372036854775807` (i64 max) | exact | exact | 9223372036854776000 |
 | `123456789012345678901234567890` | 1.2345678901234568e+29 | exact | 1.2345678901234568e+29 |
 
-TypeScript cannot hold an integer above 2^53-1 in a JSON number at all, so no choice makes all three
-agree AND keep the value. The options are to cap the numeric type at the safe-integer range and treat
-anything longer as a string — exact for every value, at the cost of a boundary borrowed from
-JavaScript — or to accept f64 precision loss everywhere, which would make Python start returning a
-rounded float where it currently returns the authored integer.
+TypeScript cannot hold an integer above 2^53-1 in a JSON number at all, so no choice made all three
+agree AND keep the value. The operator chose exactness: anything past the bound is a String, so the
+digits the author wrote survive untouched instead of being rounded into a different number.
 
-Not fixed, and not in the `docs/` corpus, so it does not affect the parity gate.
+The bound applies to decimals too, and that is where it paid for itself twice. Beyond it the three
+JSON writers disagree on the SPELLING of the same double — `12345678901234567890.5` came back as
+`1.2345678901234567e+19` from Rust and Python and as all its digits from JavaScript — so drawing the
+line at 2^53-1 removed that whole class of divergence instead of leaving it to be chased later.
+
+Two defects in this task's own earlier work surfaced while pinning it. The `__raw_values` spelling added
+for [[#qmd71_finding_float]] echoed the AUTHOR's text whenever a decimal's value was integral, so
+`100.000` came back as `100.000` where the other two canonicalise to `100.0`, and a decimal whose
+fraction had been rounded away reprinted digits the double no longer held. The spelling is now derived
+from the value. It also dropped the sign of negative zero, because `${-0}` is `"0"` in JavaScript —
+`Object.is` is what tells that case apart.
+
+One more thing this pinned, worth stating because it is a property of the format rather than a bug: a
+decimal carries double semantics, so authored precision beyond a double's is lost.
+`0.12345678901234567890` reads back as `0.12345678901234568`, and the text round-trip test correctly
+reports that as content loss. The fixture uses a clean decimal instead, and the spec now says so
+outright.
+
+## Still divergent: how a tiny decimal is spelled [[qmd71_finding_spelling: Finding]]
+
+The last divergence found, isolated to decimals with a magnitude below `1e-4`. Not a type question —
+all three agree it is a number and agree on its VALUE. They disagree on how to write it down.
+
+- category: parser
+- priority: high
+- affected_files: [qmdc-py/qmdc, qmdc-rs/src, qmdc-ts/src]
+- solution: Needs a decision — see the two options below. Not cosmetic: it breaks the round trip.
+- test_plan: pinned RED by `tests/parser/250-value-decimal-spelling`
+
+### The measured boundary [[qmd71_finding_spelling_table: text]]
+
+- about: [[#qmd71_finding_spelling]]
+
+| authored | rs | py | ts |
+| --- | --- | --- | --- |
+| `0.0001` | `0.0001` | `0.0001` | `0.0001` |
+| `0.00001` | `0.00001` | `1e-05` | `0.00001` |
+| `0.000001` | `1e-6` | `1e-06` | `0.000001` |
+| `0.0000001` | `1e-7` | `1e-07` | `1e-7` |
+
+Three different switch points into exponent form and two different exponent paddings. Python switches
+below `1e-4` and pads the exponent to two digits; Rust switches below `1e-5` with minimal digits;
+JavaScript switches below `1e-6` with minimal digits. Above `1e-4` all three agree, and everything else
+about decimals now agrees too — `-0.0`, `100.000`, `0.30000000000000004` and the rest are identical in
+all three.
+
+Each parser is emitting its host language's default float formatting, which is the same root cause as
+the numeric grammar: the format inherited whatever the language did. Fixing it means choosing which
+spelling is canonical and then writing floats by hand in at least two of the three, since none of the
+three defaults matches another.
+
+### It breaks the round trip, so it is not cosmetic [[qmd71_finding_spelling_rt: text]]
+
+- about: [[#qmd71_finding_spelling]]
+
+The decided grammar has no exponent form, so a parser that PRINTS one emits JSON its own parser will not
+read back as a number. `- g: 0.00001` becomes `1e-05` in Python, and re-parsing that yields the string
+`"1e-05"`.
+
+In Python this was already true before this task: its old numeric path only reached `float()` when the
+value contained a `.`, so `1e-05` was already a string on the way back in. The bug was simply never
+exercised, because no fixture carried a decimal that small. In Rust the round trip DID work before and
+the grammar decision broke it — Rust used to accept `1e-6` on re-read and now does not. The red fixture
+records that honestly rather than hiding it.
+
+### Two options, with what each costs [[qmd71_finding_spelling_options: text]]
+
+- about: [[#qmd71_finding_spelling]]
+
+**Never print an exponent.** Serialise every number in plain decimal, so anything the parser accepts
+survives the round trip and no value changes type. Costs a hand-written float formatter in all three,
+because no two of the host defaults agree, and a very small double spells out long (`5e-324` becomes 324
+digits).
+
+**Bound the magnitude from below, as the upper bound already does.** A non-zero decimal below `1e-4` is a
+String, mirroring "anything the format cannot spell plainly stays text". One line per parser, in code
+already touched, and the round trip is safe by construction. Costs the ability to write `- rate: 0.00001`
+as a number, and the threshold is borrowed from Python's `repr` switch point rather than derived from
+anything in the format.
+
+`tests/parser/250` is committed RED against Python's output to hold the question open, the same way
+`tests/parser/245` holds the link reference definitions. Neither shape occurs in the `docs/` corpus, so
+the parity gate is unaffected and stays exact.
 
 ## Open questions [[qmd71_finding_questions: Finding]]
 

@@ -12,7 +12,7 @@ Type auto-detection rules (applied to field values):
 
 1. `true` | `false` → Boolean (lowercase only)
 2. `null` or empty value after colon → Null
-3. Integer or decimal → Number (`-?\d+(\.\d+)?` and nothing else)
+3. Integer or decimal → Number (`-?\d+(\.\d+)?`, magnitude at most 2^53-1)
 4. Everything else → String
 
 NOT supported: `yes`, `no`, `True`, `FALSE` (for unambiguity)
@@ -29,7 +29,7 @@ Empty string requires quotes: `- field: ""` (without quotes, empty value = null)
 ## Primitives [[primitives: text]]
 
 - String: text values. Quotes optional for simple strings. Required in YAML arrays for values with spaces/commas.
-- Number: an integer or a decimal, optionally negative — exactly `-?\d+(\.\d+)?`. No exponents, no bare leading or trailing dot, no unary plus, no digit separators, no alternative bases.
+- Number: an integer or a decimal, optionally negative — exactly `-?\d+(\.\d+)?`, with a magnitude of at most `9007199254740991` (2^53-1). No exponents, no bare leading or trailing dot, no unary plus, no digit separators, no alternative bases. A literal that matches the grammar but exceeds the magnitude is a String, so its digits are never silently rounded — `9223372036854775807` stays text. Within the range a decimal carries IEEE-754 double semantics, so authored precision beyond a double's is not preserved (`0.1234567890123456789` reads back shorter).
 - Boolean: `true` or `false` only (lowercase). `True`, `FALSE`, `yes`, `no` are strings.
 - Null: keyword `null` or empty value after colon (`- field:`).
 - Array: ordered list of primitives or objects. Two syntaxes: YAML notation and Markdown lists.

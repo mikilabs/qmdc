@@ -77,6 +77,11 @@ function splitYamlArray(s: string): string[] {
   return result;
 }
 
+/** Absolute value of a BigInt -- there is no Math.abs for BigInt. */
+function bigAbs(n: bigint): bigint {
+  return n < 0n ? -n : n;
+}
+
 /**
  * Parse field value and auto-detect type
  *
@@ -144,9 +149,33 @@ export function parseFieldValue(
 
   // number (int or float)
   if (/^-?\d+(\.\d+)?$/.test(value)) {
-    const num = parseFloat(value);
-    const raw = value.includes('.') && Number.isInteger(num) ? value : undefined;
-    return [num, 'number', raw];
+    if (!value.includes('.')) {
+      // QMD-71: an integer is a number only while it survives a round trip through a double, which
+      // is all an interoperable JSON reader promises. Compared with BigInt rather than with the
+      // parsed value, because parseFloat has already rounded by then -- 9223372036854775807 arrives
+      // as 9223372036854776000, which would pass a test against itself. A longer literal stays the
+      // string the author wrote. Same bound in the Rust and Python parsers.
+      if (bigAbs(BigInt(value)) <= BigInt(Number.MAX_SAFE_INTEGER)) {
+        return [Number(value), 'number', undefined];
+      }
+    } else {
+      // The bound applies to a decimal too, and it earns its place twice over: beyond it the three
+      // JSON writers disagree on the SPELLING of the same double (Rust and Python reach for
+      // exponent form where JavaScript prints all the digits), so stopping here removes that whole
+      // class of divergence rather than chasing it.
+      const num = parseFloat(value);
+      if (Number.isFinite(num) && Math.abs(num) <= Number.MAX_SAFE_INTEGER) {
+        // QMD-71: when a decimal's value is integral, JSON.stringify would drop the fraction and
+        // write `2`, so a spelling is carried for the writer. Derive it from the VALUE rather than
+        // echoing the author's text: `100.000` must come back as `100.0`, which is what the Python
+        // and Rust writers produce. Echoing the text also mis-handled a decimal whose fraction was
+        // lost to rounding, reprinting digits the double no longer held.
+        // `Object.is` is what distinguishes negative zero -- `${-0}` is "0", so a plain template
+        // would drop the sign the other two keep.
+        const raw = Number.isInteger(num) ? (Object.is(num, -0) ? '-0.0' : `${num}.0`) : undefined;
+        return [num, 'number', raw];
+      }
+    }
   }
 
   // string (default) - remove quotes if present
