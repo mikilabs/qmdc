@@ -497,7 +497,14 @@ export function parseFieldsFromList(
           //
           // Keep the field, preserve the block verbatim (dedented) as a comment anchored on the
           // field, and report it — the shape `table_in_array` and `ordered_list_in_array` use.
-          if (valueStr !== '' && i + 1 < tokens.length) {
+          // A YAML BLOCK SCALAR header is not a value with a block after it — the block IS the
+          // value. Any of `|`, `|-`, `|+`, `>`, `>-`, `>+`, optionally with an indentation
+          // indicator (`|2`), counts. Recognising only bare `|` and `>` reported a valid
+          // `- key: |-` with a blank line inside as an error.
+          // The value may already carry the block's continuation lines, so match the header at
+          // the START rather than the whole string.
+          const isBlockScalar = /^[|>][+-]?\d*(\n|$)/.test(valueStr.trim());
+          if (valueStr !== '' && !isBlockScalar && i + 1 < tokens.length) {
             let lookahead = i + 1;
             while (lookahead < tokens.length && tokens[lookahead]?.type === 'paragraph_close') {
               lookahead++;

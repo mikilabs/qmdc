@@ -911,6 +911,105 @@ Also corrected while doing this: a `Paragraph` is only offending once the item's
 complete, since the item's first paragraph IS that text; the other four block kinds can never be the
 item's own text and need no such check. Requiring it for all of them missed the nested-list case.
 
+## Code review found a false positive on valid YAML [[qmd70_finding_review3: Finding]]
+
+The third review pass, run on the four new errors. One BLOCKER and three divergences, all in
+`block_in_inline_field` — the rule that touches the list path, which carries every `- key: value`
+field in the format. All fixed.
+
+- category: parser
+- related_to: [[#qmd70_finding_indented_block]]
+- affected_files: [qmdc-rs/src/parser.rs, qmdc-py/qmdc/parsers/field.py, qmdc-ts/src/parsers/field.ts]
+- solution: Fixed — four corrections, pinned by `tests/parser/231`, `232`, `233` and `234`.
+
+### What the review caught [[qmd70_finding_review3_detail: text]]
+
+- about: [[#qmd70_finding_review3]]
+
+**A false positive on a VALID construct, which is the worst class here** — `qmdc workspace validate`
+exits non-zero, so it breaks a user's CI. A YAML block scalar with a chomping indicator (`- key: |-`,
+`|+`, `>-`, `>+`) containing a blank line was reported as `block_in_inline_field` in all three
+parsers. The exclusion recognised only a bare `|` and `>`. It now matches any block-scalar header,
+including an indentation indicator (`|2`), and in Python and TypeScript the match is anchored at the
+START of the value rather than the whole string, because by then the value already carries the
+block's continuation lines. Pinned by `tests/parser/231-yaml-block-scalar-blank-line`.
+
+**A blocker: Rust lost the whole object.** When a nested list followed the FIRST field of an object,
+Rust skipped the list's events before the field was committed, so the object ended up field-less and
+the structured-in-text fallback demoted the entire heading region to a `__TextBlock` — no object, and
+no error either. Python and TypeScript produced the object plus the error. Pinned by
+`tests/parser/232-block-in-inline-field-first-field`.
+
+**Two divergences, one fix each:**
+
+- A thematic break (`---`) under a valued field errored in Python and TypeScript but passed silently
+  in Rust. `hr` is in their opener set; in pulldown-cmark a thematic break is `Event::Rule` rather
+  than a `Tag`, so it could not join Rust's arm and needed its own. Pinned by
+  `tests/parser/233-block-in-inline-field-hr`. An HTML block is in nobody's opener set and agrees.
+- A block under a NESTED list item's field errored in Rust alone. Python and TypeScript never reach
+  it, because they do not descend into a nested item to extract its fields. Both guards are now
+  restricted to top-level list items: firing in Rust alone would have added a second axis of
+  divergence on top of that pre-existing reach difference. That same restriction is what fixed the
+  blocker above — the nested list is no longer claimed before the field commits.
+
+Two reported findings did NOT reproduce and are recorded as such: prose after a `yaml`/`json` fence
+inside an array ELEMENT (measured on two shapes, all three agree), and a single-field-object variant
+that the top-level restriction had already closed.
+
+The review also verified, independently, that every example in the four new documentation sections
+behaves as its prose claims — each "Examples" block produces exactly its documented error and each
+"Solution" block produces none, in all three parsers — and that `qmdc-rs/src/qmdc-guide.qmd.md` is
+byte-identical to its source.
+
+### A gap it found in the corpus itself [[qmd70_finding_review3_guards: text]]
+
+- about: [[#qmd70_finding_review3]]
+
+`mixed_array`'s valid neighbours were only implicitly covered: a `text` field heading after the
+array's table, and a heading at the array's own level, both legitimately produce no error, but no
+fixture pinned either. A future change to the guard could start firing on them with nothing to catch
+it. `tests/cli/021-mixed-array-valid-neighbours` pins both.
+
+It lives in the CLI corpus rather than the parser one for the same reason `020` does: the shape
+includes a `text` field heading, and `rebuild` restores such a heading one level shallower than it
+was written. That drift is pre-existing — reproduced with no table and no array involved — and has
+nothing to do with what the fixture asserts, so pinning it in a parse-only corpus keeps the two
+concerns apart.
+
+Worth stating as a general lesson from this task: every one of the four new rules needed a fixture
+for its VALID side, not only its error side. Three shipped fixtures (`070`, `153`, `154`) are what
+caught the YAML-multiline exclusion during implementation, and the absence of an equivalent for the
+chomping indicators is exactly why that false positive shipped as far as review.
+
+## `make validate-compare` cannot see any of this [[qmd70_finding_compare_gap: Finding]]
+
+Found by the third review pass. Not fixed: it is test infrastructure, not a parser defect, and it
+deserves its own change.
+
+- category: tooling
+- affected_files: [scripts/compare_validate_errors.sh, Makefile]
+- solution: Its own ticket — a parse-output comparison harness, plus a corpus that exercises each new error shape.
+
+### Why it is blind [[qmd70_finding_compare_gap_detail: text]]
+
+- about: [[#qmd70_finding_compare_gap]]
+
+`make validate-compare` is the target that is supposed to stop the three parsers drifting. It runs
+`workspace validate` and compares only `type`, `file:line` and `objectId` from the VALIDATION-ERROR
+list. It never compares parse output, so object fields, `__comments` and their anchors, `__syntax`,
+`__types`, field ordering and the `__Document` / `__TextBlock` fallback shape are all invisible to it.
+
+Both divergences the review found change parse output without changing the validation-error list, so
+the target reports "all parsers produce IDENTICAL validation errors" while the parse output differs
+radically. The reviewer demonstrated that directly.
+
+It also runs on `docs/`, which contains zero occurrences of the four new error shapes, so CI
+exercises none of them even at the level the target does compare.
+
+This explains several findings in this task in hindsight: the id-composition divergence
+(`root_items_0` against `items_0`) and TypeScript's lost separator row both lived undetected for the
+same reason.
+
 ## The suite is deliberately red [[qmd70_finding_red_suite: Finding]]
 
 Five failing tests were added ON PURPOSE, at the operator's instruction, to pin defects this task

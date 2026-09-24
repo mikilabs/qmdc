@@ -1,0 +1,52 @@
+[
+  {
+    "__id": "team",
+    "__label": "Team",
+    "__kind": "Group",
+    "lead": "Ann",
+    "members": [
+      "[[#team.members.members_0]]"
+    ],
+    "details": "A text field after the array's table is a field on the parent, not an element.",
+    "other": "[[#team.other]]",
+    "__types": {
+      "lead": "string",
+      "members": "array",
+      "details": "string"
+    },
+    "__syntax": {
+      "members": "table",
+      "details": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "members": "Members",
+      "details": "Details"
+    }
+  },
+  {
+    "__id": "team.members.members_0",
+    "__local_id": "members_0",
+    "__label": "Alice",
+    "__kind": "User",
+    "__parent": "[[#team]]",
+    "__parent_field": "members",
+    "name": "Alice",
+    "__types": {
+      "name": "string"
+    }
+  },
+  {
+    "__id": "team.other",
+    "__local_id": "other",
+    "__label": "Other",
+    "__kind": "Group",
+    "__parent": "[[#team]]",
+    "__parent_field": "other",
+    "x": 1,
+    "__types": {
+      "x": "number"
+    },
+    "__level": 2
+  }
+]

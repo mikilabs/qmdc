@@ -403,7 +403,14 @@ def parse_fields_from_list(
                 # Keep the field, preserve the block verbatim (dedented) as a comment anchored on
                 # the field, and report it — the shape `table_in_array` and `ordered_list_in_array`
                 # already use.
-                if value_str != "" and i + 1 < len(tokens):
+                # A YAML BLOCK SCALAR header is not a value with a block after it — the block IS
+                # the value. Any of `|`, `|-`, `|+`, `>`, `>-`, `>+`, optionally with an
+                # indentation indicator (`|2`), counts. Recognising only bare `|` and `>` reported
+                # a valid `- key: |-` with a blank line inside as an error.
+                # The value may already carry the block's continuation lines, so match the
+                # header at the START rather than the whole string.
+                is_block_scalar = bool(re.match(r"^[|>][+-]?\d*(\n|$)", value_str.strip()))
+                if value_str != "" and not is_block_scalar and i + 1 < len(tokens):
                     lookahead = i + 1
                     while lookahead < len(tokens) and tokens[lookahead].type == "paragraph_close":
                         lookahead += 1

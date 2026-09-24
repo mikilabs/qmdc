@@ -512,6 +512,23 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
             // Paragraph arms below would otherwise claim the event and apply whichever nearby rule
             // they implement — which is exactly how the three parsers came to mangle this shape
             // three different ways.
+            Event::Rule
+                if in_list_item
+                    && list_nesting_level == 1
+                    && list_item_block.is_none()
+                    && !list_item_text.trim_end().is_empty()
+                    && !list_item_pipe
+                    && !list_item_text.trim_end().ends_with(':') =>
+            {
+                // A thematic break (`---`) is a block like any other. It is `Event::Rule` rather
+                // than a `Tag`, so it cannot join the arm below; Python and TypeScript list `hr`
+                // among their openers, and omitting it here made the same input error there and
+                // pass silently in Rust.
+                list_item_block = Some((get_line(range.start), range.start, range.end));
+                i += 1;
+                continue;
+            }
+
             Event::Start(
                 tag @ (Tag::Table(_)
                 | Tag::BlockQuote
@@ -519,6 +536,11 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 | Tag::List(_)
                 | Tag::Paragraph),
             ) if in_list_item
+                // Top-level list items only. Python and TypeScript do not descend into a nested
+                // item to extract its fields, so they never reach this check there; firing in Rust
+                // alone would add a second axis of divergence on top of that pre-existing reach
+                // difference rather than removing one.
+                && list_nesting_level == 1
                 && list_item_block.is_none()
                 && !list_item_text.trim().is_empty()
                 // A PARAGRAPH is only offending once the item's own text is complete — the item's
@@ -2004,9 +2026,20 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         // Latch a YAML multiline declaration here rather than at the paragraph's
                         // end: a TIGHT list item emits no paragraph events at all, so the latch
                         // never ran there and the pipe's own fence was reported as stray content.
+                        // Any YAML BLOCK SCALAR header, not just a bare `|` or `>`: `|-`, `|+`,
+                        // `>-`, `>+`, and an optional indentation indicator (`|2`) all mean the
+                        // indented block IS the value. Matching only the bare forms reported a
+                        // valid `- key: |-` with a blank line inside as an error.
                         let tail = list_item_text.trim_end();
-                        if tail.ends_with(": |") || tail.ends_with(": >") {
-                            list_item_pipe = true;
+                        if let Some(marker) = tail.rsplit(": ").next() {
+                            let mut cs = marker.chars();
+                            if matches!(cs.next(), Some('|') | Some('>')) {
+                                let rest: String = cs.collect();
+                                let rest = rest.trim_start_matches(['+', '-']);
+                                if rest.chars().all(|c| c.is_ascii_digit()) {
+                                    list_item_pipe = true;
+                                }
+                            }
                         }
                     }
                 } else if in_paragraph {

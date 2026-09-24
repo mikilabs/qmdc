@@ -17,9 +17,6 @@ file is maintained by hand.
   any namespace of that workspace. A reference that crosses a workspace boundary MUST now be
   qualified; an ambiguous qualified reference produces no edge rather than an arbitrary one
   (QMD-69).
-
-### Added
-
 - New `table_in_array` parsing error: a Markdown table under a primitive array field
   (`[[field: array]]`) is now reported instead of being silently dropped. A primitive array holds
   scalars and a table has columns, so there is no defined mapping; the table content is preserved in
@@ -43,6 +40,17 @@ file is maintained by hand.
   A heading element after the array's table used to leave the array silently — it became a plain field
   on the parent and its declared Kind was degraded to `__Object` — with nothing reported. A table
   AFTER an element heading is still that element's own content (QMD-70).
+
+### Changed
+
+- **Four constructs that previously parsed silently are now validation errors**, so
+  `qmdc workspace validate` can newly exit non-zero on a document that passed before:
+  `table_in_array`, `extra_table_in_array`, `mixed_array` and `block_in_inline_field`. Each was
+  measured to LOSE or MANGLE data before — a row dropped, a declared `Kind` degraded to `__Object`,
+  a table reduced to its cell texts, or prose concatenated into a field's value — and each was
+  silent on every surface, so no document could have depended on the old reading for correct output.
+  The offending content is now preserved in `__comments` in every case. None of the four shapes
+  occurs anywhere in this repository outside the fixtures written for them (QMD-70).
 
 ### Fixed
 
