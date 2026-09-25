@@ -40,6 +40,17 @@ _UNSUPPORTED_NUMBER_SHAPES = re.compile(
 )
 # Digit separators are checked separately, because the shape also matches a plain integer.
 _SEPARATOR_NUMBER = re.compile(r"^[+-]?[0-9][0-9_]*(\.[0-9_]+)?$")
+# What to write instead, carried on the error so every surface that renders an error's detail fields
+# shows it. Neither text contains a comma: the CLI, the workspace reporters and the LSP all join an
+# error's fields with ", ", so a comma inside one would read as another field. Byte-identical in all
+# three parsers, and the range hint cites the bounds above rather than repeating their digits.
+_UNSUPPORTED_SHAPE_HINT = (
+    "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
+)
+_UNSUPPORTED_RANGE_HINT = (
+    f"magnitude outside {_MIN_PLAIN_DECIMAL:g}..{_MAX_EXACT_INTEGER}"
+    " (quote the value to keep it as text)"
+)
 
 
 def parse_yaml_array(value_str: str) -> tuple[list[Any], dict[str, str]]:
@@ -100,7 +111,7 @@ def _parse_supported_number(value: str) -> int | float | None:
     """
     Parse a value as a number, or return None when QMD.md cannot carry it.
 
-    The single place the numeric bounds live, so `is_unsupported_number` cannot drift from it.
+    The single place the numeric bounds live, so `unsupported_number_hint` cannot drift from it.
     """
     if not _NUMBER_PATTERN.match(value):
         return None
@@ -135,9 +146,14 @@ def _parse_supported_number(value: str) -> int | float | None:
     return number
 
 
-def is_unsupported_number(value_str: str) -> bool:
+def unsupported_number_hint(value_str: str) -> str | None:
     """
-    True when a value LOOKS like a number but QMD.md cannot carry it.
+    What to write instead, when a value LOOKS like a number but QMD.md cannot carry it. None when
+    the value is fine.
+
+    Returns the hint rather than a bool because "is this unsupported" and "why" are the SAME
+    decision: the branch that rejects a value is the branch that knows which of the two groups it
+    fell into. Two functions would be two places to drift.
 
     Two groups, both reported as `unsupported_number_format` rather than silently becoming strings:
     a shape the format does not define (`1e5`, `.5`, `+1`, `1_000`, `0x1f`), and a shape it does
@@ -149,10 +165,14 @@ def is_unsupported_number(value_str: str) -> bool:
     value = value_str.strip()
     if _NUMBER_PATTERN.match(value):
         # A supported shape, so only the magnitude bounds can reject it.
-        return _parse_supported_number(value) is None
+        if _parse_supported_number(value) is not None:
+            return None
+        return _UNSUPPORTED_RANGE_HINT
     if "_" in value and _SEPARATOR_NUMBER.match(value):
-        return True
-    return bool(_UNSUPPORTED_NUMBER_SHAPES.match(value))
+        return _UNSUPPORTED_SHAPE_HINT
+    if _UNSUPPORTED_NUMBER_SHAPES.match(value):
+        return _UNSUPPORTED_SHAPE_HINT
+    return None
 
 
 def parse_field_value(value_str: str) -> tuple[Any, str]:
@@ -235,8 +255,8 @@ def parse_fields_from_list(
                    that look like fields but have invalid keys (e.g. Cyrillic).
                    "after" is the last valid field key before this item, or "__self".
     nested_subitems_errors: list of {"key": str, "line": int} for fields with nested sub-items
-    unsupported_number_errors: list of {"key": str, "line": int} for values that look like a number
-                   QMD.md cannot carry (see `is_unsupported_number`)
+    unsupported_number_errors: list of {"key": str, "line": int, "hint": str} for values that look
+                   like a number QMD.md cannot carry (see `unsupported_number_hint`)
                            (pattern `- key:\n  - item` which is forbidden).
     """
     fields: dict[str, Any] = {}
@@ -431,8 +451,10 @@ def parse_fields_from_list(
                     # QMD-71: a value that looks like a number QMD.md cannot carry is kept as the
                     # authored text -- nothing is lost -- and reported, so the author is told the
                     # spelling is unsupported instead of silently receiving a string.
-                    if is_unsupported_number(value_str):
-                        unsupported_number_errors.append({"key": key, "line": current_line})
+                    if (number_hint := unsupported_number_hint(value_str)) is not None:
+                        unsupported_number_errors.append(
+                            {"key": key, "line": current_line, "hint": number_hint}
+                        )
 
                     # Track syntax for arrays
                     if type_name == "ref_array":

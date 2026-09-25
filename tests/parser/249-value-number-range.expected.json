@@ -31,7 +31,8 @@
     "type": "unsupported_number_format",
     "field": "over_safe",
     "object": "[[#s]]",
-    "line": 4
+    "line": 4,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
   },
   {
     "__id": "error_1",
@@ -39,7 +40,8 @@
     "type": "unsupported_number_format",
     "field": "i64_max",
     "object": "[[#s]]",
-    "line": 5
+    "line": 5,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
   },
   {
     "__id": "error_2",
@@ -47,7 +49,8 @@
     "type": "unsupported_number_format",
     "field": "huge",
     "object": "[[#s]]",
-    "line": 6
+    "line": 6,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
   },
   {
     "__id": "error_3",
@@ -55,7 +58,8 @@
     "type": "unsupported_number_format",
     "field": "neg_over",
     "object": "[[#s]]",
-    "line": 8
+    "line": 8,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
   },
   {
     "__id": "error_4",
@@ -63,7 +67,8 @@
     "type": "unsupported_number_format",
     "field": "dec_big_int",
     "object": "[[#s]]",
-    "line": 10
+    "line": 10,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
   },
   {
     "__id": "error_5",
@@ -71,6 +76,7 @@
     "type": "unsupported_number_format",
     "field": "dec_overflow",
     "object": "[[#s]]",
-    "line": 11
+    "line": 11,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
   }
 ]

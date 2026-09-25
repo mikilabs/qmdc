@@ -12,6 +12,42 @@ const MAX_EXACT_INTEGER: u64 = 9_007_199_254_740_991;
 /// all -- and the three hosts disagree on where they switch and how they pad the exponent.
 const MIN_PLAIN_DECIMAL: f64 = 1e-4;
 
+/// What to write instead, carried on the error so every surface that renders an error's detail
+/// fields shows it. Neither text contains a comma: the CLI, the workspace reporters and the LSP all
+/// join an error's fields with ", ", so a comma inside one would read as another field.
+/// Byte-identical in all three parsers.
+const UNSUPPORTED_SHAPE_HINT: &str =
+    "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)";
+
+/// The range half of the hint. Built from the constants above rather than repeating their digits, so
+/// a bound and the message naming it cannot drift apart.
+fn unsupported_range_hint() -> String {
+    format!(
+        "magnitude outside {}..{} (quote the value to keep it as text)",
+        MIN_PLAIN_DECIMAL, MAX_EXACT_INTEGER
+    )
+}
+
+/// What to write instead of a value that `is_unsupported_number` rejected, or `None` when the value
+/// is fine.
+///
+/// A thin wrapper rather than folding the hint into the predicate itself, which is what the Python
+/// and TypeScript parsers do: theirs is a four-branch regex test, this one is a fifty-line byte
+/// scanner with nine exits, and turning every boolean exit into an `Option` would cost more clarity
+/// than the wrapper does. The group split is not re-derived -- it asks the SAME
+/// `is_integer_or_decimal` the predicate asks, so a value whose shape the grammar accepts can only
+/// have been rejected by the magnitude bounds.
+pub fn unsupported_number_hint(s: &str) -> Option<String> {
+    if !is_unsupported_number(s) {
+        return None;
+    }
+    if is_integer_or_decimal(s.trim()) {
+        Some(unsupported_range_hint())
+    } else {
+        Some(UNSUPPORTED_SHAPE_HINT.to_string())
+    }
+}
+
 /// True when a value LOOKS like a number but QMD.md cannot carry it, so the caller reports
 /// `unsupported_number_format` instead of letting it become a string in silence.
 ///
@@ -19,7 +55,7 @@ const MIN_PLAIN_DECIMAL: f64 = 1e-4;
 /// shape it does define carrying a magnitude outside the range it can represent and write back.
 /// Ordinary strings must never match -- `2026-09-24`, `12:30:00`, `1.0.2`, `1 000` are values, not
 /// failed numbers. Mirrors `is_unsupported_number` in the Python and TypeScript parsers.
-pub fn is_unsupported_number(s: &str) -> bool {
+fn is_unsupported_number(s: &str) -> bool {
     let trimmed = s.trim();
     if trimmed.is_empty() {
         return false;

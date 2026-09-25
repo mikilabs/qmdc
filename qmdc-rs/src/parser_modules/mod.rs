@@ -21,4 +21,4 @@ pub use header::parse_header;
 pub use output::{build_from_map, OutputFormat};
 pub use references::{extract_references_from_line, Reference};
 pub use utils::{re_double_brackets, re_field_check, re_field_kv, SimpleRng};
-pub use value_parser::{is_unsupported_number, parse_field_value};
+pub use value_parser::{parse_field_value, unsupported_number_hint};

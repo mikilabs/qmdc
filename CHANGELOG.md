@@ -53,7 +53,10 @@ file is maintained by hand.
   integer cannot survive a round trip through a double; below `1e-4` a decimal can only be written with
   an exponent, which the grammar has no form for). The field keeps the text the author wrote, as a
   String, so nothing is lost and the document still round-trips; quoting is the escape hatch
-  (`- max: "9223372036854775807"` raises nothing). Previously every one of these became a String in
+  (`- max: "9223372036854775807"` raises nothing). The error carries a `hint` field naming the way
+  out for its group — rewrite the spelling, or quote it when the magnitude leaves no other option —
+  so the reader is told what to write and not only what is wrong; it is the only error that carries
+  one. Previously every one of these became a String in
   silence, and which of them did so differed per parser (QMD-71).
 
 ### Changed

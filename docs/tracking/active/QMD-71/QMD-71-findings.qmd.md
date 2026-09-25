@@ -549,9 +549,9 @@ case it was asked about.
 - category: parser
 - priority: high
 - affected_files: [qmdc-py/qmdc/parsers/field.py, qmdc-rs/src/parser_modules/value_parser.rs, qmdc-ts/src/parsers/field.ts, docs/format/validation-errors.qmd.md]
-- affected_functions: [is_unsupported_number, parse_field_value]
-- solution: New error `unsupported_number_format`. The value keeps its authored text; the error names the spelling.
-- test_plan: pinned by `tests/parser/251-unsupported-number-format`, and `250` went green
+- affected_functions: [unsupported_number_hint, parse_field_value]
+- solution: New error `unsupported_number_format`. The value keeps its authored text; the error names the spelling and carries a `hint` saying what to write.
+- test_plan: pinned by `tests/parser/251-unsupported-number-format` and `tests/lsp/microtests/diagnostics/039-unsupported-number-hint`, and `250` went green
 
 ### The measured boundary [[qmd71_finding_spelling_table: text]]
 
@@ -639,6 +639,41 @@ single call — and the spelling logic after it then fired for plain integers to
 `42.0`. The `value.includes('.')` guard is what separates "a decimal whose value is integral, which needs
 its fraction written back" from "an integer, which never did". Worth recording because the earlier
 trailing-zero work had the same shape of bug twice: the spelling mechanism is easy to apply too widely.
+
+### The hint, and why it cost almost nothing [[qmd71_finding_spelling_hint: text]]
+
+- about: [[#qmd71_finding_spelling]]
+
+The operator asked for the error to say what to write instead. The error now carries a `hint` field, and
+the reason it was cheap is that all four message builders — the CLI, the Python and Rust workspace
+reporters, and the Rust LSP server — already render an error by walking its non-system detail fields.
+Adding a field to the error object put it on every surface with no change to any of them, verified by
+running each rather than by reading the code.
+
+Two choices worth keeping:
+
+**Two hints, not one, and the split is not re-derived.** A spelling the grammar does not define can be
+rewritten (`write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as
+text)`); a magnitude outside the range cannot be written as a number at all, so quoting is the only way
+out and the hint says only that. The predicate ALREADY made exactly that distinction — the branch that
+tests whether the shape is supported is the branch that decides the group — so returning the hint from
+that same decision keeps it one computation. Python and TypeScript fold it into the predicate, whose
+four-branch regex test stays readable as an `Optional`. Rust keeps the boolean predicate and wraps it,
+because there the test is a fifty-line byte scanner with nine exits and turning each into an `Option`
+would cost more clarity than the wrapper does; the wrapper asks the SAME `is_integer_or_decimal`, so the
+split is shared, not copied.
+
+**Neither hint contains a comma**, because every one of those four builders joins an error's fields with
+`", "` — a comma inside a value would read as another field.
+
+The range hint interpolates the bound constants instead of repeating their digits, which puts the
+formatting of `1e-4` in the hands of three different languages. Measured: all three write `0.0001` and
+`9007199254740991`. The three-way fixtures are the guard, and that was verified by planting a divergence
+— spelling the bound with Rust's `{:e}` produced `1e-4` and failed four cases, then was restored.
+
+A method note that cost two wrong readings: `bin/qmdc-rs` runs `target/debug/qmdc`, so a
+`cargo build --release` leaves the CLI on the OLD binary and a measurement taken after it describes the
+previous behaviour. Same trap as the warnings-as-errors one recorded above, different cause.
 
 ## Open questions [[qmd71_finding_questions: Finding]]
 

@@ -1470,6 +1470,7 @@ def parse(
                                 "field": num_err["key"],
                                 "object": f"[[#{current_id}]]",
                                 "line": num_err["line"],
+                                "hint": num_err["hint"],
                             }
                         )
 

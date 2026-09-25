@@ -775,6 +775,12 @@ was meant all along (`- max: "9223372036854775807"`).
 A quoted value raises no error, which is the intended escape hatch: the quotes state that the text is
 the value.
 
+The error carries a `hint` field naming which of those two ways out applies, so the reader is told
+what to write rather than only what is wrong. A spelling the grammar does not define gets `write a
+plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)`; a magnitude
+outside the range gets `magnitude outside 0.0001..9007199254740991 (quote the value to keep it as
+text)`, since quoting is then the only way out. It is the only error that carries a hint.
+
 ## Invalid ID Character [[err_invalid_id_character: ValidationError]]
 
 A dot in a NESTED heading's explicit ID.

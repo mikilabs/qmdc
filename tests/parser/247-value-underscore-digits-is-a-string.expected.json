@@ -19,7 +19,8 @@
     "type": "unsupported_number_format",
     "field": "a",
     "object": "[[#s]]",
-    "line": 3
+    "line": 3,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
   },
   {
     "__id": "error_1",
@@ -27,6 +28,7 @@
     "type": "unsupported_number_format",
     "field": "c",
     "object": "[[#s]]",
-    "line": 5
+    "line": 5,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
   }
 ]

@@ -11,13 +11,13 @@ The README's central promise is that the three are "kept at byte-for-byte parity
 conformance test corpus". That is true of the corpus and false of real documents, and it was
 unmeasurable before because the old comparison looked only at validation-error lists.
 
-- status: in_progress
+- status: done_review
 - priority: high
 - category: parser
 - related_task: [[#qmd70_table_scope]]
 - requires_changes: [qmdc-rs/src/parser.rs, qmdc-py/qmdc/parser.py, qmdc-ts/src/parser.ts]
 - findings: [[[#qmd71_finding_anchor]], [[#qmd71_finding_textfield]], [[#qmd71_finding_float]], [[#qmd71_finding_nested]], [[#qmd71_finding_renumber]], [[#qmd71_finding_split]], [[#qmd71_finding_last_four]], [[#qmd71_finding_questions]], [[#qmd71_finding_tests]]]
-- result: null
+- result: [[#qmd71_result]]
 
 ### Why this matters more than its size suggests [[qmd71_why: text]]
 

@@ -790,7 +790,7 @@ done
 | `mixed_array` | An object array fed by a table that also has heading elements (pick one form) |
 | `nested_subitems` | Nested lists `- key:\n  - item` (forbidden) |
 | `block_in_inline_field` | An indented block under a field that already has a value (YAML multiline `- key: \|` is fine) |
-| `unsupported_number_format` | A value that looks like a number QMD.md cannot carry: not `-?[0-9]+(\.[0-9]+)?`, or a magnitude outside `1e-4`…2^53-1. The text is kept as a String; quote it to say a String was meant |
+| `unsupported_number_format` | A value that looks like a number QMD.md cannot carry: not `-?[0-9]+(\.[0-9]+)?`, or a magnitude outside `1e-4`…2^53-1. The text is kept as a String; quote it to say a String was meant. Carries a `hint` field naming what to write — the only error that does |
 | `explicit_system_type` | Explicit declaration of `[[id: __Document]]` or `[[id: __TextBlock]]` |
 | `mixed_field_keys` | Mix of valid and invalid keys in one object |
 | `invalid_id_character` | Dot in a NESTED heading's explicit ID (dot-IDs are legal only on top-level headings) |

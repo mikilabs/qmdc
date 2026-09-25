@@ -49,7 +49,8 @@
     "type": "unsupported_number_format",
     "field": "exp",
     "object": "[[#s]]",
-    "line": 8
+    "line": 8,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
   },
   {
     "__id": "error_1",
@@ -57,7 +58,8 @@
     "type": "unsupported_number_format",
     "field": "exp_neg",
     "object": "[[#s]]",
-    "line": 9
+    "line": 9,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
   },
   {
     "__id": "error_2",
@@ -65,7 +67,8 @@
     "type": "unsupported_number_format",
     "field": "exp_caps",
     "object": "[[#s]]",
-    "line": 10
+    "line": 10,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
   },
   {
     "__id": "error_3",
@@ -73,7 +76,8 @@
     "type": "unsupported_number_format",
     "field": "leading_dot",
     "object": "[[#s]]",
-    "line": 11
+    "line": 11,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
   },
   {
     "__id": "error_4",
@@ -81,7 +85,8 @@
     "type": "unsupported_number_format",
     "field": "trailing_dot",
     "object": "[[#s]]",
-    "line": 12
+    "line": 12,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
   },
   {
     "__id": "error_5",
@@ -89,7 +94,8 @@
     "type": "unsupported_number_format",
     "field": "plus",
     "object": "[[#s]]",
-    "line": 13
+    "line": 13,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
   },
   {
     "__id": "error_6",
@@ -97,7 +103,8 @@
     "type": "unsupported_number_format",
     "field": "plus_dec",
     "object": "[[#s]]",
-    "line": 14
+    "line": 14,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
   },
   {
     "__id": "error_7",
@@ -105,7 +112,8 @@
     "type": "unsupported_number_format",
     "field": "underscore",
     "object": "[[#s]]",
-    "line": 15
+    "line": 15,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
   },
   {
     "__id": "error_8",
@@ -113,7 +121,8 @@
     "type": "unsupported_number_format",
     "field": "hex",
     "object": "[[#s]]",
-    "line": 16
+    "line": 16,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
   },
   {
     "__id": "error_9",
@@ -121,6 +130,7 @@
     "type": "unsupported_number_format",
     "field": "octal",
     "object": "[[#s]]",
-    "line": 17
+    "line": 17,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
   }
 ]

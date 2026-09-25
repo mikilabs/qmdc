@@ -5,9 +5,9 @@ use serde_json::{json, Value};
 
 // Import utilities from parser_modules
 use crate::parser_modules::{
-    build_block_tree_from_events, build_from_map, extract_references_from_line,
-    is_unsupported_number, parse_field_value, parse_header, re_double_brackets, re_field_check,
-    re_field_kv, Reference, SimpleRng,
+    build_block_tree_from_events, build_from_map, extract_references_from_line, parse_field_value,
+    parse_header, re_double_brackets, re_field_check, re_field_kv, unsupported_number_hint,
+    Reference, SimpleRng,
 };
 
 // Re-export OutputFormat for backward compatibility
@@ -3674,25 +3674,28 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             // QMD-71: a value that looks like a number QMD.md cannot carry. The
                             // authored text is kept as the field's value, so nothing is lost; the
                             // error names it instead of letting it become a string in silence.
-                            if yaml_multiline_value.is_none()
-                                && is_unsupported_number(field_value_str)
-                            {
-                                let error_id = format!("error_{}", parsing_errors.len());
-                                let mut error = IndexMap::new();
-                                error.insert("__id".to_string(), json!(error_id));
-                                error.insert("__kind".to_string(), json!("__ParsingError"));
-                                error
-                                    .insert("type".to_string(), json!("unsupported_number_format"));
-                                error.insert("field".to_string(), json!(field_name));
-                                error.insert(
-                                    "object".to_string(),
-                                    json!(format!("[[#{}]]", obj.id)),
-                                );
-                                error.insert(
-                                    "line".to_string(),
-                                    json!(get_line(list_item_start.unwrap_or(range.start))),
-                                );
-                                parsing_errors.push(error);
+                            if yaml_multiline_value.is_none() {
+                                if let Some(hint) = unsupported_number_hint(field_value_str) {
+                                    let error_id = format!("error_{}", parsing_errors.len());
+                                    let mut error = IndexMap::new();
+                                    error.insert("__id".to_string(), json!(error_id));
+                                    error.insert("__kind".to_string(), json!("__ParsingError"));
+                                    error.insert(
+                                        "type".to_string(),
+                                        json!("unsupported_number_format"),
+                                    );
+                                    error.insert("field".to_string(), json!(field_name));
+                                    error.insert(
+                                        "object".to_string(),
+                                        json!(format!("[[#{}]]", obj.id)),
+                                    );
+                                    error.insert(
+                                        "line".to_string(),
+                                        json!(get_line(list_item_start.unwrap_or(range.start))),
+                                    );
+                                    error.insert("hint".to_string(), json!(hint));
+                                    parsing_errors.push(error);
+                                }
                             }
 
                             // Check if it's a YAML array (but not a single reference [[#...]])

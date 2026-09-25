@@ -104,8 +104,20 @@ const UNSUPPORTED_NUMBER_SHAPES =
 const SEPARATOR_NUMBER = /^[+-]?\d[\d_]*(\.[\d_]+)?$/;
 
 /**
+ * What to write instead, carried on the error so every surface that renders an error's detail fields
+ * shows it. Neither text contains a comma: the CLI, the workspace reporters and the LSP all join an
+ * error's fields with ", ", so a comma inside one would read as another field. Byte-identical in all
+ * three parsers, and the range hint cites the bounds rather than repeating their digits.
+ */
+const UNSUPPORTED_SHAPE_HINT =
+  'write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)';
+const UNSUPPORTED_RANGE_HINT =
+  `magnitude outside ${MIN_PLAIN_DECIMAL}..${Number.MAX_SAFE_INTEGER}` +
+  ' (quote the value to keep it as text)';
+
+/**
  * Parse a value as a number, or return undefined when QMD.md cannot carry it. The single place the
- * numeric bounds live, so `isUnsupportedNumber` cannot drift from them.
+ * numeric bounds live, so `unsupportedNumberHint` cannot drift from them.
  */
 function parseSupportedNumber(value: string): number | undefined {
   if (!NUMBER_PATTERN.test(value)) {
@@ -132,21 +144,25 @@ function parseSupportedNumber(value: string): number | undefined {
 }
 
 /**
- * True when a value LOOKS like a number but QMD.md cannot carry it, so the caller reports
- * `unsupported_number_format` instead of letting it become a string in silence.
+ * What to write instead, when a value LOOKS like a number but QMD.md cannot carry it, so the caller
+ * reports `unsupported_number_format` instead of letting it become a string in silence. Undefined
+ * when the value is fine.
  *
- * Mirrors `is_unsupported_number` in the Python and Rust parsers.
+ * Returns the hint rather than a bool because "is this unsupported" and "why" are the SAME decision:
+ * the branch that rejects a value is the branch that knows which of the two groups it fell into.
+ *
+ * Mirrors `unsupported_number_hint` in the Python and Rust parsers.
  */
-export function isUnsupportedNumber(valueStr: string): boolean {
+export function unsupportedNumberHint(valueStr: string): string | undefined {
   const value = valueStr.trim();
   if (NUMBER_PATTERN.test(value)) {
     // A supported shape, so only the magnitude bounds can reject it.
-    return parseSupportedNumber(value) === undefined;
+    return parseSupportedNumber(value) === undefined ? UNSUPPORTED_RANGE_HINT : undefined;
   }
   if (value.includes('_') && SEPARATOR_NUMBER.test(value)) {
-    return true;
+    return UNSUPPORTED_SHAPE_HINT;
   }
-  return UNSUPPORTED_NUMBER_SHAPES.test(value);
+  return UNSUPPORTED_NUMBER_SHAPES.test(value) ? UNSUPPORTED_SHAPE_HINT : undefined;
 }
 
 /**
@@ -259,6 +275,8 @@ export interface NestedSubitemsError {
 export interface UnsupportedNumberError {
   key: string;
   line: number;
+  /** What to write instead -- see `unsupportedNumberHint`. */
+  hint: string;
 }
 
 /** QMD-70: a field with a NON-empty value followed by an indented block. */
@@ -512,8 +530,13 @@ export function parseFieldsFromList(
             // QMD-71: a value that looks like a number QMD.md cannot carry. The authored text is
             // kept as the field's value, so nothing is lost; the error names it instead of letting
             // it become a string in silence.
-            if (isUnsupportedNumber(valueStr)) {
-              unsupportedNumberErrors.push({ key, line: token.map ? token.map[0] + 1 : 0 });
+            const numberHint = unsupportedNumberHint(valueStr);
+            if (numberHint !== undefined) {
+              unsupportedNumberErrors.push({
+                key,
+                line: token.map ? token.map[0] + 1 : 0,
+                hint: numberHint,
+              });
             }
             if (rawStr !== undefined) {
               rawValues[key] = rawStr;

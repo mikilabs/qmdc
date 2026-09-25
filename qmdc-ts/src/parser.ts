@@ -320,6 +320,8 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
     field_type?: string;
     object?: string;
     definitions?: string[];
+    /** QMD-71: what to write instead, on `unsupported_number_format`. */
+    hint?: string;
     line: number | null;
     __file?: string;
   }
@@ -1600,6 +1602,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
                 field: numErr.key,
                 object: `[[#${currentId}]]`,
                 line: numErr.line,
+                hint: numErr.hint,
               });
             }
 

@@ -29,7 +29,8 @@
     "type": "unsupported_number_format",
     "field": "long_digits",
     "object": "[[#s]]",
-    "line": 7
+    "line": 7,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
   },
   {
     "__id": "error_1",
@@ -37,7 +38,8 @@
     "type": "unsupported_number_format",
     "field": "long_decimal",
     "object": "[[#s]]",
-    "line": 8
+    "line": 8,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
   },
   {
     "__id": "error_2",
@@ -45,7 +47,8 @@
     "type": "unsupported_number_format",
     "field": "sixteen",
     "object": "[[#s]]",
-    "line": 9
+    "line": 9,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
   },
   {
     "__id": "error_3",
@@ -53,6 +56,7 @@
     "type": "unsupported_number_format",
     "field": "seventeen",
     "object": "[[#s]]",
-    "line": 10
+    "line": 10,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
   }
 ]
