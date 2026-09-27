@@ -1,0 +1,24 @@
+[
+  {
+    "type": "nested_workspace",
+    "message": "Nested workspace 'cli72_left_runtime' found inside workspace. Workspaces cannot be nested.",
+    "file": "cli72_left_outer/.qmdc/readme.qmd.md",
+    "line": 1,
+    "objectId": "cli72_left_runtime",
+    "fieldName": null,
+    "reference": null,
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'model' not found",
+    "file": "cli72_left_outer/readme.qmd.md",
+    "line": 11,
+    "objectId": "project",
+    "fieldName": null,
+    "reference": "[[#cli72_left_runtime::model]]",
+    "candidates": null,
+    "severity": "error"
+  }
+]

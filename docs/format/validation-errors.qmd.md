@@ -71,7 +71,8 @@ A `[[#id]]` reference could point to multiple objects (ID collision or multiple 
 
 ## Nested Workspace [[err_nested_workspace: ValidationError]]
 
-A workspace inside another workspace (nested workspaces are forbidden).
+A workspace inside another workspace, left out of the result: its files are not part of the outer
+workspace, so they are missing from the graph.
 
 - code: nested_workspace
 - severity: error
@@ -81,11 +82,16 @@ A workspace inside another workspace (nested workspaces are forbidden).
 - A `__Workspace` object was created inside an existing workspace
 - Incorrect directory structure
 
+Not reported when the inner workspace is composed alongside the outer one — `-w repo -w repo/.qmdc`,
+or a directory holding both. Its files are then in the result under its own workspace, so nothing
+is missing. This is the layout qmdc-wiki gives a repository it models.
+
 ### Solution [[solution: text]]
 
-1. Move the nested workspace up one level (make them siblings)
-2. Change the Kind to `__Namespace` instead of `__Workspace`
-3. Delete the nested workspace
+1. Compose both: `qmdc workspace validate -w <outer> -w <outer>/<inner>`
+2. Move the nested workspace up one level (make them siblings)
+3. Change the Kind to `__Namespace` instead of `__Workspace`, if it was meant to be part of the outer workspace
+4. Delete the nested workspace
 
 ## Workspace In Wrong File [[err_workspace_in_wrong_file: ValidationError]]
 

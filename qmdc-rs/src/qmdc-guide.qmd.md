@@ -696,7 +696,7 @@ When parsing a workspace, each object gets:
 }
 ```
 
-- `__file` — file path
+- `__file` — file path, relative to the workspace root (under `-w`, prefixed by the workspace id; the output's `workspaces` list gives each workspace's location on disk)
 - `__line` — line number
 - `__workspace` — reference to `__Workspace` object
 - `__namespace` — reference to `__Namespace` object (or `null` for root)
@@ -780,7 +780,7 @@ done
 | `ambiguous_reference` | Reference `[[#id]]` could point to multiple objects |
 | `broken_parent` | Parent object not found for a dot-ID declaration (see Dot-ID Declarations) |
 | `ambiguous_field_reference` | Dot-path resolves both as an object `__id` and as a field on the prefix object |
-| `nested_workspace` | Workspace inside another workspace (forbidden) |
+| `nested_workspace` | Workspace inside another workspace, left out of the result; compose both with `-w` to include it |
 | `workspace_in_wrong_file` | `__Workspace`/`__Namespace` declared outside `readme.qmd.md` |
 | `structured_in_textblock` | Structured element inside `__TextBlock` |
 | `multiple_definitions` | Heading contains more than one `[[...]]` |
@@ -887,6 +887,9 @@ Parses entire workspace to JSON.
 ```bash
 qmdc workspace parse ./my-project -o workspace.json
 qmdc workspace parse ./my-project --format full
+
+# Compose workspaces that do not share a parent directory (repeatable, every path a peer)
+qmdc workspace parse -w ~/checkouts/repo_a -w /srv/repo_b
 ```
 
 ### Workspace Validate [[cmd_workspace_validate: text]]
@@ -899,7 +902,10 @@ Validates workspace — broken links, duplicate IDs, ambiguous references.
 # Returns JSON array of errors ([] if all ok)
 qmdc workspace validate ./my-project
 
-# Exit code: 0 if no errors, 1 if errors exist
+# A project spanning several repositories, composed in place
+qmdc workspace validate -w ~/checkouts/repo_a -w /srv/repo_b
+
+# Exit code: 0 if no errors, 1 if errors exist, 2 if the invocation was refused
 ```
 
 ### Query — SQL Queries [[cmd_query: text]]

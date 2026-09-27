@@ -17,6 +17,12 @@ unified test report reaches parity by construction.
   structurally (order-sensitive).
 - `expected.txt` — optional; the command's stdout compared as trimmed text.
 - `exit` — optional; expected process exit code (default `0`).
+- `expected.stderr` — optional; a **substring** the command's stderr must contain. Required
+  in practice for a usage-error case: with only `exit` and an empty `expected.txt`, the case
+  asserts "exited with this code and printed nothing on stdout", which a refusal for an
+  entirely unrelated reason satisfies just as well. Matched as a substring, not compared
+  whole, because wrapper noise (the `qmdc-ts` shim prints npm warnings first) and absolute
+  paths differ per environment.
 
 A case must have exactly one of `expected.json` / `expected.txt`.
 

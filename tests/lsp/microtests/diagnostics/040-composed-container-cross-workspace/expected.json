@@ -1,0 +1,14 @@
+{
+  "_comment": "QMD-72 C4: the LSP resolves the qualified cross-workspace reference against the COMPOSED set (every workspace sharing the project root), so only the deliberately-absent target is reported. Before the fix, `payments_api` was reported broken here while the CLI resolved it.",
+  "diagnostics": [
+    {
+      "message": "Object 'absent_api' not found",
+      "range": {
+        "start": { "line": 3, "character": 11 },
+        "end": { "line": 3, "character": 52 }
+      },
+      "severity": 1,
+      "code": "QMDC001"
+    }
+  ]
+}

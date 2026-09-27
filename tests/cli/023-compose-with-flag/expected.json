@@ -1,0 +1,12 @@
+{
+  "columns": [
+    "source_id",
+    "target_id"
+  ],
+  "rows": [
+    [
+      "cli72_project::commerce",
+      "cli72_repo_a:services:payments_api"
+    ]
+  ]
+}

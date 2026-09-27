@@ -135,14 +135,16 @@ Automatically:
 ```bash
 qmdc query <path> "<sql>"
 qmdc query <path> "#query_id"
+qmdc query -w <path> -w <path> "<sql>"
 ```
 
 ### Options [[options: text]]
 
 | Option | Short | Description | Type | Required |
 |--------|-------|-------------|------|----------|
-| `<path>` | | Path to workspace directory | path | yes |
+| `<path>` | | Path to workspace directory | path | no |
 | `<query>` | | SQL query or reference to a Query object (`#query_id`) | string | yes |
+| `--with` | `-w` | Compose this workspace explicitly; repeatable. Mutually exclusive with `<path>` | path | no |
 | `--format` | | Output format: table (default), json | enum | no |
 
 ### Examples [[examples: text]]
@@ -156,6 +158,9 @@ qmdc query ./my-project "SELECT * FROM objects LIMIT 10" --format json
 
 # Query via Query object (reference to [[id:Query]] in workspace)
 qmdc query ./my-project "#all_services"
+
+# Compose workspaces at unrelated paths (the only positional left is the query)
+qmdc query -w ~/checkouts/repo_a -w /srv/repo_b "SELECT * FROM edges"
 
 # Count objects and edges
 qmdc query ./my-project "SELECT COUNT(*) as total FROM objects"
@@ -177,13 +182,15 @@ Finds the workspace root by locating a file with `[[id:__Workspace]]`. Recursive
 ```bash
 qmdc workspace parse <path>
 qmdc workspace parse <path> -o <output>
+qmdc workspace parse -w <path> -w <path>
 ```
 
 ### Options [[options: text]]
 
 | Option | Short | Description | Type | Required |
 |--------|-------|-------------|------|----------|
-| `<path>` | | Path to workspace directory | path | yes |
+| `<path>` | | Path to workspace directory (defaults to `.`) | path | no |
+| `--with` | `-w` | Compose this workspace explicitly; repeatable. Mutually exclusive with `<path>` | path | no |
 | `--output` | `-o` | Output JSON file (Python/TypeScript) | path | no |
 | `--format` | | Output format: minimal, standard, full (Rust only) | enum | no |
 
@@ -196,9 +203,43 @@ qmdc workspace parse ./my-project -o workspace.json
 # Rust (output to stdout)
 qmdc workspace parse ./my-project > workspace.json
 
+# Compose two workspaces that do not share a parent directory
+qmdc workspace parse -w ~/checkouts/repo_a -w /srv/repo_b
+
 # With format selection (Rust only)
 qmdc workspace parse ./my-project --format full
 ```
+
+### Output [[output: text]]
+
+One JSON object of the same shape for every invocation:
+
+```json
+{
+  "root": "/home/me/checkouts/shop",
+  "workspaces": [
+    {"id": "shop", "root": "/home/me/checkouts/shop", "path": ""}
+  ],
+  "files": ["readme.qmd.md", "storage/tables.qmd.md"],
+  "objects": [],
+  "errors": []
+}
+```
+
+- `workspaces` is always present: every workspace in the result, ordered by `path`. `root` is where
+  the workspace is on disk, as a canonical absolute path; `path` is where its files sit in `__file`.
+- `root` at the top level is the directory every `__file` is relative to, or `null` when the
+  invocation composed `-w` paths. Those need not share any directory, so each workspace sits at its
+  own id instead: `-w ~/a/shop -w /srv/billing` gives `__file` values like `shop/storage/tables.qmd.md`
+  and `billing/readme.qmd.md`, the same wherever the checkouts are.
+- To open the file an object came from: take the entry whose `path` is the longest leading directory
+  of the object's `__file` (`repo_a` leads `repo_a/x.qmd.md`, not `repo_ab/x.qmd.md`), and join that
+  entry's `root` with the rest of `__file`. For a single workspace `path` is `""`, which leads every
+  file, so this is simply `root` + `__file`.
+
+Given a directory holding several workspaces, each sits at its directory under that container
+(`path: "repo_a"`), and a file outside every workspace has no entry: it is located from the
+top-level `root`.
 
 ## Workspace Validate [[cmd_workspace_validate: Command]]
 
@@ -228,25 +269,31 @@ Parse-stage errors (`invalid_id_character`, `mixed_field_keys`, `nested_subitems
 
 **Error object fields:** `type`, `message`, `file`, `line`, `objectId`, `fieldName`, `reference`, `candidates`, `severity`
 
-**Exit code:** 0 if no errors, 1 if errors exist.
+**Exit code:** 0 if no errors, 1 if errors exist, 2 if the invocation itself was refused
+(a usage error, e.g. a positional path together with `--with`).
 
 ### Syntax [[syntax: text]]
 
 ```bash
 qmdc workspace validate <path>
+qmdc workspace validate -w <path> -w <path>
 ```
 
 ### Options [[options: text]]
 
 | Option | Short | Description | Type | Required |
 |--------|-------|-------------|------|----------|
-| `<path>` | | Path to workspace directory | path | yes |
+| `<path>` | | Path to workspace directory (defaults to `.`) | path | no |
+| `--with` | `-w` | Compose this workspace explicitly; repeatable. Mutually exclusive with `<path>` | path | no |
 
 ### Examples [[examples: text]]
 
 ```bash example
 # Validate workspace (returns JSON array of errors)
 qmdc workspace validate ./my-project
+
+# Validate a project made of workspaces at unrelated paths
+qmdc workspace validate -w ~/checkouts/repo_a -w /srv/repo_b
 
 # If no errors — returns empty array
 []

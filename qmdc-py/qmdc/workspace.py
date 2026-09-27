@@ -10,6 +10,15 @@ from typing import Any
 from .parser import is_inside_backticks, parse
 
 _WORKSPACE_MARKER_RE = re.compile(r"\[\[[^\]]+:\s*__Workspace\]\]")
+
+# Mirrors WORKSPACE_SCAN_MAX_DEPTH in the Rust parser (qmdc-rs/src/workspace.rs) and the
+# depth documented in docs/mcp/readme.qmd.md. A caller-supplied path is scanned downward at
+# most this many directory levels, so pointing a tool at a large checkout cannot turn one
+# call into a full-tree crawl. The three implementations must share the number: a marker
+# deeper than this is undiscovered everywhere, or the same `-w` invocation succeeds in one
+# implementation and is a usage error in another.
+WORKSPACE_SCAN_MAX_DEPTH = 5
+
 _REF_FULL_RE = re.compile(r"\[\[#([^\]]+)\]\]")
 _REF_INNER_RE = re.compile(r"\[\[#([^\]]+)\]\]")  # same as _REF_FULL_RE (kept for clarity)
 _HEADING_DEF_RE = re.compile(r"^\s*#+\s+.*\[\[([^\]]+)\]\]")
@@ -68,14 +77,44 @@ class WorkspaceError:
 
 @dataclass
 class WorkspaceResult:
-    """Result of workspace parsing."""
+    """Result of workspace parsing.
 
-    root: str
+    ``root`` is the base every ``__file`` is relative to, as a canonical absolute path, or
+    ``None`` when that base is virtual: the ``-w`` form, whose workspaces need not share any
+    directory, puts each one at its own id instead (QMD-72).
+
+    ``workspaces`` holds one ``{"id", "root", "path"}`` entry per workspace, ordered by
+    ``path``: ``root`` is where the workspace really is and ``path`` is where it sits in the
+    base (``""`` when it IS the base). A consumer locates any file with one rule: take the
+    entry whose ``path`` is the longest prefix of ``__file`` and join its ``root`` with the
+    rest.
+    """
+
+    root: str | None
     workspace_id: str | None
     files: list[str]
     objects: list[dict[str, Any]]
     index: dict[str, Any] = field(default_factory=dict)
     errors: list[WorkspaceError] = field(default_factory=list)
+    workspaces: list[dict[str, str]] = field(default_factory=list)
+
+
+def _canonical_slash(path: Path | str) -> str:
+    """
+    Canonical absolute form of ``path`` with ``/`` separators (QMD-72).
+
+    Canonical rather than lexical, because the ``-w`` duplicate check already treats two
+    spellings of one directory (a symlink and its target) as the same path; the reported
+    root has to agree with that. Mirrors ``canonical_slash`` in the Rust parser.
+    """
+    return Path(path).resolve().as_posix()
+
+
+def _single_entry(workspace_id: str | None, root: Path) -> list[dict[str, str]]:
+    """The entry for a single-workspace result: the workspace IS the base (``path`` ``""``)."""
+    if not workspace_id:
+        return []
+    return [{"id": workspace_id, "root": _canonical_slash(root), "path": ""}]
 
 
 def _extract_namespace_id(namespace_ref: str) -> str:
@@ -517,12 +556,13 @@ def parse_workspace(root_path: str) -> WorkspaceResult:
     errors = nested_workspace_errors + validation_errors
 
     return WorkspaceResult(
-        root=str(root),
+        root=_canonical_slash(root),
         workspace_id=workspace_id,
         files=files,
         objects=all_objects,
         index=index,
         errors=errors,
+        workspaces=_single_entry(workspace_id, root),
     )
 
 
@@ -731,6 +771,7 @@ def validate_workspace(
     objects: list[dict[str, Any]],
     index: dict[str, Any],
     root_path: str | None = None,
+    file_paths: dict[str, Path] | None = None,
 ) -> list[WorkspaceError]:
     """
     Validate workspace for errors.
@@ -739,6 +780,11 @@ def validate_workspace(
     - Broken links
     - Duplicate IDs (same id, different files or different kinds)
     - Ambiguous references
+
+    A referring object's source line is read from ``file_paths[__file]`` when that map is
+    given, else from ``root_path / __file``. The map exists for a composed ``-w`` set
+    (QMD-72), whose ``__file`` values are relative to a virtual base and so cannot be joined
+    onto any directory.
     """
     errors: list[WorkspaceError] = []
 
@@ -953,10 +999,13 @@ def validate_workspace(
                 resolved_objects = matching_objects
 
             # Check if reference is inside backticks (inline code) - skip validation
-            if root_path and obj_file:
+            if obj_file and (file_paths is not None or root_path):
                 try:
-                    file_path = Path(root_path) / obj_file
-                    if file_path.exists():
+                    if file_paths is not None:
+                        file_path = file_paths.get(obj_file)
+                    else:
+                        file_path = Path(str(root_path)) / obj_file
+                    if file_path is not None and file_path.exists():
                         file_content = file_path.read_text(encoding="utf-8")
                         file_lines = file_content.splitlines()
                         if line > 0 and line <= len(file_lines):
@@ -1233,30 +1282,11 @@ def validate_workspace(
 
 def workspace_to_json(result: WorkspaceResult) -> dict[str, Any]:
     """Convert WorkspaceResult to JSON-serializable dict."""
-    # Output-shape (QMD-59): never emit a bare `workspace: null` when workspaces
-    # were actually resolved. Derive workspace id(s) from the resolved objects:
-    #   - walk-up/self (single workspace_id set)  -> "workspace": id
-    #   - walk-down, exactly one sub-workspace     -> "workspace": that id
-    #   - walk-down, multiple sub-workspaces       -> omit "workspace",
-    #                                                 add "workspaces": [ids...]
-    out: dict[str, Any] = {"root": result.root}
-
-    if result.workspace_id:
-        out["workspace"] = result.workspace_id
-    else:
-        ws_ids = sorted(
-            {
-                obj.get("__id")
-                for obj in result.objects
-                if obj.get("__kind") == "__Workspace" and obj.get("__id")
-            }
-        )
-        if len(ws_ids) == 1:
-            out["workspace"] = ws_ids[0]
-        elif len(ws_ids) > 1:
-            out["workspaces"] = ws_ids
-        else:
-            out["workspace"] = None
+    # Output shape (QMD-72): one shape for every invocation. "workspaces" is always present
+    # -- zero, one or many {id, root, path} entries -- replacing the QMD-59
+    # "workspace": id / "workspaces": [ids] / "workspace": null trio a consumer had to tell
+    # apart. "root" is the base every __file is relative to, or null when it is virtual (-w).
+    out: dict[str, Any] = {"root": result.root, "workspaces": result.workspaces}
 
     out.update(
         {
@@ -1299,6 +1329,9 @@ def find_all_workspace_dirs(root_path: str) -> list[Path]:
     """
     Find all workspace directories (directories containing readme.qmd.md with __Workspace).
 
+    Unbounded depth. Use :func:`find_workspace_dirs_bounded` where a caller-supplied path
+    must not turn into a full-tree crawl.
+
     Returns:
         List of paths to directories containing workspace definition.
     """
@@ -1306,7 +1339,48 @@ def find_all_workspace_dirs(root_path: str) -> list[Path]:
     workspace_dirs: list[Path] = []
 
     for path in root.rglob("readme.qmd.md"):
-        content = path.read_text(encoding="utf-8")
+        try:
+            content = path.read_text(encoding="utf-8")
+        except OSError:
+            # An unreadable marker is a marker we cannot see; treat it as absent rather
+            # than aborting the whole scan with an OS error. Mirrors the Rust scan, whose
+            # `read_to_string` failure falls through the same way.
+            continue
+        if _WORKSPACE_MARKER_RE.search(content):
+            workspace_dirs.append(path.parent)
+
+    return workspace_dirs
+
+
+def find_workspace_dirs_bounded(root_path: str, max_depth: int) -> list[Path]:
+    """
+    Depth-bounded variant of :func:`find_all_workspace_dirs` (QMD-72).
+
+    Mirrors ``find_nested_workspace_roots_bounded`` in the Rust parser: the crawl is
+    capped at ``max_depth`` directory levels below ``root_path``, so pointing a tool at a
+    large checkout cannot turn one call into a full-tree crawl. The cap is part of the
+    contract, not an optimisation — a marker deeper than this is NOT discovered, and all
+    three implementations must agree on that, or the same ``-w`` invocation is a usage
+    error in one and a successful composition in another.
+
+    Returns:
+        List of paths to directories containing workspace definition.
+    """
+    root = Path(root_path).resolve()
+    workspace_dirs: list[Path] = []
+
+    for path in root.rglob("readme.qmd.md"):
+        # rglob yields the readme itself; its depth below root is what the cap applies to.
+        try:
+            depth = len(path.relative_to(root).parts)
+        except ValueError:
+            continue
+        if depth > max_depth:
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
         if _WORKSPACE_MARKER_RE.search(content):
             workspace_dirs.append(path.parent)
 
@@ -1439,6 +1513,277 @@ def _is_reference_finding(error_type: str) -> bool:
     return error_type in ("broken_link", "ambiguous_reference", "ambiguous_field_reference")
 
 
+class WorkspaceUsageError(ValueError):
+    """
+    A workspace command was invoked in a way that cannot mean anything (QMD-72).
+
+    Distinct from a parse or validation failure: nothing was wrong with the documents, the
+    invocation itself was refused, so the CLI reports it as a usage error (exit 2) rather
+    than as a result.
+    """
+
+
+@dataclass
+class Composition:
+    """What ``compose_workspace_roots`` produces (QMD-72).
+
+    ``file_paths`` maps each ``files`` entry to its real location: ``files`` is relative to
+    the result's base, which is virtual in the ``-w`` form and so cannot be joined.
+    ``workspaces`` holds one entry per composed root, ordered by ``path``.
+    """
+
+    objects: list[dict[str, Any]]
+    files: list[str]
+    file_paths: dict[str, Path]
+    errors: list[WorkspaceError]
+    workspaces: list[dict[str, str]]
+
+
+def compose_workspace_roots(roots: list[Path], base: Path | None) -> Composition:
+    """
+    Compose an explicit set of workspace ROOTS into one graph (QMD-72).
+
+    This is the one composition primitive: the container form, the CLI's ``-w`` /
+    ``--with`` form and any other surface that composes workspaces reach composition
+    through it, so none of them can resolve references differently from the others. Each
+    root must already be a single workspace; discovery is the caller's job.
+
+    ``base`` decides where each workspace's files appear in ``__file``. A real directory
+    that contains every root (the container form) puts them relative to it. ``None`` (the
+    ``-w`` form) puts each workspace at its own id in a virtual base: its roots need not
+    share any directory, so a real common ancestor can degenerate to ``/`` and would put the
+    host's own directory names into ``__file``. The id depends only on the content, so the
+    same repositories give the same ``__file`` wherever they are checked out, and ids are
+    distinct within a composable set, so the values stay unique. Mirrors ``Mount`` in the
+    Rust parser.
+
+    Reference findings are dropped per workspace and recomputed once over the composed set
+    by ``rescan_composed_references``, because a workspace validated in isolation cannot see
+    its siblings' objects.
+    """
+    out = Composition(objects=[], files=[], file_paths={}, errors=[], workspaces=[])
+
+    # A workspace inside another one is reported as `nested_workspace` because its files are
+    # then missing from the outer workspace's graph. When the inner one is itself a member of
+    # this set, nothing is missing: the outer scan already leaves its files out, and they are
+    # composed under the inner workspace. The report would contradict the composition the
+    # caller asked for (`-w repo -w repo/.qmdc`), so it is dropped -- matched by path, not by
+    # id, since the container form does not refuse two members sharing an id (QMD-72).
+    members = {Path(r).resolve() for r in roots}
+
+    for ws_dir in roots:
+        ws_result = parse_workspace(str(ws_dir))
+
+        # Where this workspace sits in the base. None only when a container member is
+        # somehow not under the container, which discovery never produces; its values are
+        # then left as they came, the historical behaviour.
+        prefix: str | None
+        if base is None:
+            prefix = ws_result.workspace_id
+        else:
+            try:
+                prefix = ws_dir.relative_to(base).as_posix()
+            except ValueError:
+                prefix = None
+            if prefix == ".":
+                prefix = ""
+
+        def relocate(rel: str, prefix: str | None = prefix) -> str | None:
+            if prefix is None:
+                return None
+            return rel if prefix == "" else f"{prefix}/{rel}"
+
+        if ws_result.workspace_id and prefix is not None:
+            out.workspaces.append(
+                {"id": ws_result.workspace_id, "root": _canonical_slash(ws_dir), "path": prefix}
+            )
+
+        for obj in ws_result.objects:
+            if "__file" in obj:
+                moved = relocate(obj["__file"])
+                if moved is not None:
+                    obj["__file"] = moved
+        out.objects.extend(ws_result.objects)
+
+        for file in ws_result.files:
+            moved = relocate(file)
+            if moved is not None:
+                out.files.append(moved)
+                out.file_paths[moved] = ws_dir / file
+
+        for error in ws_result.errors:
+            # QMD-69: reference findings are dropped here and recomputed once over the
+            # composed object set -- in isolation this workspace could not see its
+            # siblings' objects, so any cross-workspace reference looked broken.
+            if _is_reference_finding(error.type):
+                continue
+            if (
+                error.type == "nested_workspace"
+                and error.file
+                and (ws_dir / error.file).parent.resolve() in members
+            ):
+                continue
+            if error.file:
+                moved = relocate(error.file)
+                if moved is not None:
+                    error.file = moved
+            out.errors.append(error)
+
+    out.workspaces.sort(key=lambda e: (e["path"], e["id"]))
+    return out
+
+
+def rescan_composed_references(
+    objects: list[dict[str, Any]],
+    file_paths: dict[str, Path],
+    errors: list[WorkspaceError],
+) -> None:
+    """
+    Re-run reference validation over a COMPOSED object set (QMD-69).
+
+    Each workspace was parsed and validated in isolation, so its reference findings were
+    computed against an index that could not see the other workspaces' objects: a
+    workspace-qualified cross-workspace reference was therefore always reported broken.
+    The stale findings are dropped by ``compose_workspace_roots`` and the shared validator
+    runs once here over every object in the composed set.
+
+    ``file_paths`` maps each ``__file`` to its real location; the validator reads a
+    referring object's source line through it, because under the ``-w`` form that value
+    cannot be joined onto any directory (QMD-72).
+
+    Structural findings (duplicate_id, workspace_in_wrong_file, parsing errors) stay
+    per-workspace, because identity is workspace-scoped (QMD-67).
+    """
+    composed_index = build_index(objects)
+    errors.extend(
+        error
+        for error in validate_workspace(objects, composed_index, file_paths=file_paths)
+        if _is_reference_finding(error.type)
+    )
+
+
+def _resolve_single_workspace_root(path: str) -> Path:
+    """
+    Resolve one ``-w`` / ``--with`` path to exactly one workspace root (QMD-72).
+
+    A ``--with`` path names a workspace, not a container: zero and several are both usage
+    errors, because the caller asked to compose a specific workspace and the tool must not
+    guess which one was meant.
+
+    Raises:
+        WorkspaceUsageError: with the usage message to print.
+    """
+    p = Path(path)
+    try:
+        exists = p.exists()
+    except OSError:
+        # Rust's `Path::exists()` reports false on ANY stat error (including EACCES on an
+        # unreadable parent); Python's raises for errnos outside its ignore list. Mirror
+        # Rust so an inaccessible path is the same usage error everywhere, not a crash.
+        exists = False
+    if not exists:
+        raise WorkspaceUsageError(f"--with path does not exist: {path}")
+    resolved = p.resolve()
+    readme = resolved / "readme.qmd.md"
+    try:
+        content = readme.read_text(encoding="utf-8")
+    except OSError:
+        # Any OS error here means we cannot see a marker, so fall through to the scan and
+        # end in the "not a workspace" usage error (exit 2) that the Rust resolver reports
+        # for the same input. Letting it escape would exit 1 and break the A2 promise that
+        # a rejected `-w` fails identically in all three.
+        #
+        # Note `readme.exists()` is NOT a safe pre-check: on Python 3.12 it ignores only
+        # ENOENT/ENOTDIR/EBADF/ELOOP, so an unreadable parent directory makes the stat
+        # raise PermissionError out of `exists()` itself. Measured, not assumed.
+        content = ""
+    if _WORKSPACE_MARKER_RE.search(content):
+        return resolved
+
+    top: list[Path] = []
+    for r in find_workspace_dirs_bounded(str(resolved), WORKSPACE_SCAN_MAX_DEPTH):
+        if not any(r.is_relative_to(kept) for kept in top):
+            top.append(r)
+    if len(top) == 1:
+        return top[0]
+    if not top:
+        raise WorkspaceUsageError(
+            f"--with path is not a workspace: {path} "
+            "(no readme.qmd.md declaring [[id: __Workspace]])"
+        )
+    raise WorkspaceUsageError(
+        f"--with path contains {len(top)} workspaces: {path} (pass each one as its own --with)"
+    )
+
+
+def compose_with_paths(paths: list[str]) -> WorkspaceResult:
+    """
+    Compose the workspaces named by repeated ``-w`` / ``--with`` (QMD-72).
+
+    Every path is a peer -- the first is not primary -- and each must resolve to exactly
+    one workspace. Raises ``WorkspaceUsageError`` rather than returning a wrong answer for the
+    shapes that cannot mean anything: a path that is not a workspace, a path holding
+    several, the same path twice, and two paths carrying the same workspace id (which would
+    make an id ambiguous, so the set could not be composed into one graph).
+    """
+    roots: list[Path] = []
+    for path in paths:
+        root = _resolve_single_workspace_root(path)
+        if root in roots:
+            raise WorkspaceUsageError(f"--with path given twice: {path}")
+        roots.append(root)
+
+    composed = compose_workspace_roots(roots, None)
+
+    # Two workspaces carrying the same id cannot be composed: every id in one would
+    # collide with the other's, so no reference could resolve to a single object. With
+    # each workspace at its own id, their files would also land under one __file prefix.
+    seen_ids: list[str] = []
+    for obj in composed.objects:
+        if obj.get("__kind") == "__Workspace":
+            ws_id = obj.get("__id") or ""
+            if ws_id:
+                if ws_id in seen_ids:
+                    raise WorkspaceUsageError(
+                        f"--with paths declare the same workspace id '{ws_id}'; "
+                        "ids must be distinct to compose"
+                    )
+                seen_ids.append(ws_id)
+
+    rescan_composed_references(composed.objects, composed.file_paths, composed.errors)
+
+    return WorkspaceResult(
+        root=None,  # The base is virtual: each workspace sits at its own id
+        workspace_id=None,  # A composed set has no single workspace id
+        files=composed.files,
+        objects=composed.objects,
+        errors=composed.errors,
+        workspaces=composed.workspaces,
+    )
+
+
+def resolve_workspace_input(path: str | None, with_paths: list[str]) -> WorkspaceResult:
+    """
+    Entry point for a workspace-aware CLI command (QMD-72).
+
+    Accepts either the historical positional path or one or more ``-w`` / ``--with``
+    paths, and refuses both at once: they answer different questions ("what is near this
+    path" versus "which workspaces make up this project"), so silently preferring one
+    would answer a question the caller did not ask.
+
+    Raises:
+        WorkspaceUsageError: with the usage message to print.
+    """
+    if with_paths:
+        if path is not None:
+            raise WorkspaceUsageError(
+                "a positional PATH and --with are mutually exclusive; "
+                "pass every workspace as --with"
+            )
+        return compose_with_paths(with_paths)
+    return resolve_workspace(path if path is not None else ".")
+
+
 def parse_all_workspaces(root_path: str) -> WorkspaceResult:
     """
     Parse all workspaces found in a directory tree (non-nested).
@@ -1496,58 +1841,19 @@ def parse_all_workspaces(root_path: str) -> WorkspaceResult:
 
         # No workspaces and no QMD.md files - return empty result
         return WorkspaceResult(
-            root=str(root),
+            root=_canonical_slash(root),
             workspace_id=None,
             files=[],
             objects=[],
             errors=[],
         )
 
-    # Parse each workspace and combine results
-    all_objects: list[dict[str, Any]] = []
-    all_files: list[str] = []
-    all_errors: list[WorkspaceError] = []
-
-    for ws_dir in workspace_dirs:
-        ws_result = parse_workspace(str(ws_dir))
-
-        # Adjust __file paths in objects to be relative to root_path
-        for obj in ws_result.objects:
-            if "__file" in obj:
-                full_path = ws_dir / obj["__file"]
-                try:
-                    rel_path = full_path.relative_to(root)
-                    obj["__file"] = str(rel_path)
-                except ValueError:
-                    pass
-
-        all_objects.extend(ws_result.objects)
-
-        # Make file paths relative to root_path
-        for file in ws_result.files:
-            full_path = ws_dir / file
-            try:
-                rel_path = full_path.relative_to(root)
-                all_files.append(str(rel_path))
-            except ValueError:
-                # File is not relative to root, skip
-                pass
-
-        # Adjust error file paths to be relative to root_path
-        for error in ws_result.errors:
-            # QMD-69: reference findings are dropped here and recomputed once over the
-            # composed object set below -- in isolation this workspace could not see its
-            # siblings' objects, so any cross-workspace reference looked broken.
-            if _is_reference_finding(error.type):
-                continue
-            if error.file:
-                try:
-                    full_path = ws_dir / error.file
-                    rel_path = full_path.relative_to(root)
-                    error.file = str(rel_path)
-                except ValueError:
-                    pass
-            all_errors.append(error)
+    # Parse each workspace and combine results -- through the one composition primitive.
+    composed = compose_workspace_roots(workspace_dirs, root)
+    all_objects = composed.objects
+    all_files = composed.files
+    all_file_paths = composed.file_paths
+    all_errors = composed.errors
 
     # After parsing explicit workspaces, check for orphan .qmd.md files
     # (files outside any workspace directory that should be loaded too)
@@ -1598,32 +1904,22 @@ def parse_all_workspaces(root_path: str) -> WorkspaceResult:
                     all_objects.append(obj)
 
                 all_files.append(rel_file)
+                all_file_paths[rel_file] = file_path
             except Exception:
                 # Skip files that can't be read
                 pass
 
-    # QMD-69: re-run reference validation over the COMPOSED object set.
-    #
-    # Each sibling workspace above was parsed and validated in isolation, so its reference
-    # findings were computed against an index that could not see the other workspaces'
-    # objects; a workspace-qualified cross-workspace reference was therefore always
-    # reported as a broken link. Those stale findings were dropped as the per-workspace
-    # errors were collected, and validation runs once here over every object in the
-    # container. Structural findings (duplicate_id, workspace_in_wrong_file, parsing
-    # errors) stay per-workspace, because identity is workspace-scoped (QMD-67).
-    composed_index = build_index(all_objects)
-    all_errors.extend(
-        error
-        for error in validate_workspace(all_objects, composed_index, root_path=str(root))
-        if _is_reference_finding(error.type)
-    )
+    # QMD-69: re-run reference validation over the COMPOSED object set. See
+    # ``rescan_composed_references`` for why the per-workspace findings cannot be reused.
+    rescan_composed_references(all_objects, all_file_paths, all_errors)
 
     return WorkspaceResult(
-        root=str(root),
+        root=_canonical_slash(root),
         workspace_id=None,  # Multiple workspaces, no single ID
         files=all_files,
         objects=all_objects,
         errors=all_errors,
+        workspaces=composed.workspaces,
     )
 
 

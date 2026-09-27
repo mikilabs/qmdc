@@ -3,8 +3,8 @@
  */
 
 import { execSync } from 'child_process';
-import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, realpathSync } from 'fs';
+import { resolve, dirname, sep } from 'path';
 import { fileURLToPath } from 'url';
 import { tmpdir } from 'os';
 import { CaseReport } from './_report.js';
@@ -267,10 +267,15 @@ test('CLI workspace parse detects spaced __Workspace kind', () => {
       `spaced __Workspace should be detected, got exit ${result.status}: ${result.stderr}`
     );
     const output = JSON.parse(result.stdout);
+    // QMD-72: one envelope shape. A single workspace is one entry sitting AT the base.
+    const canonical = realpathSync(ws).split(sep).join('/');
+    const expected = [{ id: 'spaced_proj', root: canonical, path: '' }];
     assert(
-      output.workspace === 'spaced_proj',
-      `expected workspace 'spaced_proj', got ${JSON.stringify(output.workspace)}`
+      JSON.stringify(output.workspaces) === JSON.stringify(expected),
+      `expected workspaces ${JSON.stringify(expected)}, got ${JSON.stringify(output.workspaces)}`
     );
+    assert(output.root === canonical, `expected root ${canonical}, got ${output.root}`);
+    assert(!('workspace' in output), 'the QMD-59 singular key is gone');
   } finally {
     rmSync(ws, { recursive: true, force: true });
   }

@@ -1,0 +1,1 @@
+query -w ./repo_a -w ./project #cli72_edges --format json

@@ -100,6 +100,7 @@ qmdc rebuild -i data.json                 # JSON → QMD.md
 qmdc parse -i doc.qmd.md | qmdc rebuild   # canonical formatting (round-trip)
 qmdc workspace parse ./project            # parse a multi-file workspace
 qmdc workspace validate ./project         # validate cross-file references
+qmdc workspace validate -w ./repo_a -w /srv/repo_b   # compose workspaces at unrelated paths
 qmdc query ./project "SELECT * FROM objects LIMIT 10"
 ```
 

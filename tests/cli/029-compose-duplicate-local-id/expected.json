@@ -1,0 +1,13 @@
+[
+  {
+    "type": "broken_link",
+    "message": "Object 'config' not found",
+    "file": "cli72_c3_consumer/readme.qmd.md",
+    "line": 17,
+    "objectId": "app",
+    "fieldName": null,
+    "reference": "[[#config]]",
+    "candidates": null,
+    "severity": "error"
+  }
+]

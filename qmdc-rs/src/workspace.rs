@@ -78,13 +78,73 @@ pub struct WorkspaceError {
     pub severity: String,
 }
 
+/// One workspace inside a result (QMD-72): where it is on disk, and where its files sit in
+/// the result's `__file` values.
+///
+/// `__file` is relative to the result's base, and that keeps it unique within one result:
+/// two workspaces' `readme.qmd.md` must never collapse into one string, because the
+/// reference scanner, the error reports and the `files` list all key on it. `path` is where
+/// this workspace sits inside the base (`""` when it IS the base) and `root` is where that
+/// place really is, so a consumer locates any file with one rule: take the entry whose
+/// `path` is the longest prefix of `__file` and join its `root` with the rest.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WorkspaceEntry {
+    pub id: String,
+    pub root: String,
+    pub path: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceResult {
-    pub root: String,
+    /// The base every `__file` is relative to, as a canonical absolute path. `None` when the
+    /// base is virtual: the `-w` form, whose workspaces need not share any directory, puts
+    /// each one at its own id instead (QMD-72).
+    pub root: Option<String>,
     pub workspace_id: Option<String>,
+    /// Every workspace in the result, ordered by `path` (QMD-72). See [`WorkspaceEntry`].
+    pub workspaces: Vec<WorkspaceEntry>,
     pub files: Vec<String>,
     pub objects: Vec<Value>,
     pub errors: Vec<WorkspaceError>,
+}
+
+/// Canonical absolute form of `p` with `/` separators, for what a result reports about where
+/// things are on disk (QMD-72).
+///
+/// Canonical rather than lexical, because the `-w` duplicate check already treats two
+/// spellings of one directory (a symlink and its target) as the same path; the reported root
+/// has to agree with that. Falls back to cwd-joining for a path that cannot be canonicalized.
+pub(crate) fn canonical_slash(p: &Path) -> String {
+    let abs = fs::canonicalize(p).unwrap_or_else(|_| {
+        if p.is_absolute() {
+            p.to_path_buf()
+        } else {
+            std::env::current_dir()
+                .map(|cwd| cwd.join(p))
+                .unwrap_or_else(|_| p.to_path_buf())
+        }
+    });
+    let s = path_to_slash(&abs);
+    // Windows `canonicalize` returns a verbatim path; report the form a user would type.
+    if let Some(rest) = s.strip_prefix("//?/UNC/") {
+        return format!("//{}", rest);
+    }
+    match s.strip_prefix("//?/") {
+        Some(rest) => rest.to_string(),
+        None => s,
+    }
+}
+
+/// The entry for a single-workspace result: the workspace IS the base, so its `path` is `""`.
+fn single_entry(workspace_id: &Option<String>, root: &Path) -> Vec<WorkspaceEntry> {
+    workspace_id
+        .iter()
+        .map(|id| WorkspaceEntry {
+            id: id.clone(),
+            root: canonical_slash(root),
+            path: String::new(),
+        })
+        .collect()
 }
 
 /// Maximum directory depth for downward workspace discovery.
@@ -699,7 +759,8 @@ pub fn parse_workspace(root_path: &Path, format: OutputFormat) -> WorkspaceResul
     }
 
     WorkspaceResult {
-        root: root.to_string_lossy().to_string(),
+        root: Some(canonical_slash(&root)),
+        workspaces: single_entry(&workspace_id, &root),
         workspace_id,
         files,
         objects: all_objects,
@@ -789,6 +850,238 @@ pub fn is_ignored(path: &Path, root_path: &Path, ignore_set: &Option<globset::Gl
     false
 }
 
+/// The `__Workspace` id a directory's `readme.qmd.md` declares, if any.
+///
+/// A cheap marker read, not a parse: used to decide whether a set of candidate workspaces
+/// can be composed at all (QMD-72), on a path where parsing every candidate would be
+/// wasteful.
+pub fn workspace_id_of(dir: &Path) -> Option<String> {
+    let readme = dir.join("readme.qmd.md");
+    let content = fs::read_to_string(readme).ok()?;
+    for line in content.lines() {
+        if let Some(open) = line.find("[[") {
+            let rest = &line[open + 2..];
+            if let Some(close) = rest.find("]]") {
+                let inner = &rest[..close];
+                if let Some((id, kind)) = inner.split_once(':') {
+                    if kind.trim() == "__Workspace" {
+                        return Some(id.trim().to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Whether a set of workspace roots can be composed into one graph (QMD-72).
+///
+/// Two workspaces carrying the same id cannot: every id in one would collide with the
+/// other's, so no reference could resolve to a single object. That — not "there are several
+/// workspaces" — is what makes a path genuinely unanswerable.
+pub fn colliding_workspace_id(roots: &[PathBuf]) -> Option<String> {
+    let mut seen: Vec<String> = Vec::new();
+    for r in roots {
+        if let Some(id) = workspace_id_of(r) {
+            if seen.contains(&id) {
+                return Some(id);
+            }
+            seen.push(id);
+        }
+    }
+    None
+}
+
+/// Where [`compose_workspace_roots`] puts each workspace's files in the result (QMD-72).
+#[derive(Debug, Clone, Copy)]
+pub enum Mount<'a> {
+    /// Relative to a real directory that contains every root: the container form.
+    Under(&'a Path),
+    /// At the workspace's own id, in a virtual base: the `-w` form. Its roots need not share
+    /// any directory, so a real common ancestor can degenerate to `/` and would put the
+    /// host's own directory names into `__file`. The id depends only on the content, so the
+    /// same repositories give the same `__file` wherever they are checked out; ids are
+    /// distinct within a composable set, so the values stay unique.
+    ById,
+}
+
+/// What [`compose_workspace_roots`] produces.
+pub struct Composition {
+    pub objects: Vec<Value>,
+    pub files: Vec<String>,
+    /// The real location of each entry of `files`, index-aligned. `files` is relative to the
+    /// result's base, which is virtual under [`Mount::ById`] and so cannot be joined.
+    pub file_paths: Vec<PathBuf>,
+    pub errors: Vec<WorkspaceError>,
+    /// One entry per composed root, ordered by `path`.
+    pub workspaces: Vec<WorkspaceEntry>,
+}
+
+/// Compose an explicit set of workspace ROOTS into one graph (QMD-72).
+///
+/// This is the one composition primitive: every surface that composes workspaces — the
+/// container form below, the CLI's `-w` / `--with` form, and the MCP/LSP seam — reaches
+/// composition through it, so none of them can resolve references differently from the
+/// others. Each root must already be a single workspace; discovery is the caller's job.
+///
+/// `mount` decides where each workspace's files appear in `__file` (see [`Mount`]). Findings
+/// from the reference resolver are dropped per workspace and recomputed once over the
+/// composed object set, because a workspace validated in isolation cannot see its siblings'
+/// objects.
+pub fn compose_workspace_roots(
+    roots: &[PathBuf],
+    mount: Mount,
+    format: OutputFormat,
+) -> Composition {
+    let mut out = Composition {
+        objects: Vec::new(),
+        files: Vec::new(),
+        file_paths: Vec::new(),
+        errors: Vec::new(),
+        workspaces: Vec::new(),
+    };
+
+    // A workspace inside another one is reported as `nested_workspace` because its files are
+    // then missing from the outer workspace's graph. When the inner one is itself a member of
+    // this set, nothing is missing: the outer scan already leaves its files out, and they are
+    // composed under the inner workspace. The report would contradict the composition the
+    // caller asked for (`-w repo -w repo/.qmdc`), so it is dropped — matched by path, not by
+    // id, since the container form does not refuse two members sharing an id (QMD-72).
+    let canon = |p: &Path| fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
+    let members: Vec<PathBuf> = roots.iter().map(|r| canon(r)).collect();
+
+    for ws_dir in roots {
+        let ws_result = parse_workspace(ws_dir, format);
+
+        // Where this workspace sits in the base. `None` only when a container member is
+        // somehow not under the container, which discovery never produces; its values are
+        // then left as they came, the historical behaviour.
+        let prefix: Option<String> = match mount {
+            Mount::Under(base) => ws_dir.strip_prefix(base).ok().map(path_to_slash),
+            Mount::ById => ws_result.workspace_id.clone(),
+        };
+        let relocate = |rel: &str| -> Option<String> {
+            prefix.as_ref().map(|p| {
+                if p.is_empty() {
+                    rel.to_string()
+                } else {
+                    format!("{}/{}", p, rel)
+                }
+            })
+        };
+
+        if let (Some(id), Some(p)) = (&ws_result.workspace_id, &prefix) {
+            out.workspaces.push(WorkspaceEntry {
+                id: id.clone(),
+                root: canonical_slash(ws_dir),
+                path: p.clone(),
+            });
+        }
+
+        for mut obj in ws_result.objects {
+            // Skip __ParsingError objects - they are handled separately
+            let kind = obj.get("__kind").and_then(|v| v.as_str()).unwrap_or("");
+            if kind == "__ParsingError" {
+                continue;
+            }
+            if let Some(obj_map) = obj.as_object_mut() {
+                if let Some(file) = obj_map.get("__file").and_then(|v| v.as_str()) {
+                    if let Some(moved) = relocate(file) {
+                        obj_map.insert("__file".to_string(), json!(moved));
+                    }
+                }
+            }
+            out.objects.push(obj);
+        }
+
+        for file in ws_result.files {
+            if let Some(moved) = relocate(&file) {
+                out.file_paths.push(ws_dir.join(&file));
+                out.files.push(moved);
+            }
+        }
+
+        // QMD-69: reference findings are dropped here and recomputed once over the
+        // composed object set — in isolation this workspace could not see its
+        // siblings' objects, so any cross-workspace reference looked broken.
+        for mut error in ws_result.errors {
+            if is_reference_finding(&error.error_type) {
+                continue;
+            }
+            if error.error_type == "nested_workspace" {
+                let inner = error
+                    .file
+                    .as_deref()
+                    .and_then(|f| ws_dir.join(f).parent().map(&canon));
+                if inner.is_some_and(|p| members.contains(&p)) {
+                    continue;
+                }
+            }
+            if let Some(ref file) = error.file {
+                if let Some(moved) = relocate(file) {
+                    error.file = Some(moved);
+                }
+            }
+            out.errors.push(error);
+        }
+    }
+
+    out.workspaces
+        .sort_by(|a, b| a.path.cmp(&b.path).then_with(|| a.id.cmp(&b.id)));
+    out
+}
+
+/// Re-run reference validation over a COMPOSED object set (QMD-69).
+///
+/// Each workspace was parsed and validated in isolation, so its reference findings were
+/// computed against an index that could not see the other workspaces' objects: a
+/// workspace-qualified cross-workspace reference was therefore always reported broken. The
+/// stale findings are dropped by [`compose_workspace_roots`] and the single shared engine
+/// runs once here over every object in the composed set.
+///
+/// `files` are the result's `__file` values and `file_paths` their real locations,
+/// index-aligned: the scanner reads a file's lines by the `__file` of the object that
+/// referred, and under [`Mount::ById`] that value cannot be joined onto any directory.
+///
+/// Structural findings (duplicate_id, workspace_in_wrong_file, parsing errors) stay
+/// per-workspace: they are scoped to one workspace by definition, and identity is
+/// workspace-scoped (QMD-67), so a composed set must not report a duplicate across members.
+pub fn rescan_composed_references(
+    objects: &[Value],
+    files: &[String],
+    file_paths: &[PathBuf],
+    errors: &mut Vec<WorkspaceError>,
+) {
+    let mut file_content_cache: HashMap<String, Vec<String>> = HashMap::new();
+    for (rel_file, real) in files.iter().zip(file_paths) {
+        if let Ok(content) = fs::read_to_string(real) {
+            file_content_cache.insert(
+                rel_file.clone(),
+                content.lines().map(String::from).collect(),
+            );
+        }
+    }
+    for f in
+        crate::core::reference_scan::reference_scan(objects, objects, Some(&file_content_cache))
+    {
+        errors.push(WorkspaceError {
+            error_type: f.kind.type_str().to_string(),
+            message: f.message,
+            file: Some(f.file),
+            line: Some(f.line),
+            object: Some(f.object),
+            field_name: None,
+            reference: Some(f.reference),
+            candidates: if f.candidates.is_empty() {
+                None
+            } else {
+                Some(f.candidates)
+            },
+            severity: "error".to_string(),
+        });
+    }
+}
+
 /// Parse all workspaces found in a directory tree (non-nested).
 /// If root_path itself is a workspace, parse only that one.
 /// If root_path contains multiple workspace directories, parse all of them.
@@ -845,63 +1138,23 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
 
         // No workspaces and no QMD.md files - return empty result
         return WorkspaceResult {
-            root: root_path.to_string_lossy().to_string(),
+            root: Some(canonical_slash(root_path)),
             workspace_id: None,
+            workspaces: vec![],
             files: vec![],
             objects: vec![],
             errors: vec![],
         };
     }
 
-    // Parse each workspace and combine results
-    let mut all_objects: Vec<Value> = Vec::new();
-    let mut all_files: Vec<String> = Vec::new();
-    let mut all_errors: Vec<WorkspaceError> = Vec::new();
-
-    for ws_dir in &workspace_dirs {
-        let ws_result = parse_workspace(ws_dir, format);
-
-        // Adjust __file paths in objects to be relative to root_path
-        for mut obj in ws_result.objects {
-            // Skip __ParsingError objects - they are handled separately
-            let kind = obj.get("__kind").and_then(|v| v.as_str()).unwrap_or("");
-            if kind == "__ParsingError" {
-                continue;
-            }
-
-            if let Some(obj_map) = obj.as_object_mut() {
-                if let Some(file) = obj_map.get("__file").and_then(|v| v.as_str()) {
-                    if let Ok(rel_path) = ws_dir.join(file).strip_prefix(root_path) {
-                        obj_map.insert("__file".to_string(), json!(path_to_slash(rel_path)));
-                    }
-                }
-            }
-            all_objects.push(obj);
-        }
-
-        // Make file paths relative to root_path
-        for file in ws_result.files {
-            if let Ok(rel_path) = ws_dir.join(&file).strip_prefix(root_path) {
-                all_files.push(path_to_slash(rel_path));
-            }
-        }
-
-        // Adjust error file paths to be relative to root_path.
-        // QMD-69: reference findings are dropped here and recomputed once over the
-        // composed object set below — in isolation this workspace could not see its
-        // siblings' objects, so any cross-workspace reference looked broken.
-        for mut error in ws_result.errors {
-            if is_reference_finding(&error.error_type) {
-                continue;
-            }
-            if let Some(ref file) = error.file {
-                if let Ok(rel_path) = ws_dir.join(file).strip_prefix(root_path) {
-                    error.file = Some(path_to_slash(rel_path));
-                }
-            }
-            all_errors.push(error);
-        }
-    }
+    // Parse each workspace and combine results — through the one composition primitive.
+    let Composition {
+        objects: mut all_objects,
+        files: mut all_files,
+        file_paths: mut all_file_paths,
+        errors: mut all_errors,
+        workspaces,
+    } = compose_workspace_roots(&workspace_dirs, Mount::Under(root_path), format);
 
     // After parsing explicit workspaces, check for orphan .qmd.md files
     // (files outside any workspace directory that should be loaded too)
@@ -1041,60 +1294,20 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
                     all_objects.push(obj);
                 }
 
+                all_file_paths.push(file_path.clone());
                 all_files.push(rel_file);
             }
         }
     }
 
-    // QMD-69: re-run reference validation over the COMPOSED object set.
-    //
-    // Each sibling workspace above was parsed and validated in isolation by
-    // `parse_workspace`, so its reference findings were computed against an index that
-    // could not see the other workspaces' objects. A workspace-qualified cross-workspace
-    // reference was therefore always reported as a broken link. Those stale findings are
-    // dropped as the per-workspace errors are collected (see `is_reference_finding`), and
-    // the single shared engine runs once here over every object in the container.
-    //
-    // Structural findings (duplicate_id, workspace_in_wrong_file, parsing errors) stay
-    // per-workspace: they are scoped to one workspace by definition, and identity is
-    // workspace-scoped (QMD-67), so a container must not report a duplicate across
-    // siblings.
-    {
-        let mut file_content_cache: HashMap<String, Vec<String>> = HashMap::new();
-        for rel_file in &all_files {
-            if let Ok(content) = fs::read_to_string(root_path.join(rel_file)) {
-                file_content_cache.insert(
-                    rel_file.clone(),
-                    content.lines().map(String::from).collect(),
-                );
-            }
-        }
-        for f in crate::core::reference_scan::reference_scan(
-            &all_objects,
-            &all_objects,
-            Some(&file_content_cache),
-        ) {
-            all_errors.push(WorkspaceError {
-                error_type: f.kind.type_str().to_string(),
-                message: f.message,
-                file: Some(f.file),
-                line: Some(f.line),
-                object: Some(f.object),
-                field_name: None,
-                reference: Some(f.reference),
-                candidates: if f.candidates.is_empty() {
-                    None
-                } else {
-                    Some(f.candidates)
-                },
-                severity: "error".to_string(),
-            });
-        }
-    }
+    // QMD-69: re-run reference validation over the COMPOSED object set. See
+    // `rescan_composed_references` for why the per-workspace findings cannot be reused.
+    rescan_composed_references(&all_objects, &all_files, &all_file_paths, &mut all_errors);
 
     WorkspaceResult {
-        root: root_path.to_string_lossy().to_string(),
+        root: Some(canonical_slash(root_path)),
         workspace_id: None, // Multiple workspaces, no single ID
+        workspaces,
         files: all_files,
         objects: all_objects,
         errors: all_errors,
@@ -1171,6 +1384,129 @@ pub fn resolve_workspace(path: &Path, format: OutputFormat) -> WorkspaceResult {
         return parse_workspace(&root, format);
     }
     parse_all_workspaces(path, format)
+}
+
+/// Resolve one `-w` / `--with` path to exactly one workspace root (QMD-72).
+///
+/// A `--with` path names a workspace, not a container: zero and several are both usage
+/// errors, because the caller asked to compose a specific workspace and the tool must not
+/// guess which one was meant. Checks the path itself first, then a bounded downward scan.
+fn resolve_single_workspace_root(path: &Path) -> Result<PathBuf, String> {
+    if !path.exists() {
+        return Err(format!("--with path does not exist: {}", path.display()));
+    }
+    if dir_is_workspace_root(path) {
+        return Ok(path.to_path_buf());
+    }
+    let below = find_nested_workspace_roots_bounded(path, WORKSPACE_SCAN_MAX_DEPTH);
+    // Keep only top-level roots so nested ones do not inflate the count.
+    let mut top: Vec<PathBuf> = Vec::new();
+    for r in below {
+        if !top.iter().any(|kept| r.starts_with(kept)) {
+            top.push(r);
+        }
+    }
+    match top.len() {
+        1 => Ok(top.into_iter().next().unwrap()),
+        0 => Err(format!(
+            "--with path is not a workspace: {} (no readme.qmd.md declaring [[id: __Workspace]])",
+            path.display()
+        )),
+        n => Err(format!(
+            "--with path contains {} workspaces: {} (pass each one as its own --with)",
+            n,
+            path.display()
+        )),
+    }
+}
+
+/// Compose the workspaces named by repeated `-w` / `--with` (QMD-72).
+///
+/// Every path is a peer — the first is not primary — and each must resolve to exactly one
+/// workspace. Returns a usage error rather than a wrong answer for the shapes that cannot
+/// mean anything: a path that is not a workspace, a path holding several, the same path
+/// twice, and two paths carrying the same workspace id (which would make an id ambiguous
+/// and so could not be composed into one graph).
+pub fn compose_with_paths(
+    paths: &[PathBuf],
+    format: OutputFormat,
+) -> Result<WorkspaceResult, String> {
+    let mut roots: Vec<PathBuf> = Vec::new();
+    for p in paths {
+        let root = resolve_single_workspace_root(p)?;
+        let canon = fs::canonicalize(&root).unwrap_or_else(|_| root.clone());
+        if roots
+            .iter()
+            .any(|r| fs::canonicalize(r).unwrap_or_else(|_| r.clone()) == canon)
+        {
+            return Err(format!("--with path given twice: {}", p.display()));
+        }
+        roots.push(root);
+    }
+
+    let Composition {
+        objects,
+        files,
+        file_paths,
+        mut errors,
+        workspaces,
+    } = compose_workspace_roots(&roots, Mount::ById, format);
+
+    // Two workspaces carrying the same id cannot be composed: every id in one would collide
+    // with the other's, so no reference could be resolved to a single object. Under
+    // `Mount::ById` their files would also land under one `__file` prefix.
+    let mut seen_ids: Vec<String> = Vec::new();
+    for obj in &objects {
+        if obj.get("__kind").and_then(|v| v.as_str()) == Some("__Workspace") {
+            let id = obj
+                .get("__id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if !id.is_empty() {
+                if seen_ids.contains(&id) {
+                    return Err(format!(
+                        "--with paths declare the same workspace id '{}'; ids must be distinct to compose",
+                        id
+                    ));
+                }
+                seen_ids.push(id);
+            }
+        }
+    }
+
+    rescan_composed_references(&objects, &files, &file_paths, &mut errors);
+
+    Ok(WorkspaceResult {
+        root: None,         // The base is virtual: each workspace sits at its own id
+        workspace_id: None, // A composed set has no single workspace id
+        workspaces,
+        files,
+        objects,
+        errors,
+    })
+}
+
+/// Entry point for a workspace-aware CLI command (QMD-72).
+///
+/// Accepts either the historical positional path or one or more `-w` / `--with` paths, and
+/// refuses both at once: they answer different questions ("what is near this path" versus
+/// "which workspaces make up this project"), so silently preferring one would give the
+/// caller an answer to a question they did not ask.
+pub fn resolve_workspace_input(
+    path: Option<&Path>,
+    with: &[PathBuf],
+    format: OutputFormat,
+) -> Result<WorkspaceResult, String> {
+    match (path, with.is_empty()) {
+        (Some(_), false) => Err(
+            "a positional PATH and --with are mutually exclusive; pass every workspace as --with"
+                .to_string(),
+        ),
+        (_, false) => compose_with_paths(with, format),
+        (Some(p), true) => Ok(resolve_workspace(p, format)),
+        (None, true) => Ok(resolve_workspace(Path::new("."), format)),
+    }
 }
 
 #[cfg(test)]

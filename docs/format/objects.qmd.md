@@ -26,7 +26,7 @@ Every object may contain these system fields:
 | `__syntax` | Field syntax metadata for round-trip |
 | `__level` | Heading level (1–6+) for lossless rebuild |
 | `__has_explicit_id` | `false` if `[[id]]` was auto-generated (absent when explicit) |
-| `__file` | Relative file path in workspace (workspace parsing only) |
+| `__file` | File path relative to the base of the workspace parse; under `-w`, prefixed by the workspace id (workspace parsing only) |
 | `__line` | Line number where the object is defined (for LSP) |
 
 Notes:

@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use qmdc::{
-    execute_query, parse, parse_all_workspaces, rebuild, resolve_workspace, run_lsp,
+    execute_query, parse, parse_all_workspaces, rebuild, resolve_workspace_input, run_lsp,
     run_mcp_server, OutputFormat, ParseOptions,
 };
 use serde_json::{json, Value};
@@ -61,11 +61,15 @@ enum Commands {
 
     /// Execute SQL query against workspace
     Query {
-        /// Workspace directory path
-        workspace: PathBuf,
+        /// Workspace directory path, or the QUERY itself when --with is used
+        workspace: Option<String>,
 
         /// Query: SQL or "#query_id" for Query object reference
-        query: String,
+        query: Option<String>,
+
+        /// Compose this workspace explicitly; repeatable. Mutually exclusive with WORKSPACE.
+        #[arg(short = 'w', long = "with")]
+        with: Vec<PathBuf>,
 
         /// Query language (default: sql)
         #[arg(short = 'l', long = "lang", default_value = "sql")]
@@ -107,8 +111,12 @@ enum Commands {
 enum WorkspaceAction {
     /// Parse workspace directory
     Parse {
-        /// Workspace directory path
-        path: PathBuf,
+        /// Workspace directory path (omit when composing with --with)
+        path: Option<PathBuf>,
+
+        /// Compose this workspace explicitly; repeatable. Mutually exclusive with PATH.
+        #[arg(short = 'w', long = "with")]
+        with: Vec<PathBuf>,
 
         /// Output format: minimal, standard, full
         #[arg(short = 'f', long = "format", default_value = "standard")]
@@ -117,8 +125,12 @@ enum WorkspaceAction {
 
     /// Validate workspace and return errors as JSON array
     Validate {
-        /// Workspace directory path
-        path: PathBuf,
+        /// Workspace directory path (omit when composing with --with)
+        path: Option<PathBuf>,
+
+        /// Compose this workspace explicitly; repeatable. Mutually exclusive with PATH.
+        #[arg(short = 'w', long = "with")]
+        with: Vec<PathBuf>,
     },
 }
 
@@ -225,7 +237,7 @@ async fn main() {
         }
 
         Commands::Workspace { action } => match action {
-            WorkspaceAction::Parse { path, format } => {
+            WorkspaceAction::Parse { path, with, format } => {
                 let fmt = match format.as_str() {
                     "minimal" => OutputFormat::Minimal,
                     "full" => OutputFormat::Full,
@@ -233,48 +245,40 @@ async fn main() {
                 };
                 // QMD-59: unified resolver — walk-up to an ancestor workspace,
                 // else walk-down into contained sub-workspaces.
-                let result = resolve_workspace(&path, fmt);
+                // QMD-72: or compose the explicitly-supplied `--with` workspaces.
+                let result = match resolve_workspace_input(path.as_deref(), &with, fmt) {
+                    Ok(r) => r,
+                    Err(msg) => {
+                        eprintln!("error: {}", msg);
+                        std::process::exit(2);
+                    }
+                };
 
-                // Output-shape (QMD-59): never emit a bare `workspace: null` when
-                // workspaces were actually resolved. Derive id(s) from objects:
-                //   - workspace_id set (walk-up/self)      -> "workspace": id
-                //   - exactly one resolved sub-workspace   -> "workspace": that id
-                //   - multiple resolved sub-workspaces     -> "workspaces": [ids]
-                let mut payload = json!({
+                // Output shape (QMD-72): one shape for every invocation. `workspaces` is always
+                // present — zero, one or many entries, each `{id, root, path}` — replacing the
+                // QMD-59 `workspace: id` / `workspaces: [ids]` / `workspace: null` trio a
+                // consumer had to tell apart. `root` is the base every `__file` is relative
+                // to, or null when that base is virtual (`-w`).
+                let payload = json!({
                     "root": result.root,
+                    "workspaces": result.workspaces,
                     "files": result.files,
                     "objects": result.objects,
                     "errors": result.errors,
                 });
-                let payload_map = payload.as_object_mut().unwrap();
-                if let Some(ws_id) = &result.workspace_id {
-                    payload_map.insert("workspace".to_string(), json!(ws_id));
-                } else {
-                    let mut ws_ids: Vec<String> = result
-                        .objects
-                        .iter()
-                        .filter(|o| o.get("__kind").and_then(|v| v.as_str()) == Some("__Workspace"))
-                        .filter_map(|o| o.get("__id").and_then(|v| v.as_str()).map(String::from))
-                        .collect();
-                    ws_ids.sort();
-                    ws_ids.dedup();
-                    match ws_ids.len() {
-                        1 => {
-                            payload_map.insert("workspace".to_string(), json!(ws_ids[0]));
-                        }
-                        n if n > 1 => {
-                            payload_map.insert("workspaces".to_string(), json!(ws_ids));
-                        }
-                        _ => {
-                            payload_map.insert("workspace".to_string(), Value::Null);
-                        }
-                    }
-                }
                 println!("{}", serde_json::to_string_pretty(&payload).unwrap());
             }
-            WorkspaceAction::Validate { path } => {
+            WorkspaceAction::Validate { path, with } => {
                 // QMD-59: unified resolver — walk-up then walk-down.
-                let result = resolve_workspace(&path, OutputFormat::Standard);
+                // QMD-72: or compose the explicitly-supplied `--with` workspaces.
+                let result =
+                    match resolve_workspace_input(path.as_deref(), &with, OutputFormat::Standard) {
+                        Ok(r) => r,
+                        Err(msg) => {
+                            eprintln!("error: {}", msg);
+                            std::process::exit(2);
+                        }
+                    };
                 // Convert workspace errors to unified format matching Python/TypeScript
                 let errors_array: Vec<Value> = result
                     .errors
@@ -302,12 +306,53 @@ async fn main() {
         Commands::Query {
             workspace,
             query,
+            with,
             lang: _,
             format,
         } => {
+            // QMD-72: with `--with`, the single remaining positional IS the query — a
+            // composed set has no one path, so there is nothing for a path positional to
+            // name. Both positionals alongside `--with` is the mutually-exclusive usage
+            // error, not a path to silently ignore.
+            //
+            // WITHOUT `--with` both positionals stay required. A lone positional must NOT
+            // be read as the query against an implied `.`: py and ts refuse it with exit 2,
+            // and so did this CLI before QMD-72, so accepting it here would be a Rust-only
+            // convenience that breaks three-way conformance on the `query` surface.
+            let (ws_path, query) = if with.is_empty() {
+                match (workspace, query) {
+                    (Some(w), Some(q)) => (Some(PathBuf::from(w)), q),
+                    _ => {
+                        eprintln!("error: a QUERY is required");
+                        std::process::exit(2);
+                    }
+                }
+            } else {
+                match (workspace, query) {
+                    (Some(q), None) => (None, q),
+                    (Some(_), Some(_)) => {
+                        eprintln!(
+                            "error: a positional WORKSPACE and --with are mutually exclusive; pass every workspace as --with"
+                        );
+                        std::process::exit(2);
+                    }
+                    _ => {
+                        eprintln!("error: a QUERY is required");
+                        std::process::exit(2);
+                    }
+                }
+            };
+
             // QMD-59: unified resolver — walk-up to an ancestor workspace, else
             // walk-down into contained sub-workspaces (so query works from any dir).
-            let ws_result = resolve_workspace(&workspace, OutputFormat::Standard);
+            let ws_result =
+                match resolve_workspace_input(ws_path.as_deref(), &with, OutputFormat::Standard) {
+                    Ok(r) => r,
+                    Err(msg) => {
+                        eprintln!("error: {}", msg);
+                        std::process::exit(2);
+                    }
+                };
 
             // Execute query
             match execute_query(&ws_result, &query) {

@@ -2,8 +2,8 @@
  * QMDC Workspace - Multi-file parsing with cross-file references.
  */
 
-import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
-import { join, relative, dirname, resolve } from 'path';
+import { readFileSync, readdirSync, statSync, existsSync, realpathSync } from 'fs';
+import { join, relative, dirname, resolve, sep } from 'path';
 import { minimatch } from 'minimatch';
 import { parse, type QmdcObject, isInsideBackticks } from './parser.js';
 
@@ -47,13 +47,58 @@ export interface WorkspaceIndex {
   byLocalId: Record<string, QmdcObject[]>;
 }
 
-export interface WorkspaceResult {
+/**
+ * One workspace inside a result (QMD-72): where it is on disk, and where its files sit in the
+ * result's `__file` values.
+ *
+ * `__file` is relative to the result's base, and that keeps it unique within one result: two
+ * workspaces' `readme.qmd.md` must never collapse into one string, because the reference
+ * scanner, the error reports and the `files` list all key on it. `path` is where this
+ * workspace sits inside the base (`''` when it IS the base) and `root` is where that place
+ * really is, so a consumer locates any file with one rule: take the entry whose `path` is the
+ * longest prefix of `__file` and join its `root` with the rest.
+ */
+export interface WorkspaceEntry {
+  id: string;
   root: string;
+  path: string;
+}
+
+export interface WorkspaceResult {
+  /**
+   * The base every `__file` is relative to, as a canonical absolute path; `null` when the
+   * base is virtual -- the `-w` form, whose workspaces need not share any directory, puts each
+   * one at its own id instead (QMD-72).
+   */
+  root: string | null;
   workspaceId: string | null;
+  /** Every workspace in the result, ordered by `path` (QMD-72). */
+  workspaces: WorkspaceEntry[];
   files: string[];
   objects: QmdcObject[];
   index: WorkspaceIndex;
   errors: WorkspaceError[];
+}
+
+/**
+ * Canonical absolute form of `p` with `/` separators (QMD-72). Canonical rather than
+ * lexical, because the `-w` duplicate check already treats two spellings of one directory (a
+ * symlink and its target) as the same path; the reported root has to agree with that.
+ * Mirrors `canonical_slash` in the Rust parser.
+ */
+function canonicalSlash(p: string): string {
+  let abs: string;
+  try {
+    abs = realpathSync(p);
+  } catch {
+    abs = resolve(p);
+  }
+  return sep === '/' ? abs : abs.split(sep).join('/');
+}
+
+/** The entry for a single-workspace result: the workspace IS the base (`path` `''`). */
+function singleEntry(workspaceId: string | null, root: string): WorkspaceEntry[] {
+  return workspaceId ? [{ id: workspaceId, root: canonicalSlash(root), path: '' }] : [];
 }
 
 /**
@@ -69,6 +114,17 @@ function extractNamespaceId(namespaceRef: string): string {
  * for workspace-root detection (avoids divergent inline regexes).
  */
 const WORKSPACE_MARKER_RE = /\[\[[^\]]+:\s*__Workspace\]\]/;
+
+/**
+ * Mirrors WORKSPACE_SCAN_MAX_DEPTH in the Rust parser (qmdc-rs/src/workspace.rs) and in
+ * Python (qmdc-py/qmdc/workspace.py), and the depth documented in docs/mcp/readme.qmd.md.
+ * A caller-supplied path is scanned downward at most this many directory levels, so
+ * pointing a tool at a large checkout cannot turn one call into a full-tree crawl. The
+ * three implementations must share the number: a marker deeper than this is undiscovered
+ * everywhere, or the same `-w` invocation succeeds in one implementation and is a usage
+ * error in another.
+ */
+export const WORKSPACE_SCAN_MAX_DEPTH = 5;
 
 function contentHasWorkspaceMarker(content: string): boolean {
   return WORKSPACE_MARKER_RE.test(content);
@@ -499,8 +555,9 @@ export function parseWorkspace(rootPath: string): WorkspaceResult {
   const errors = [...nestedWorkspaceErrors, ...validationErrors];
 
   return {
-    root: rootPath,
+    root: canonicalSlash(rootPath),
     workspaceId,
+    workspaces: singleEntry(workspaceId, rootPath),
     files,
     objects: allObjects,
     index,
@@ -712,7 +769,8 @@ export function resolveReference(
 export function validateWorkspace(
   objects: QmdcObject[],
   _index: WorkspaceIndex,
-  rootPath?: string
+  rootPath?: string,
+  filePaths?: Map<string, string>
 ): WorkspaceError[] {
   const errors: WorkspaceError[] = [];
 
@@ -951,11 +1009,14 @@ export function validateWorkspace(
         resolvedObjects = matchingObjects;
       }
 
-      // Check if reference is inside backticks (inline code) - skip validation
-      if (rootPath && objFile) {
+      // Check if reference is inside backticks (inline code) - skip validation.
+      // Through `filePaths` when given: a composed `-w` set's `__file` is relative to a
+      // virtual base and cannot be joined onto any directory (QMD-72).
+      if (objFile && (filePaths !== undefined || rootPath)) {
         try {
-          const filePath = join(rootPath, objFile);
-          if (existsSync(filePath)) {
+          const filePath =
+            filePaths !== undefined ? filePaths.get(objFile) : join(rootPath as string, objFile);
+          if (filePath !== undefined && existsSync(filePath)) {
             const fileContent = readFileSync(filePath, 'utf-8');
             const fileLines = fileContent.split('\n');
             if (line > 0 && line <= fileLines.length) {
@@ -1245,31 +1306,11 @@ export function validateWorkspace(
  * Convert WorkspaceResult to JSON-serializable object.
  */
 export function workspaceToJson(result: WorkspaceResult): Record<string, unknown> {
-  // Output-shape (QMD-59): never emit a bare `workspace: null` when workspaces
-  // were actually resolved. Derive workspace id(s) from the resolved objects:
-  //   - walk-up/self (workspaceId set)       -> workspace: id
-  //   - walk-down, exactly one sub-workspace  -> workspace: that id
-  //   - walk-down, multiple sub-workspaces    -> omit workspace, add workspaces: [ids]
-  const out: Record<string, unknown> = { root: result.root };
-
-  if (result.workspaceId) {
-    out.workspace = result.workspaceId;
-  } else {
-    const wsIds = Array.from(
-      new Set(
-        result.objects
-          .filter((o) => o.__kind === '__Workspace' && o.__id)
-          .map((o) => o.__id as string)
-      )
-    ).sort();
-    if (wsIds.length === 1) {
-      out.workspace = wsIds[0];
-    } else if (wsIds.length > 1) {
-      out.workspaces = wsIds;
-    } else {
-      out.workspace = null;
-    }
-  }
+  // Output shape (QMD-72): one shape for every invocation. `workspaces` is always present --
+  // zero, one or many {id, root, path} entries -- replacing the QMD-59 `workspace: id` /
+  // `workspaces: [ids]` / `workspace: null` trio a consumer had to tell apart. `root` is the
+  // base every __file is relative to, or null when that base is virtual (-w).
+  const out: Record<string, unknown> = { root: result.root, workspaces: result.workspaces };
 
   out.files = result.files;
   out.objects = result.objects;
@@ -1301,30 +1342,78 @@ export function workspaceToJson(result: WorkspaceResult): Record<string, unknown
 
 /**
  * Find all workspace directories (directories containing readme.qmd.md with __Workspace).
+ *
+ * Unbounded depth. Use `findWorkspaceDirsBounded` where a caller-supplied path must not
+ * turn into a full-tree crawl.
  */
 export function findAllWorkspaceDirs(rootPath: string): string[] {
+  return scanWorkspaceDirs(rootPath, Number.POSITIVE_INFINITY);
+}
+
+/**
+ * Depth-bounded variant of `findAllWorkspaceDirs` (QMD-72).
+ *
+ * Mirrors `find_nested_workspace_roots_bounded` in the Rust parser and
+ * `find_workspace_dirs_bounded` in Python: the crawl is capped at `maxDepth` directory
+ * levels below `rootPath`. The cap is part of the contract, not an optimisation -- a marker
+ * deeper than this is NOT discovered, and all three implementations must agree on that, or
+ * the same `-w` invocation is a usage error in one and a successful composition in another.
+ */
+export function findWorkspaceDirsBounded(rootPath: string, maxDepth: number): string[] {
+  return scanWorkspaceDirs(rootPath, maxDepth);
+}
+
+function scanWorkspaceDirs(rootPath: string, maxDepth: number): string[] {
   const root = resolve(rootPath);
   const workspaceDirs: string[] = [];
 
-  function scanDir(dir: string): void {
-    const readmePath = join(dir, 'readme.qmd.md');
-    if (existsSync(readmePath)) {
-      const content = readFileSync(readmePath, 'utf-8');
-      if (contentHasWorkspaceMarker(content)) {
-        workspaceDirs.push(dir);
+  function scanDir(dir: string, depth: number): void {
+    // The cap applies to the README's own depth, not the directory's: a readme inside a
+    // directory `depth` levels below root sits at `depth + 1`. Checking the directory
+    // instead finds markers one level deeper than rs and py do — measured, that off-by-one
+    // made depth 6 discoverable here and invisible there.
+    const readmeDepth = depth + 1;
+    if (readmeDepth <= maxDepth) {
+      const readmePath = join(dir, 'readme.qmd.md');
+      if (existsSync(readmePath)) {
+        let content: string;
+        try {
+          content = readFileSync(readmePath, 'utf-8');
+        } catch {
+          // An unreadable marker is a marker we cannot see; treat it as absent rather than
+          // aborting the whole scan with a raw OS error, which the Rust and Python scans
+          // also do (their read failure falls through the same way).
+          content = '';
+        }
+        if (contentHasWorkspaceMarker(content)) {
+          workspaceDirs.push(dir);
+        }
       }
     }
 
+    // No readme below this point could pass the cap, so stop descending.
+    if (readmeDepth >= maxDepth) {
+      return;
+    }
+
     // Recursively scan subdirectories
-    const entries = readdirSync(dir, { withFileTypes: true });
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      // Unreadable or not a directory: nothing to discover below it. The caller turns an
+      // empty result into the "not a workspace" usage error, which is what rs and py
+      // report for the same input -- letting EACCES/ENOTDIR escape would exit 1 instead.
+      return;
+    }
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        scanDir(join(dir, entry.name));
+        scanDir(join(dir, entry.name), depth + 1);
       }
     }
   }
 
-  scanDir(root);
+  scanDir(root, 0);
   return workspaceDirs;
 }
 
@@ -1460,8 +1549,9 @@ export function parseAllWorkspaces(rootPath: string): WorkspaceResult {
 
     // No workspaces and no QMD.md files - return empty result
     return {
-      root,
+      root: canonicalSlash(root),
       workspaceId: null,
+      workspaces: [],
       files: [],
       objects: [],
       index: {
@@ -1476,46 +1566,14 @@ export function parseAllWorkspaces(rootPath: string): WorkspaceResult {
     };
   }
 
-  // Parse each workspace and combine results
-  const allObjects: QmdcObject[] = [];
-  const allFiles: string[] = [];
-  const allErrors: WorkspaceError[] = [];
-
-  for (const wsDir of workspaceDirs) {
-    const wsResult = parseWorkspace(wsDir);
-
-    // Adjust __file paths in objects to be relative to root_path
-    for (const obj of wsResult.objects) {
-      if (obj.__file && typeof obj.__file === 'string') {
-        const fullPath = join(wsDir, obj.__file);
-        obj.__file = relative(root, fullPath);
-      }
-    }
-
-    allObjects.push(...wsResult.objects);
-
-    // Make file paths relative to root_path
-    for (const file of wsResult.files) {
-      const fullPath = join(wsDir, file);
-      const relPath = relative(root, fullPath);
-      allFiles.push(relPath);
-    }
-
-    // Adjust error file paths to be relative to root_path
-    for (const error of wsResult.errors) {
-      // QMD-69: reference findings are dropped here and recomputed once over the composed
-      // object set below -- in isolation this workspace could not see its siblings'
-      // objects, so any cross-workspace reference looked broken.
-      if (isReferenceFinding(error.type)) {
-        continue;
-      }
-      if (error.file) {
-        const fullPath = join(wsDir, error.file);
-        error.file = relative(root, fullPath);
-      }
-      allErrors.push(error);
-    }
-  }
+  // Parse each workspace and combine results -- through the one composition primitive.
+  const {
+    objects: allObjects,
+    files: allFiles,
+    filePaths: allFilePaths,
+    errors: allErrors,
+    workspaces,
+  } = composeWorkspaceRoots(workspaceDirs, root);
 
   // After parsing explicit workspaces, check for orphan .qmd.md files
   // (files outside any workspace directory that should be loaded too)
@@ -1605,31 +1663,21 @@ export function parseAllWorkspaces(rootPath: string): WorkspaceResult {
         }
 
         allFiles.push(relFile);
+        allFilePaths.set(relFile, filePath);
       } catch {
         // Skip files that can't be read
       }
     }
   }
 
-  // QMD-69: re-run reference validation over the COMPOSED object set.
-  //
-  // Each sibling workspace above was parsed and validated in isolation, so its reference
-  // findings were computed against an index that could not see the other workspaces'
-  // objects; a workspace-qualified cross-workspace reference was therefore always reported
-  // as a broken link. Those stale findings were dropped as the per-workspace errors were
-  // collected, and validation runs once here over every object in the container.
-  // Structural findings (duplicate_id, workspace_in_wrong_file, parsing errors) stay
-  // per-workspace, because identity is workspace-scoped (QMD-67).
-  const composedIndex = buildIndex(allObjects);
-  for (const error of validateWorkspace(allObjects, composedIndex, root)) {
-    if (isReferenceFinding(error.type)) {
-      allErrors.push(error);
-    }
-  }
+  // QMD-69: re-run reference validation over the COMPOSED object set. See
+  // `rescanComposedReferences` for why the per-workspace findings cannot be reused.
+  const composedIndex = rescanComposedReferences(allObjects, allFilePaths, allErrors);
 
   return {
-    root,
+    root: canonicalSlash(root),
     workspaceId: null, // Multiple workspaces, no single ID
+    workspaces,
     files: allFiles,
     objects: allObjects,
     index: composedIndex,
@@ -1649,6 +1697,313 @@ function isReferenceFinding(errorType: string): boolean {
     errorType === 'ambiguous_reference' ||
     errorType === 'ambiguous_field_reference'
   );
+}
+
+/**
+ * A workspace command was invoked in a way that cannot mean anything (QMD-72).
+ *
+ * Distinct from a parse or validation failure: nothing was wrong with the documents, the
+ * invocation itself was refused, so the CLI reports it as a usage error (exit 2) rather than
+ * as a result.
+ */
+export class WorkspaceUsageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WorkspaceUsageError';
+  }
+}
+
+/** What `composeWorkspaceRoots` produces (QMD-72). */
+export interface Composition {
+  objects: QmdcObject[];
+  files: string[];
+  /**
+   * Real location of each `files` entry: `files` is relative to the result's base, which is
+   * virtual in the `-w` form and so cannot be joined.
+   */
+  filePaths: Map<string, string>;
+  errors: WorkspaceError[];
+  /** One entry per composed root, ordered by `path`. */
+  workspaces: WorkspaceEntry[];
+}
+
+/**
+ * Compose an explicit set of workspace ROOTS into one graph (QMD-72).
+ *
+ * This is the one composition primitive: the container form, the CLI's `-w` / `--with`
+ * form and any other surface that composes workspaces reach composition through it, so none
+ * of them can resolve references differently from the others. Each root must already be a
+ * single workspace; discovery is the caller's job.
+ *
+ * `base` decides where each workspace's files appear in `__file`. A real directory that
+ * contains every root (the container form) puts them relative to it. `null` (the `-w` form)
+ * puts each workspace at its own id in a virtual base: its roots need not share any
+ * directory, so a real common ancestor can degenerate to `/` and would put the host's own
+ * directory names into `__file`. The id depends only on the content, so the same
+ * repositories give the same `__file` wherever they are checked out, and ids are distinct
+ * within a composable set, so the values stay unique. Mirrors `Mount` in the Rust parser.
+ *
+ * Reference findings are dropped per workspace and recomputed once over the composed set by
+ * `rescanComposedReferences`, because a workspace validated in isolation cannot see its
+ * siblings' objects.
+ */
+export function composeWorkspaceRoots(roots: string[], base: string | null): Composition {
+  const out: Composition = {
+    objects: [],
+    files: [],
+    filePaths: new Map(),
+    errors: [],
+    workspaces: [],
+  };
+
+  // A workspace inside another one is reported as `nested_workspace` because its files are
+  // then missing from the outer workspace's graph. When the inner one is itself a member of
+  // this set, nothing is missing: the outer scan already leaves its files out, and they are
+  // composed under the inner workspace. The report would contradict the composition the caller
+  // asked for (`-w repo -w repo/.qmdc`), so it is dropped -- matched by path, not by id, since
+  // the container form does not refuse two members sharing an id (QMD-72).
+  const canon = (p: string): string => {
+    try {
+      return realpathSync(p);
+    } catch {
+      return resolve(p);
+    }
+  };
+  const members = new Set(roots.map(canon));
+
+  for (const wsDir of roots) {
+    const wsResult = parseWorkspace(wsDir);
+
+    // Where this workspace sits in the base. null only when a container member is somehow
+    // not under the container, which discovery never produces; its values are then left as
+    // they came, the historical behaviour.
+    let prefix: string | null;
+    if (base === null) {
+      prefix = wsResult.workspaceId;
+    } else {
+      const rel = relative(base, wsDir);
+      prefix = rel.startsWith('..') ? null : rel.split(sep).join('/');
+    }
+    const relocate = (rel: string): string | null =>
+      prefix === null ? null : prefix === '' ? rel : `${prefix}/${rel}`;
+
+    if (wsResult.workspaceId && prefix !== null) {
+      out.workspaces.push({
+        id: wsResult.workspaceId,
+        root: canonicalSlash(wsDir),
+        path: prefix,
+      });
+    }
+
+    for (const obj of wsResult.objects) {
+      if (obj.__file && typeof obj.__file === 'string') {
+        const moved = relocate(obj.__file);
+        if (moved !== null) {
+          obj.__file = moved;
+        }
+      }
+    }
+    out.objects.push(...wsResult.objects);
+
+    for (const file of wsResult.files) {
+      const moved = relocate(file);
+      if (moved !== null) {
+        out.files.push(moved);
+        out.filePaths.set(moved, join(wsDir, file));
+      }
+    }
+
+    for (const error of wsResult.errors) {
+      // QMD-69: reference findings are dropped here and recomputed once over the composed
+      // object set -- in isolation this workspace could not see its siblings' objects, so
+      // any cross-workspace reference looked broken.
+      if (isReferenceFinding(error.type)) {
+        continue;
+      }
+      if (
+        error.type === 'nested_workspace' &&
+        error.file &&
+        members.has(canon(dirname(join(wsDir, error.file))))
+      ) {
+        continue;
+      }
+      if (error.file) {
+        const moved = relocate(error.file);
+        if (moved !== null) {
+          error.file = moved;
+        }
+      }
+      out.errors.push(error);
+    }
+  }
+
+  out.workspaces.sort((a, b) =>
+    a.path < b.path ? -1 : a.path > b.path ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+  );
+  return out;
+}
+
+/**
+ * Re-run reference validation over a COMPOSED object set (QMD-69), returning the composed
+ * index so the caller can publish it.
+ *
+ * Each workspace was parsed and validated in isolation, so its reference findings were
+ * computed against an index that could not see the other workspaces' objects: a
+ * workspace-qualified cross-workspace reference was therefore always reported broken. The
+ * stale findings are dropped by `composeWorkspaceRoots` and the shared validator runs once
+ * here over every object in the composed set.
+ *
+ * `filePaths` maps each `__file` to its real location; the validator reads a referring
+ * object's source line through it, because under the `-w` form that value cannot be joined
+ * onto any directory (QMD-72).
+ *
+ * Structural findings (duplicate_id, workspace_in_wrong_file, parsing errors) stay
+ * per-workspace, because identity is workspace-scoped (QMD-67).
+ */
+export function rescanComposedReferences(
+  objects: QmdcObject[],
+  filePaths: Map<string, string>,
+  errors: WorkspaceError[]
+): WorkspaceIndex {
+  const composedIndex = buildIndex(objects);
+  for (const error of validateWorkspace(objects, composedIndex, undefined, filePaths)) {
+    if (isReferenceFinding(error.type)) {
+      errors.push(error);
+    }
+  }
+  return composedIndex;
+}
+
+/**
+ * Resolve one `-w` / `--with` path to exactly one workspace root (QMD-72).
+ *
+ * A `--with` path names a workspace, not a container: zero and several are both usage
+ * errors, because the caller asked to compose a specific workspace and the tool must not
+ * guess which one was meant.
+ */
+function resolveSingleWorkspaceRoot(path: string): string {
+  if (!existsSync(path)) {
+    throw new WorkspaceUsageError(`--with path does not exist: ${path}`);
+  }
+  // realpath, not just resolve: `resolve` is lexical, so a symlink and its target produce
+  // two different strings and the caller's duplicate-path check misses the alias. rs
+  // canonicalizes and py's Path.resolve() follows symlinks, so this is the key that makes
+  // all three refuse `-w ws -w link_to_ws` with the same message.
+  let resolved: string;
+  try {
+    resolved = realpathSync(path);
+  } catch {
+    resolved = resolve(path);
+  }
+  const readme = join(resolved, 'readme.qmd.md');
+  if (existsSync(readme)) {
+    let content = '';
+    try {
+      content = readFileSync(readme, 'utf-8');
+    } catch {
+      // Unreadable marker: fall through to the scan, which ends in the "not a workspace"
+      // usage error (exit 2) that rs and py report for this input.
+      content = '';
+    }
+    if (WORKSPACE_MARKER_RE.test(content)) {
+      return resolved;
+    }
+  }
+
+  const top: string[] = [];
+  for (const r of findWorkspaceDirsBounded(resolved, WORKSPACE_SCAN_MAX_DEPTH)) {
+    if (!top.some((kept) => r === kept || r.startsWith(kept + sep))) {
+      top.push(r);
+    }
+  }
+  if (top.length === 1) {
+    return top[0] as string;
+  }
+  if (top.length === 0) {
+    throw new WorkspaceUsageError(
+      `--with path is not a workspace: ${path} ` +
+        '(no readme.qmd.md declaring [[id: __Workspace]])'
+    );
+  }
+  throw new WorkspaceUsageError(
+    `--with path contains ${top.length} workspaces: ${path} (pass each one as its own --with)`
+  );
+}
+
+/**
+ * Compose the workspaces named by repeated `-w` / `--with` (QMD-72).
+ *
+ * Every path is a peer -- the first is not primary -- and each must resolve to exactly one
+ * workspace. Throws `WorkspaceUsageError` rather than returning a wrong answer for the
+ * shapes that cannot mean anything: a path that is not a workspace, a path holding several,
+ * the same path twice, and two paths carrying the same workspace id (which would make an id
+ * ambiguous, so the set could not be composed into one graph).
+ */
+export function composeWithPaths(paths: string[]): WorkspaceResult {
+  const roots: string[] = [];
+  for (const path of paths) {
+    const root = resolveSingleWorkspaceRoot(path);
+    if (roots.includes(root)) {
+      throw new WorkspaceUsageError(`--with path given twice: ${path}`);
+    }
+    roots.push(root);
+  }
+
+  const { objects, files, filePaths, errors, workspaces } = composeWorkspaceRoots(roots, null);
+
+  // Two workspaces carrying the same id cannot be composed: every id in one would collide
+  // with the other's, so no reference could resolve to a single object. With each workspace
+  // at its own id, their files would also land under one __file prefix.
+  const seenIds: string[] = [];
+  for (const obj of objects) {
+    if (obj.__kind === '__Workspace') {
+      const wsId = typeof obj.__id === 'string' ? obj.__id : '';
+      if (wsId) {
+        if (seenIds.includes(wsId)) {
+          throw new WorkspaceUsageError(
+            `--with paths declare the same workspace id '${wsId}'; ` +
+              'ids must be distinct to compose'
+          );
+        }
+        seenIds.push(wsId);
+      }
+    }
+  }
+
+  const composedIndex = rescanComposedReferences(objects, filePaths, errors);
+
+  return {
+    root: null, // The base is virtual: each workspace sits at its own id
+    workspaceId: null, // A composed set has no single workspace id
+    workspaces,
+    files,
+    objects,
+    index: composedIndex,
+    errors,
+  };
+}
+
+/**
+ * Entry point for a workspace-aware CLI command (QMD-72).
+ *
+ * Accepts either the historical positional path or one or more `-w` / `--with` paths, and
+ * refuses both at once: they answer different questions ("what is near this path" versus
+ * "which workspaces make up this project"), so silently preferring one would answer a
+ * question the caller did not ask.
+ */
+export function resolveWorkspaceInput(
+  path: string | undefined,
+  withPaths: string[]
+): WorkspaceResult {
+  if (withPaths.length > 0) {
+    if (path !== undefined) {
+      throw new WorkspaceUsageError(
+        'a positional PATH and --with are mutually exclusive; pass every workspace as --with'
+      );
+    }
+    return composeWithPaths(withPaths);
+  }
+  return resolveWorkspace(path ?? '.');
 }
 
 /**

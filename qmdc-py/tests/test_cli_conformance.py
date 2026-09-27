@@ -41,6 +41,19 @@ def test_cli_case(case: Path):
         f"exit {result.returncode} != expected {exit_expected}\nstderr: {result.stderr}"
     )
 
+    # Optional `expected.stderr`: a SUBSTRING the diagnostic must contain. Without it a
+    # usage-error case asserts only "exited with the right code and printed nothing on
+    # stdout", which a refusal for an entirely different reason also satisfies. Substring
+    # rather than equality because wrapper noise and absolute paths differ per environment.
+    exp_err = case / "expected.stderr"
+    if exp_err.exists():
+        needle = exp_err.read_text().strip()
+        if needle:
+            assert needle in result.stderr, (
+                f"stderr missing expected text for {case.name}: {needle}\n"
+                f"actual stderr: {result.stderr}"
+            )
+
     exp_json = case / "expected.json"
     exp_txt = case / "expected.txt"
     if exp_json.exists():

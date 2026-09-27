@@ -369,5 +369,18 @@ fn test_cli_workspace_parse_spaced_kind() {
     let result: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("Failed to parse JSON output");
 
-    assert_eq!(result["workspace"], "spaced_proj");
+    // QMD-72: one envelope shape. A single workspace is one entry sitting AT the base.
+    let canonical = std::fs::canonicalize(tmpdir.path())
+        .expect("canonicalize tmpdir")
+        .to_string_lossy()
+        .replace('\\', "/");
+    assert_eq!(
+        result["workspaces"],
+        serde_json::json!([{"id": "spaced_proj", "root": canonical, "path": ""}])
+    );
+    assert_eq!(result["root"], serde_json::json!(canonical));
+    assert!(
+        result.get("workspace").is_none(),
+        "the QMD-59 singular key is gone"
+    );
 }

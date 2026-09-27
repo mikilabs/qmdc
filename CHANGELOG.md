@@ -58,9 +58,43 @@ file is maintained by hand.
   so the reader is told what to write and not only what is wrong; it is the only error that carries
   one. Previously every one of these became a String in
   silence, and which of them did so differed per parser (QMD-71).
+- **`-w` / `--with`: compose workspaces at unrelated paths.** `query`, `workspace parse`,
+  `workspace validate` and `workspace files` (the last in Python and TypeScript only — the Rust CLI
+  has no `files` subcommand) take one or more `-w` paths, each naming a workspace
+  anywhere on disk, composed in place. Every path is a peer — the first is not primary — and a
+  single `-w` is valid. Discovery answers "what is near this path"; composition answers "which
+  workspaces make up this project", and the second is a property of the project rather than of one
+  developer's disk, so it has to be supplied by the caller. The positional form is unchanged and
+  mutually exclusive with `-w`. Five invocations are refused as usage errors with **exit 2** — a
+  positional path together with `-w`, a `-w` path resolving to zero workspaces, one resolving to
+  several, the same path twice, and two paths declaring the same workspace id (which no composed
+  graph can represent, since every id in one would collide with the other's) (QMD-72).
 
 ### Changed
 
+- **`workspace parse` output has one shape.** It always carries `workspaces`, a list of
+  `{id, root, path}` entries — `root` where the workspace is on disk, `path` where its files sit in
+  `__file` — replacing the three shapes a consumer had to tell apart: `"workspace": "<id>"` for one
+  workspace, `"workspaces": ["<id>", ...]` for several, and `"workspace": null` for none. The
+  top-level `root` is now a canonical absolute path, or `null` when the base is virtual (see the next
+  entry). A consumer that read the `workspace` key reads `workspaces[0].id` instead (QMD-72).
+- **Under `-w`, `__file` starts with the workspace id**, e.g. `shop/storage/tables.qmd.md`. It was
+  relative to the common ancestor of the `-w` paths, which for checkouts in unrelated places is `/`,
+  so the host's own directory names ended up in the graph and the same repositories gave different
+  `__file` values on different machines. The positional forms are unchanged (QMD-72).
+- **`nested_workspace` is no longer reported for a workspace that is composed alongside the one it
+  sits in** — `-w repo -w repo/.qmdc`, or a directory holding both. Its files are then in the result
+  under its own workspace, so nothing is missing, and the report contradicted the composition the
+  caller asked for. It is still reported when the inner workspace is left out, which is what it is
+  for (QMD-72).
+- **MCP now composes a container of sibling workspaces instead of refusing it.** Given a
+  non-workspace directory holding several workspaces, MCP reference validation and the other
+  path-taking tools previously answered `ambiguous` with the candidates and asked the caller to pick
+  one — while the CLI composed the same directory. Neither candidate alone can see the other's
+  objects, so picking one could not answer the question either; that split was the live half of
+  upstream issue 9. The `ambiguous` code survives with a sharper meaning: a set that cannot be
+  composed because two members declare the same workspace id. A caller that relied on receiving
+  `candidates` for a plain multi-workspace container will now receive a composed answer (QMD-72).
 - **Four constructs that previously parsed silently are now validation errors**, so
   `qmdc workspace validate` can newly exit non-zero on a document that passed before:
   `table_in_array`, `extra_table_in_array`, `mixed_array` and `block_in_inline_field`. Each was

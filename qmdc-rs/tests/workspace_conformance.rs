@@ -185,13 +185,21 @@ fn test_workspace_conformance() {
         let result = parse_workspace_json(&path);
         let parse_secs = parse_t.elapsed().as_secs_f64();
 
-        // 1. workspace_id (the per-fixture parse cost is attributed to this case)
+        // 1. workspace_id (the per-fixture parse cost is attributed to this case).
+        // QMD-72: the envelope always carries a `workspaces` list; the fixture's
+        // `workspace_id` names the workspace when the result holds exactly one, and is
+        // empty otherwise — the same meaning the QMD-59 `workspace` key had.
         let t = std::time::Instant::now();
         let case = format!("{}/workspace_id", name);
-        let actual_id = result
-            .get("workspace")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let entries = result
+            .get("workspaces")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let actual_id = match entries.as_slice() {
+            [only] => only.get("id").and_then(|v| v.as_str()).unwrap_or(""),
+            _ => "",
+        };
         let expected_id = expected
             .get("workspace_id")
             .and_then(|v| v.as_str())

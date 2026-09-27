@@ -1456,13 +1456,21 @@ impl Backend {
             // resolution index (indexed + freshly parsed) and any same-file
             // `[[#local_id]]` reference looks ambiguous (a false QMDC002).
 
-            // Resolution index = (whole workspace minus the open file's stale copy)
+            // Resolution index = (whole COMPOSED SET minus the open file's stale copy)
             //                     ∪ the open doc's freshly-parsed (namespace-backfilled) objects.
+            //
+            // QMD-72: the set is every workspace sharing the open file's `project_root`, not the
+            // owning workspace alone. Resolving against the owner only reported a valid
+            // cross-workspace reference as broken in the editor while the CLI resolved it — the
+            // LSP half of the MCP/CLI split. Identity stays workspace-scoped (QMD-67), so adding
+            // the siblings cannot make a bare local id resolve across a boundary; it only lets a
+            // QUALIFIED reference find the workspace it names.
             let mut index_objects: Vec<serde_json::Value> = ws_opt
                 .map(|ws| {
-                    ws.objects
-                        .values()
-                        .flatten()
+                    ws_index
+                        .siblings_of(&ws.project_root)
+                        .into_iter()
+                        .flat_map(|sibling| sibling.objects.values().flatten())
                         .filter(|o| match &open_file {
                             Some(f) => o.get("__file").and_then(|v| v.as_str()) != Some(f.as_str()),
                             None => true,
