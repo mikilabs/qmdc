@@ -41,6 +41,29 @@ that collide.
 - related_to: [[#qmd75_body_identity]]
 - solution: Answer Q1 in the spec, then make the three parsers agree on it, and add the shape to the parity corpus so a future divergence fails the suite.
 
+## The format already spells both readings; only the body-driven guess diverges [[qmd75_finding_kind_decides: Finding]]
+
+`[[clo]]` and `[[clo: text]]` are two different declarations, and this repository's own tracking files
+use both. Measured on the same document with the body varied, all three parsers:
+
+| body under the heading | written `[[clo]]` | written `[[clo: text]]` |
+|---|---|---|
+| empty | all three: object `s.clo`, `t5` nests inside it | not measured |
+| prose paragraph | rs: object, prose in `__comments`; py: drops `clo` and `t5`; ts: text field, `t5` re-parented onto `s` | rs, py: text field holding the prose; ts: text field, `t5` re-parented onto `s` |
+| `---` | same three-way split as the prose row | not measured |
+
+Two facts follow. Rust already routes the prose to the place the format reserves for non-field
+content — `s.clo.__comments` holds `after: "__self"` with the paragraph as its content — so answer 1
+introduces no new concept, it only writes down where the text already goes. And the explicit `text`
+kind is not a workaround for the divergence, because TypeScript lifts a nested heading out of a
+declared text field as well: on the spelled-out form it produces `s.t5` where Rust and Python both
+let the text swallow the heading. So TypeScript diverges on the form the author wrote explicitly,
+independently of how Q1 is answered.
+
+- category: parser
+- related_to: [[#qmd75_body_identity]]
+- solution: State in the spec that the declared kind decides what a heading is and the body never changes it, then fix ts on both halves and py on the first.
+
 ## TypeScript promotes a prose bullet to a field [[qmd75_finding_prose_bullet: Finding]]
 
 `adocs/research/legal-docs-analysis.qmd.md` under the id-less heading
@@ -129,8 +152,12 @@ answers, in the order that keeps the most existing documents working:
    behaviour. This is the one answer that changes an object's parent, so identity depends on prose.
 
 Answer 1 is the only one under which a document's objects do not depend on prose, and it is the
-behaviour a reader expects from Markdown. The decision belongs to the operator because it is a format
-statement, not an implementation detail.
+behaviour a reader expects from Markdown. Restated as one rule it is "the declared kind decides what a
+heading is, the body never does": `[[x]]` is an object whatever follows it and non-field content goes
+to `__comments`, `[[x: text]]` is a text field and everything below it, nested headings included, is
+its text. `[[#qmd75_finding_kind_decides]]` measures that both spellings already exist and that the
+prose already has a home, so the rule adds no concept to the format. The decision belongs to the
+operator because it is a format statement, not an implementation detail.
 
 **Q2 — does `index` belong to the parse contract?** See `[[#qmd75_finding_shape]]`; it is a
 one-line answer either way, but it must be answered once rather than per parser.

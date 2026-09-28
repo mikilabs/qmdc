@@ -211,6 +211,36 @@ emits a document that renders differently from the one that was parsed.
 - related_to: [[#qmd74_finding_wrapped_field]]
 - solution: Fold into the same separate task as the wrapped field value — both are "what does an indented continuation line mean", one in a field value and one in comment content, and both should be decided once.
 
+## The nested-workspace rule and the synthesized root are one question [[qmd74_finding_nested_virtual: Finding]]
+
+Three shapes, `workspace validate` on each with all three parsers:
+
+| shape | result |
+|---|---|
+| container root, no file of its own, one declared sub-workspace | all three: `[]`, the sub-workspace's two objects in the graph |
+| the same container plus one stray `.qmd.md` at its root | all three: `[]`; the stray is in the graph, `__workspace` empty in rs and ts, the directory name in py; nothing reports it |
+| declared root workspace with a declared workspace inside it | all three: `nested_workspace` on the inner marker |
+
+So the rule fires on a declared workspace inside a declared workspace, and nowhere else. A container
+is not a workspace today, which is the contract QMD-59 decided for it: validate each contained
+workspace independently rather than calling the container's members nested.
+
+That contract is what makes Q1a's answer collide with the rule. The moment a root with no anchor
+becomes a workspace, every declared workspace under it is nested inside one, so the rule as written
+would report a finding on every repository that keeps its documents in a subdirectory — the common
+case. The rule therefore has to say *declared* inside declared: nesting inside a synthesized workspace
+is not a finding, because the synthesized root does not exclude its members, it contains them.
+
+The message QMD-76 rewrote is still accurate for the case that remains: a declared workspace inside a
+declared workspace really is excluded from the outer graph, and composition is the cure. What that
+does not cover is a tool-owned directory such as `.qmdc`, which sits inside a declared root in every
+initialised repository and is reported on every validate — that needs either exclusion from discovery
+like `.git`, or a way for the root to name its members, and it is a separate decision from Q1.
+
+- category: parser
+- related_to: [[#qmd74_unanchored]]
+- solution: Write the nested-workspace rule as "declared inside declared" before implementing Q1a, and pin both halves with fixtures — a synthesized root holding a declared workspace must stay clean, a declared root holding one must still report.
+
 ## Open questions [[qmd74_finding_questions: Finding]]
 
 **Q1 — what workspace does an unanchored file belong to?** The measurement in
