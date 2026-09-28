@@ -1,7 +1,7 @@
 [
   {
     "type": "nested_workspace",
-    "message": "Nested workspace 'cli72_left_runtime' found inside workspace. Workspaces cannot be nested.",
+    "message": "Nested workspace 'cli72_left_runtime' inside this workspace: its files are excluded from this graph. Validate both together: --with <root> --with <root>/.qmdc",
     "file": "cli72_left_outer/.qmdc/readme.qmd.md",
     "line": 1,
     "objectId": "cli72_left_runtime",

@@ -4,7 +4,7 @@
 
 import { readFileSync, readdirSync, statSync, existsSync, realpathSync } from 'fs';
 import { join, relative, dirname, resolve, sep } from 'path';
-import { minimatch } from 'minimatch';
+import { isIgnored, loadQmdcignore } from './ignore.js';
 import { parse, type QmdcObject, isInsideBackticks } from './parser.js';
 
 export interface WorkspaceError {
@@ -189,18 +189,20 @@ export function findNestedWorkspaceRoots(rootPath: string): string[] {
       const fullPath = join(dir, entry.name);
       const readme = join(fullPath, 'readme.qmd.md');
 
-      // Check .qmdcignore before processing
-      if (isIgnored(readme, rootPath, ignorePatterns)) {
+      // An ignored directory hides everything below it, as in git (QMD-73).
+      if (isIgnored(fullPath, rootPath, ignorePatterns, true)) {
         continue;
       }
 
-      try {
-        const content = readFileSync(readme, 'utf-8');
-        if (contentHasWorkspaceMarker(content)) {
-          roots.push(fullPath);
+      if (!isIgnored(readme, rootPath, ignorePatterns)) {
+        try {
+          const content = readFileSync(readme, 'utf-8');
+          if (contentHasWorkspaceMarker(content)) {
+            roots.push(fullPath);
+          }
+        } catch {
+          // No readme.qmd.md, continue scanning
         }
-      } catch {
-        // No readme.qmd.md, continue scanning
       }
 
       // Recursively scan subdirectories
@@ -230,6 +232,10 @@ export function scanWorkspace(rootPath: string, excludeNested = true): string[] 
       if (entry.isDirectory()) {
         // Skip nested workspace directories
         if (nestedRoots.includes(fullPath)) {
+          continue;
+        }
+        // An ignored directory hides everything below it, as in git (QMD-73).
+        if (isIgnored(fullPath, rootPath, ignorePatterns, true)) {
           continue;
         }
         scan(fullPath);
@@ -335,6 +341,25 @@ function getLineNumber(content: string, obj: QmdcObject): number {
 }
 
 /**
+ * Wording of the `nested_workspace` report, mirroring `nested_workspace_message` in Rust.
+ *
+ * Nesting is reported because the outer scan leaves the inner workspace's files out, so they are
+ * missing from the graph the caller asked for -- not because the two may never coexist. They may:
+ * the container form composes both and drops this report, which is how a repository whose root is a
+ * workspace and which also holds a `.qmdc` model workspace is validated. The message states the
+ * consequence and the remedy rather than claiming nesting is forbidden (QMD-76).
+ *
+ * `nestedRelDir` is the inner workspace's directory relative to the outer root, so the remedy is
+ * copy-pasteable and carries no absolute path.
+ */
+function nestedWorkspaceMessage(nestedId: string, nestedRelDir: string): string {
+  return (
+    `Nested workspace '${nestedId}' inside this workspace: its files are excluded from this graph. ` +
+    `Validate both together: --with <root> --with <root>/${nestedRelDir}`
+  );
+}
+
+/**
  * Parse entire workspace.
  */
 export function parseWorkspace(rootPath: string): WorkspaceResult {
@@ -348,6 +373,7 @@ export function parseWorkspace(rootPath: string): WorkspaceResult {
   for (const nestedRoot of nestedWorkspaceRoots) {
     const nestedReadme = join(nestedRoot, 'readme.qmd.md');
     const relPath = relative(rootPath, nestedReadme);
+    const relDir = relative(rootPath, nestedRoot).split(sep).join('/');
     const content = readFileSync(nestedReadme, 'utf-8');
     const objects = parse(content);
     const wsObj = findWorkspaceObject(objects);
@@ -355,7 +381,7 @@ export function parseWorkspace(rootPath: string): WorkspaceResult {
     if (wsObj) {
       nestedWorkspaceErrors.push({
         type: 'nested_workspace',
-        message: `Nested workspace '${wsObj.__id}' found inside workspace. Workspaces cannot be nested.`,
+        message: nestedWorkspaceMessage(String(wsObj.__id), relDir),
         file: relPath,
         line: getLineNumber(content, wsObj),
         objectId: wsObj.__id,
@@ -1365,6 +1391,10 @@ export function findWorkspaceDirsBounded(rootPath: string, maxDepth: number): st
 
 function scanWorkspaceDirs(rootPath: string, maxDepth: number): string[] {
   const root = resolve(rootPath);
+  // The root's .qmdcignore steers discovery, as it does in the Rust scan (QMD-73): without
+  // it `-w` on a directory that ignores one of its two workspaces composed in Rust and was
+  // refused here as "contains 2 workspaces".
+  const ignorePatterns = loadQmdcignore(root);
   const workspaceDirs: string[] = [];
 
   function scanDir(dir: string, depth: number): void {
@@ -1375,7 +1405,7 @@ function scanWorkspaceDirs(rootPath: string, maxDepth: number): string[] {
     const readmeDepth = depth + 1;
     if (readmeDepth <= maxDepth) {
       const readmePath = join(dir, 'readme.qmd.md');
-      if (existsSync(readmePath)) {
+      if (existsSync(readmePath) && !isIgnored(readmePath, root, ignorePatterns)) {
         let content: string;
         try {
           content = readFileSync(readmePath, 'utf-8');
@@ -1407,8 +1437,9 @@ function scanWorkspaceDirs(rootPath: string, maxDepth: number): string[] {
       return;
     }
     for (const entry of entries) {
-      if (entry.isDirectory()) {
-        scanDir(join(dir, entry.name), depth + 1);
+      const child = join(dir, entry.name);
+      if (entry.isDirectory() && !isIgnored(child, root, ignorePatterns, true)) {
+        scanDir(child, depth + 1);
       }
     }
   }
@@ -1423,55 +1454,6 @@ function scanWorkspaceDirs(rootPath: string, maxDepth: number): string[] {
  * If root_path itself is a workspace, parse only that one.
  * If root_path contains multiple workspace directories, parse all of them.
  */
-/**
- * Load .qmdcignore patterns from root directory
- */
-function loadQmdcignore(rootPath: string): string[] {
-  const qmdcignorePath = join(rootPath, '.qmdcignore');
-
-  if (!existsSync(qmdcignorePath)) {
-    return [];
-  }
-
-  const content = readFileSync(qmdcignorePath, 'utf-8');
-  const patterns: string[] = [];
-
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
-
-    // Skip empty lines and comments
-    if (!trimmed || trimmed.startsWith('#')) {
-      continue;
-    }
-
-    // If pattern ends with /, replace with /** to match all files within
-    const pattern = trimmed.endsWith('/') ? `${trimmed}**` : trimmed;
-    patterns.push(pattern);
-  }
-
-  return patterns;
-}
-
-/**
- * Check if a path should be ignored based on glob patterns
- */
-function isIgnored(filePath: string, rootPath: string, patterns: string[]): boolean {
-  if (patterns.length === 0) {
-    return false;
-  }
-
-  const relPath = relative(rootPath, filePath).replace(/\\/g, '/');
-
-  for (const pattern of patterns) {
-    // Match against the full path
-    if (minimatch(relPath, pattern)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 /**
  * Recursively find all .qmd.md files in a directory
  */
@@ -1514,14 +1496,10 @@ export function parseAllWorkspaces(rootPath: string): WorkspaceResult {
     }
   }
 
-  // Root is not a workspace - find all workspaces in subdirectories
-  const allWorkspaceDirs = findAllWorkspaceDirs(root);
-
-  // Filter out ignored workspaces
-  const workspaceDirs = allWorkspaceDirs.filter((wsDir) => {
-    const readme = join(wsDir, 'readme.qmd.md');
-    return !isIgnored(readme, root, ignorePatterns);
-  });
+  // Root is not a workspace - find all workspaces in subdirectories. findAllWorkspaceDirs
+  // already drops a marker the root's .qmdcignore hides, using the same root and the same
+  // rules, so there is nothing left for a second filter to remove (QMD-73).
+  const workspaceDirs = findAllWorkspaceDirs(root);
 
   if (workspaceDirs.length === 0) {
     // No explicit workspaces found - check if root has .qmd.md files

@@ -1,5 +1,6 @@
 pub mod core;
 pub mod db;
+pub mod ignore;
 pub mod lsp;
 pub mod mcp;
 pub mod parser;

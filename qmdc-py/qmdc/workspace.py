@@ -1,12 +1,12 @@
 """QMDC Workspace - Multi-file parsing with cross-file references."""
 
-import fnmatch
 import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .ignore import IgnoreRule, is_ignored, load_qmdcignore
 from .parser import is_inside_backticks, parse
 
 _WORKSPACE_MARKER_RE = re.compile(r"\[\[[^\]]+:\s*__Workspace\]\]")
@@ -172,8 +172,7 @@ def find_nested_workspace_roots(root_path: str) -> list[Path]:
         pruned: list[str] = []
         for d in dirnames:
             d_path = dir_path / d
-            # Use a dummy child to make subtree ignores match directories reliably.
-            if is_ignored(d_path / "__dummy__", root, ignore_patterns):
+            if is_ignored(d_path, root, ignore_patterns, is_dir=True):
                 pruned.append(d)
         for d in pruned:
             dirnames.remove(d)
@@ -223,7 +222,7 @@ def scan_workspace(root_path: str, exclude_nested: bool = True) -> list[str]:
 
 def _scan_workspace_files_and_nested_roots(
     root: Path,
-    ignore_patterns: list[str],
+    ignore_patterns: list[IgnoreRule],
     exclude_nested: bool,
 ) -> tuple[list[str], list[Path]]:
     """
@@ -249,7 +248,7 @@ def _scan_workspace_files_and_nested_roots(
         pruned: list[str] = []
         for d in dirnames:
             d_path = dir_path / d
-            if is_ignored(d_path / "__dummy__", root, ignore_patterns):
+            if is_ignored(d_path, root, ignore_patterns, is_dir=True):
                 pruned.append(d)
         for d in pruned:
             dirnames.remove(d)
@@ -287,6 +286,24 @@ def _scan_workspace_files_and_nested_roots(
         return (dir_path, priority, filename)
 
     return (sorted(files, key=sort_key), sorted(nested_roots))
+
+
+def _nested_workspace_message(nested_id: str, nested_rel_dir: str) -> str:
+    """Wording of the ``nested_workspace`` report, mirroring ``nested_workspace_message`` in Rust.
+
+    Nesting is reported because the outer scan leaves the inner workspace's files out, so they are
+    missing from the graph the caller asked for -- not because the two may never coexist. They may:
+    the container form composes both and drops this report, which is how a repository whose root is
+    a workspace and which also holds a ``.qmdc`` model workspace is validated. The message states
+    the consequence and the remedy rather than claiming nesting is forbidden (QMD-76).
+
+    ``nested_rel_dir`` is the inner workspace's directory relative to the outer root, so the remedy
+    is copy-pasteable and carries no absolute path.
+    """
+    return (
+        f"Nested workspace '{nested_id}' inside this workspace: its files are excluded from this "
+        f"graph. Validate both together: --with <root> --with <root>/{nested_rel_dir}"
+    )
 
 
 def _find_workspace_object(objects: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -349,6 +366,7 @@ def parse_workspace(root_path: str) -> WorkspaceResult:
     for nested_root in nested_workspace_roots:
         nested_readme = nested_root / "readme.qmd.md"
         rel_path = str(nested_readme.relative_to(root))
+        rel_dir = nested_root.relative_to(root).as_posix()
         content = nested_readme.read_text(encoding="utf-8")
         objects = parse(content, format="standard")
         ws_obj = _find_workspace_object(objects)
@@ -358,8 +376,7 @@ def parse_workspace(root_path: str) -> WorkspaceResult:
             nested_workspace_errors.append(
                 WorkspaceError(
                     type="nested_workspace",
-                    message=f"Nested workspace '{ws_obj.get('__id')}' found inside workspace. "
-                    "Workspaces cannot be nested.",
+                    message=_nested_workspace_message(str(ws_obj.get("__id")), rel_dir),
                     file=rel_path,
                     line=ws_line if isinstance(ws_line, int) else _get_line_number(content, ws_obj),
                     object_id=ws_obj.get("__id"),
@@ -1336,9 +1353,13 @@ def find_all_workspace_dirs(root_path: str) -> list[Path]:
         List of paths to directories containing workspace definition.
     """
     root = Path(root_path).resolve()
+    ignore_patterns = load_qmdcignore(root)
     workspace_dirs: list[Path] = []
 
     for path in root.rglob("readme.qmd.md"):
+        # The root's .qmdcignore steers discovery, as it does in the Rust scan (QMD-73).
+        if is_ignored(path, root, ignore_patterns):
+            continue
         try:
             content = path.read_text(encoding="utf-8")
         except OSError:
@@ -1367,6 +1388,7 @@ def find_workspace_dirs_bounded(root_path: str, max_depth: int) -> list[Path]:
         List of paths to directories containing workspace definition.
     """
     root = Path(root_path).resolve()
+    ignore_patterns = load_qmdcignore(root)
     workspace_dirs: list[Path] = []
 
     for path in root.rglob("readme.qmd.md"):
@@ -1377,6 +1399,11 @@ def find_workspace_dirs_bounded(root_path: str, max_depth: int) -> list[Path]:
             continue
         if depth > max_depth:
             continue
+        # The path's own .qmdcignore steers the scan, as in the Rust scan (QMD-73): without
+        # it `-w` on a directory that ignores one of its two workspaces composed in Rust and
+        # was refused here as "contains 2 workspaces".
+        if is_ignored(path, root, ignore_patterns):
+            continue
         try:
             content = path.read_text(encoding="utf-8")
         except OSError:
@@ -1385,81 +1412,6 @@ def find_workspace_dirs_bounded(root_path: str, max_depth: int) -> list[Path]:
             workspace_dirs.append(path.parent)
 
     return workspace_dirs
-
-
-def load_qmdcignore(root_path: Path) -> list[str]:
-    """
-    Load .qmdcignore patterns from root directory.
-
-    Returns:
-        List of glob patterns to ignore
-    """
-    qmdcignore_path = root_path / ".qmdcignore"
-
-    if not qmdcignore_path.exists():
-        return []
-
-    patterns = []
-    content = qmdcignore_path.read_text(encoding="utf-8")
-
-    for line in content.splitlines():
-        line = line.strip()
-
-        # Skip empty lines and comments
-        if not line or line.startswith("#"):
-            continue
-
-        # If pattern ends with /, replace with /** to match all files within
-        pattern = f"{line}**" if line.endswith("/") else line
-
-        patterns.append(pattern)
-
-    return patterns
-
-
-def is_ignored(path: Path, root_path: Path, patterns: list[str]) -> bool:
-    """
-    Check if a path should be ignored based on glob patterns.
-
-    Args:
-        path: Path to check
-        root_path: Root directory for relative path calculation
-        patterns: List of glob patterns from .qmdcignore
-
-    Returns:
-        True if path matches any ignore pattern
-    """
-    if not patterns:
-        return False
-
-    try:
-        rel_path = path.relative_to(root_path)
-    except ValueError:
-        return False
-
-    # Convert to string with forward slashes for consistent matching
-    rel_str = str(rel_path).replace("\\", "/")
-
-    for pattern in patterns:
-        # Handle ** pattern - replace with * for fnmatch
-        # **/pattern matches pattern at any depth
-        # pattern/** matches everything under pattern
-        if "**" in pattern:
-            # Replace **/ with */ and ** with * for fnmatch
-            normalized_pattern = pattern.replace("**/", "*").replace("**", "*")
-            if fnmatch.fnmatch(rel_str, normalized_pattern):
-                return True
-            # Also try matching just the filename
-            if fnmatch.fnmatch(path.name, normalized_pattern):
-                return True
-        else:
-            if fnmatch.fnmatch(rel_str, pattern):
-                return True
-            # Also try matching just the filename
-            if fnmatch.fnmatch(path.name, pattern):
-                return True
-
-    return False
 
 
 def _workspace_matches(ref_workspace: str | None, cand_workspace: str, obj_workspace: str) -> bool:
@@ -1811,15 +1763,10 @@ def parse_all_workspaces(root_path: str) -> WorkspaceResult:
             # Root is a workspace - use single workspace parsing
             return parse_workspace(str(root))
 
-    # Root is not a workspace - find all workspaces in subdirectories
-    all_workspace_dirs = find_all_workspace_dirs(str(root))
-
-    # Filter out ignored workspaces
-    workspace_dirs = [
-        ws_dir
-        for ws_dir in all_workspace_dirs
-        if not is_ignored(ws_dir / "readme.qmd.md", root, ignore_patterns)
-    ]
+    # Root is not a workspace - find all workspaces in subdirectories. find_all_workspace_dirs
+    # already drops a marker the root's .qmdcignore hides, using the same root and the same
+    # rules, so there is nothing left for a second filter to remove (QMD-73).
+    workspace_dirs = find_all_workspace_dirs(str(root))
 
     if not workspace_dirs:
         # No explicit workspaces found - check if root has .qmd.md files

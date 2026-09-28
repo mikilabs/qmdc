@@ -87,6 +87,14 @@ file is maintained by hand.
   under its own workspace, so nothing is missing, and the report contradicted the composition the
   caller asked for. It is still reported when the inner workspace is left out, which is what it is
   for (QMD-72).
+- **The `nested_workspace` report names the consequence and the remedy** instead of saying
+  "Workspaces cannot be nested", which is not what the rule means: nesting is reported because the
+  outer scan leaves the inner workspace's files out of the graph, and the container form composes
+  both without complaint. The message now reads `Nested workspace '<id>' inside this workspace: its
+  files are excluded from this graph. Validate both together: --with <root> --with <root>/<dir>`. The
+  old wording sent a user hunting for a defect in the layout `qmdc-model init` itself creates — a
+  repository whose root is a workspace and which also holds a `.qmdc` model workspace — where the
+  answer was to compose the two (QMD-76).
 - **MCP now composes a container of sibling workspaces instead of refusing it.** Given a
   non-workspace directory holding several workspaces, MCP reference validation and the other
   path-taking tools previously answered `ambiguous` with the candidates and asked the caller to pick
@@ -113,6 +121,27 @@ file is maintained by hand.
   YAML; Rust was the only parser reading it as null, pinned there by its own unit test (QMD-71).
   The offending content is now preserved in `__comments` in every case. None of the four shapes
   occurs anywhere in this repository outside the fixtures written for them (QMD-70).
+- **`.qmdcignore` now follows git's `.gitignore` rules exactly, in all three parsers.** Each
+  parser used to hand a line to a different glob engine, so one ignore file hid different files
+  in each, and none matched git. The matcher is now a port of git's own, pinned against git's
+  answers on 79 line forms (`tests/ignore/`). An ignore file written against the old matching may
+  hide a different set of files now, so re-check the `.qmdcignore` of any existing workspace.
+  Lines that change meaning (QMD-73):
+  - `dir/*` and `docs/*.qmd.md`: a star no longer crosses `/` in Rust and Python, so
+    `docs/*.qmd.md` stops hiding `docs/sub/`. TypeScript's `dir/*` now hides the whole tree below
+    `dir/` by hiding its subdirectories, as git does.
+  - A bare name or plain path (`generated`, `tests/sub`) now hides a directory of that name and
+    everything in it, in all three.
+  - A line with no slash, or only a trailing one, now matches at any depth in all three:
+    `build/` hides `src/build/`. Python already did this for file names.
+  - A leading `/` now anchors the line; before, it made the line match nothing.
+  - `!` now re-includes a path. In TypeScript a line starting with `!` used to hide every file
+    it did not name, the workspace's own `readme.qmd.md` included; in Rust and Python it did
+    nothing.
+  - Only trailing spaces are trimmed, as in git; leading spaces and tabs are part of the line.
+- **A `--with` path's own `.qmdcignore` now steers the search for its workspace in all three
+  parsers.** Only Rust read it there, so `-w` on a directory that ignores one of its two
+  workspaces composed in Rust and was refused in Python and TypeScript (QMD-73).
 
 ### Fixed
 

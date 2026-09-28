@@ -1,0 +1,17 @@
+{
+  "workspace_id": "qmd73_star_one_level",
+  "files": [
+    "docs/sub/nested.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "Thing": [
+      "docs_nested"
+    ],
+    "__Workspace": [
+      "qmd73_star_one_level"
+    ]
+  },
+  "errors": [],
+  "_comment": "QMD-73: `files` is what `git ls-files --others --exclude-standard` keeps when this .qmdcignore is installed as .gitignore."
+}

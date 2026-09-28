@@ -153,7 +153,32 @@ Builds an index of a multi-file workspace.
 7. Return: objects, files, errors, indexes
 ```
 
-**.qmdcignore** works like .gitignore: glob patterns (*, **, ?), file/directory exclusion, comments via #.
+**.qmdcignore** follows git's `.gitignore` rules exactly. The three parsers carry the same port
+of git's own matcher (`ignore.rs`, `ignore.py`, `ignore.ts`), and
+`tests/ignore/gitignore-matrix.json` pins it against git's answers.
+
+- Blank lines and lines starting with `#` are skipped, and `\#` is a literal `#`. Trailing spaces
+  are dropped unless escaped with `\`; leading spaces are part of the pattern.
+- `*` matches anything but `/`, `?` one byte but `/`, and `[...]` one byte from a set: `[!...]`
+  or `[^...]` negates it, and ranges and classes such as `[[:digit:]]` work.
+- `**` crosses `/` as a whole path segment: `**/x` matches `x` at any depth, `x/**` everything
+  inside `x`, and `a/**/b` any number of directories between, none included. The line's literal
+  prefix is matched first and dropped, so `te**/c.qmd.md` crosses too — `te` is literal, and the
+  `**` then opens what is left — while `t*s/su**/c.qmd.md` has a wildcard before it, nothing is
+  dropped, and that `**` is a plain `*`. Followed by anything other than `/` or the end of the
+  line it is always a plain `*`, as in `tracking/**artifacts/*`.
+- A line with no slash, or only a trailing one, matches a name at any depth. A slash at the
+  start or in the middle anchors the line to the directory of the ignore file.
+- A trailing `/` makes the line match directories only.
+- A line starting with `!` brings back what an earlier line excluded; the last matching line
+  wins.
+- A line that matches a directory hides everything below it, and nothing below an excluded
+  directory can be brought back.
+- Matching is case-sensitive on every OS.
+
+Each workspace reads the `.qmdcignore` in its own root. The `.qmdcignore` of a container, or of
+a `--with` path that is not itself a workspace, only steers which workspaces are found. A
+`.qmdcignore` in any other subdirectory is not read.
 
 ## SQLite Mapping [[sqlite_mapping: Algorithm]]
 

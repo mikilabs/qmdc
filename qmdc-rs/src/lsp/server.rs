@@ -65,7 +65,7 @@ fn definition_span_utf16(line_content: &str, id: &str) -> (u32, u32) {
 }
 
 use crate::db::QmdcDatabase;
-use crate::workspace::{is_ignored, load_qmdcignore};
+use crate::ignore::{is_ignored, load_qmdcignore, IgnoreRules};
 use crate::{parse, OutputFormat, ParseOptions};
 
 use super::commands;
@@ -297,17 +297,17 @@ impl Backend {
         let mut readme_count = 0;
         let mut workspace_count = 0;
 
+        // `filter_entry` prunes descent into ignored dirs, matching the scans in workspace.rs;
+        // the result is unchanged, because `is_ignored` walks every ancestor (QMD-73).
         for entry in WalkDir::new(&folder_path)
             .follow_links(true)
             .into_iter()
+            .filter_entry(|e| {
+                !is_ignored(e.path(), &folder_path, &ignore_set, e.file_type().is_dir())
+            })
             .filter_map(|e| e.ok())
         {
             let path = entry.path();
-
-            // Check .qmdcignore before processing
-            if is_ignored(path, &folder_path, &ignore_set) {
-                continue;
-            }
 
             if path
                 .file_name()
@@ -383,7 +383,7 @@ impl Backend {
         folder_uri: &Url,
         _exclude: &[&PathBuf],
         project_root: &Path,
-        _ignore_set: &Option<globset::GlobSet>,
+        _ignore_set: &Option<IgnoreRules>,
     ) -> Option<WorkspaceInfo> {
         let folder_path = folder_uri.to_file_path().ok()?;
 

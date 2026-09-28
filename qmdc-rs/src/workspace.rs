@@ -1,6 +1,5 @@
 //! QMDC Workspace - Multi-file parsing with cross-file references.
 
-use globset::{Glob, GlobSetBuilder};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -9,6 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
+use crate::ignore::{is_ignored, load_qmdcignore};
 use crate::{parse, OutputFormat, ParseOptions};
 
 /// Normalise OS path separators to `/` for logical output (`__file`, `files`,
@@ -180,7 +180,7 @@ pub fn find_nested_workspace_roots_bounded(root_path: &Path, max_depth: usize) -
     let walker = WalkDir::new(root_path)
         .max_depth(max_depth)
         .into_iter()
-        .filter_entry(|e| !is_ignored(e.path(), root_path, &ignore_set));
+        .filter_entry(|e| !is_ignored(e.path(), root_path, &ignore_set, e.file_type().is_dir()));
 
     for entry in walker.filter_map(|e| e.ok()) {
         let path = entry.path();
@@ -236,16 +236,18 @@ pub fn scan_workspace(root_path: &Path, exclude_nested: bool) -> Vec<String> {
 
     let mut files = Vec::new();
 
-    for entry in WalkDir::new(root_path).into_iter().filter_map(|e| e.ok()) {
+    // `filter_entry` prunes descent into ignored dirs, as `find_nested_workspace_roots_bounded`
+    // already does. The result is unchanged either way, because `is_ignored` walks every
+    // ancestor of a path, so a file under an ignored dir was skipped anyway (QMD-73).
+    for entry in WalkDir::new(root_path)
+        .into_iter()
+        .filter_entry(|e| !is_ignored(e.path(), root_path, &ignore_set, e.file_type().is_dir()))
+        .filter_map(|e| e.ok())
+    {
         let path = entry.path();
 
         // Skip files in nested workspace directories
         if nested_roots.iter().any(|nr| path.starts_with(nr)) {
-            continue;
-        }
-
-        // Check .qmdcignore before processing
-        if is_ignored(path, root_path, &ignore_set) {
             continue;
         }
 
@@ -339,6 +341,26 @@ fn get_line_number(content: &str, obj: &Value) -> u32 {
     1 // Default to line 1
 }
 
+/// The `nested_workspace` report's wording, shared by every emitter.
+///
+/// Nesting is reported because the outer scan leaves the inner workspace's files out, so they
+/// are missing from the graph the caller just asked for — not because the two may never coexist.
+/// They may: the container form composes both and drops this report (see
+/// [`compose_workspace_roots`]), which is how a repository whose root is a workspace and which
+/// also holds a `.qmdc` model workspace is validated. The message therefore states the
+/// consequence and the remedy instead of claiming nesting is forbidden, which sent a user
+/// looking for a defect in a layout the tooling itself creates (QMD-76).
+///
+/// `nested_rel_dir` is the inner workspace's directory relative to the outer root, so the
+/// remedy is copy-pasteable and carries no absolute path.
+fn nested_workspace_message(nested_id: &str, nested_rel_dir: &str) -> String {
+    format!(
+        "Nested workspace '{}' inside this workspace: its files are excluded from this graph. \
+         Validate both together: --with <root> --with <root>/{}",
+        nested_id, nested_rel_dir
+    )
+}
+
 /// Parse entire workspace.
 pub fn parse_workspace(root_path: &Path, format: OutputFormat) -> WorkspaceResult {
     let root = root_path.to_path_buf();
@@ -364,10 +386,14 @@ pub fn parse_workspace(root_path: &Path, format: OutputFormat) -> WorkspaceResul
                     .strip_prefix(&root)
                     .map(path_to_slash)
                     .unwrap_or_default();
+                let rel_dir = nested_root
+                    .strip_prefix(&root)
+                    .map(path_to_slash)
+                    .unwrap_or_default();
 
                 errors.push(WorkspaceError {
                     error_type: "nested_workspace".to_string(),
-                    message: format!("Nested workspace '{}' found inside workspace. Workspaces cannot be nested.", ws_id),
+                    message: nested_workspace_message(ws_id, &rel_dir),
                     file: Some(rel_path),
                     line: Some(get_line_number(&content, ws_obj)),
                     object: Some(ws_id.to_string()),
@@ -445,7 +471,7 @@ pub fn parse_workspace(root_path: &Path, format: OutputFormat) -> WorkspaceResul
             }
         } else {
             // __Workspace in non-readme is an error (unless ignored)
-            if !is_ignored(&pf.full_path, &root, &ignore_set) {
+            if !is_ignored(&pf.full_path, &root, &ignore_set, false) {
                 if let Some(ws_obj) = find_workspace_object(&pf.objects) {
                     let ws_id = ws_obj.get("__id").and_then(|v| v.as_str()).unwrap_or("");
                     errors.push(WorkspaceError {
@@ -775,13 +801,14 @@ pub fn find_all_workspace_dirs(root_path: &Path) -> Vec<PathBuf> {
     let ignore_set = load_qmdcignore(root_path);
     let mut workspace_dirs = Vec::new();
 
-    for entry in WalkDir::new(root_path).into_iter().filter_map(|e| e.ok()) {
+    // `filter_entry` prunes descent into ignored dirs; the result is unchanged, because
+    // `is_ignored` walks every ancestor of a path (QMD-73).
+    for entry in WalkDir::new(root_path)
+        .into_iter()
+        .filter_entry(|e| !is_ignored(e.path(), root_path, &ignore_set, e.file_type().is_dir()))
+        .filter_map(|e| e.ok())
+    {
         let path = entry.path();
-
-        // Check .qmdcignore before processing
-        if is_ignored(path, root_path, &ignore_set) {
-            continue;
-        }
 
         // Check if this is a readme.qmd.md
         if path
@@ -800,54 +827,6 @@ pub fn find_all_workspace_dirs(root_path: &Path) -> Vec<PathBuf> {
     }
 
     workspace_dirs
-}
-
-/// Load .qmdcignore patterns from root directory and build a GlobSet
-pub fn load_qmdcignore(root_path: &Path) -> Option<globset::GlobSet> {
-    let qmdcignore_path = root_path.join(".qmdcignore");
-
-    if !qmdcignore_path.exists() {
-        return None;
-    }
-
-    let content = match fs::read_to_string(&qmdcignore_path) {
-        Ok(c) => c,
-        Err(_) => return None,
-    };
-
-    let mut builder = GlobSetBuilder::new();
-
-    for line in content.lines() {
-        let line = line.trim();
-
-        // Skip empty lines and comments
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-
-        // If pattern ends with /, replace with /** to match all files within
-        let pattern = if line.ends_with('/') {
-            format!("{}**", line)
-        } else {
-            line.to_string()
-        };
-
-        if let Ok(glob) = Glob::new(&pattern) {
-            builder.add(glob);
-        }
-    }
-
-    builder.build().ok()
-}
-
-/// Check if a path should be ignored based on GlobSet
-pub fn is_ignored(path: &Path, root_path: &Path, ignore_set: &Option<globset::GlobSet>) -> bool {
-    if let Some(ref set) = ignore_set {
-        if let Ok(rel_path) = path.strip_prefix(root_path) {
-            return set.is_match(rel_path);
-        }
-    }
-    false
 }
 
 /// The `__Workspace` id a directory's `readme.qmd.md` declares, if any.
@@ -1092,7 +1071,7 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
 
     // Check if root_path itself is a workspace
     let root_readme = root_path.join("readme.qmd.md");
-    if root_readme.exists() && !is_ignored(&root_readme, root_path, &ignore_set) {
+    if root_readme.exists() && !is_ignored(&root_readme, root_path, &ignore_set, false) {
         if let Ok(content) = fs::read_to_string(&root_readme) {
             if content_has_workspace_marker(&content) {
                 // Root is a workspace - use single workspace parsing
@@ -1101,32 +1080,24 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
         }
     }
 
-    // Root is not a workspace - find all workspaces in subdirectories
-    let all_workspace_dirs = find_all_workspace_dirs(root_path);
-
-    // Filter out ignored workspaces
-    let workspace_dirs: Vec<PathBuf> = all_workspace_dirs
-        .into_iter()
-        .filter(|ws_dir| {
-            let readme = ws_dir.join("readme.qmd.md");
-            !is_ignored(&readme, root_path, &ignore_set)
-        })
-        .collect();
+    // Root is not a workspace - find all workspaces in subdirectories. `find_all_workspace_dirs`
+    // already drops a marker the root's `.qmdcignore` hides, using the same root and the same
+    // rules, so there is nothing left for a second filter to remove (QMD-73).
+    let workspace_dirs: Vec<PathBuf> = find_all_workspace_dirs(root_path);
 
     if workspace_dirs.is_empty() {
         // No explicit workspaces found - check if root has .qmd.md files
         // If yes, treat root as a virtual workspace
-        // IMPORTANT: Must respect .qmdcignore when checking for files
+        // IMPORTANT: Must respect .qmdcignore when checking for files. `filter_entry` prunes
+        // descent into ignored dirs; the result is unchanged, because `is_ignored` walks every
+        // ancestor of a path (QMD-73).
         let has_qmdc_files = WalkDir::new(root_path)
             .max_depth(5)
             .into_iter()
+            .filter_entry(|e| !is_ignored(e.path(), root_path, &ignore_set, e.file_type().is_dir()))
             .filter_map(|e| e.ok())
             .any(|e| {
                 let path = e.path();
-                // Check .qmdcignore before considering file
-                if is_ignored(path, root_path, &ignore_set) {
-                    return false;
-                }
                 path.extension().map(|ext| ext == "md").unwrap_or(false)
                     && path.to_string_lossy().contains(".qmd.")
             });
@@ -1159,16 +1130,17 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
     // After parsing explicit workspaces, check for orphan .qmd.md files
     // (files outside any workspace directory that should be loaded too)
     let mut orphan_files = Vec::new();
+    // `filter_entry` prunes descent into ignored dirs; the result is unchanged, because
+    // `is_ignored` walks every ancestor of a path (QMD-73).
     for entry in WalkDir::new(root_path)
         .max_depth(5)
         .into_iter()
+        .filter_entry(|e| !is_ignored(e.path(), root_path, &ignore_set, e.file_type().is_dir()))
         .filter_map(|e| e.ok())
     {
         let path = entry.path();
         if path.extension().map(|e| e == "md").unwrap_or(false)
             && path.to_string_lossy().contains(".qmd.")
-            && !is_ignored(path, root_path, &ignore_set)
-        // Apply .qmdcignore filtering
         {
             // Exclude files inside explicit workspace directories
             if !workspace_dirs.iter().any(|ws_dir| path.starts_with(ws_dir)) {
@@ -1257,7 +1229,7 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
                         if let Some(kind) = obj.get("__kind").and_then(|v| v.as_str()) {
                             if kind == "__Workspace" {
                                 // Add error for this invalid workspace (but skip if file is ignored)
-                                if !is_ignored(&file_path, root_path, &ignore_set) {
+                                if !is_ignored(&file_path, root_path, &ignore_set, false) {
                                     if let Some(ws_id) = obj.get("__id").and_then(|v| v.as_str()) {
                                         all_errors.push(WorkspaceError {
                                             error_type: "workspace_in_wrong_file".to_string(),
