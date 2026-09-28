@@ -11,7 +11,7 @@ The README's central promise is that the three are "kept at byte-for-byte parity
 conformance test corpus". That is true of the corpus and false of real documents, and it was
 unmeasurable before because the old comparison looked only at validation-error lists.
 
-- status: done_review
+- status: done
 - priority: high
 - category: parser
 - related_task: [[#qmd70_table_scope]]

@@ -6,7 +6,7 @@ A full audit (code + tests + docs, 2026-07-07) of dot-notation support found tha
 
 Operator decisions are recorded per goal — they are requirements, not open questions.
 
-- status: done_review
+- status: done
 - priority: high
 - category: format
 - affects: [[#guides:qmdc_guide]]

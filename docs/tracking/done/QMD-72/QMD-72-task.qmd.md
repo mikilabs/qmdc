@@ -17,13 +17,13 @@ Today a container of sibling workspaces gives three different answers about one 
 broken, and MCP refuses the container outright as ambiguous. Adding a second way to compose
 without fixing that would just double the number of ways to disagree.
 
-- status: planned
+- status: done
 - priority: high
 - category: parser
 - upstream_issues: [https://github.com/mikilabs/qmdc/issues/10, https://github.com/mikilabs/qmdc/issues/9]
 - requires_changes: [qmdc-rs/src/main.rs, qmdc-rs/src/workspace.rs, qmdc-py/qmdc/cli.py, qmdc-py/qmdc/workspace.py, qmdc-ts/src/cli.ts, qmdc-ts/src/workspace.ts]
 - findings: [[[#qmd72_finding_issue9_stale]], [[#qmd72_finding_seam_split]], [[#qmd72_finding_surface_scope]], [[#qmd72_finding_file_relative]], [[#qmd72_finding_usage_exit]], [[#qmd72_finding_regressions]], [[#qmd72_finding_coverage_map]], [[#qmd72_finding_c3_mechanism]], [[#qmd72_finding_lsp_split]], [[#qmd72_finding_ambiguous_narrowed]], [[#qmd72_finding_wrapped_ref]], [[#qmd72_finding_review_conformance]], [[#qmd72_finding_file_identity]], [[#qmd72_finding_nested_member]]]
-- result: null
+- result: [[#qmd72_result]]
 
 ### Why an explicit form rather than more discovery [[qmd72_why: text]]
 

@@ -4,9 +4,10 @@
 
 Everything needed to take the (renamed, release-ready) codebase from QMD-60 and turn it into a clean, public open-source repository at `https://github.com/mikilabs/qmdc` — fresh history, a proper README and community files, CI, a published documentation site, and a precise list of what does NOT ship publicly. QMD-60 makes the *packages* publishable; QMD-61 makes the *repository* publishable.
 
-- status: in_progress
+- status: done
 - priority: high
 - category: docs
+- result: [[#qmd61_result]]
 
 ### Relationship to QMD-60 [[qmd61_vs_qmd60: text]]
 
@@ -39,7 +40,7 @@ The public repo contains only the product:
 Explicitly kept OUT of the public seed (they stay only in the private repo):
 
 - `zold_docs/` — old Russian docs, superseded by `docs2/`.
-- `presentations/` — internal pitch decks / "Frado" vision.
+- `presentations/` — internal pitch decks / vision material.
 - `reviews/` — internal code-review notes.
 - `org-ai-kb/` — internal AI-DLC methodology artifacts.
 - `.kiro/` AI-DLC internals (skills, aidlc-common, specs) — decide per-subdir; steering that documents QMD format MAY stay, internal workflow tooling does not.
@@ -147,7 +148,7 @@ AGPL
 - [x] LFS / `.gitignore`: semantic artifacts committed (`embeddings.db` via LFS, `hints.json` plain)
 - [x] Scrub legacy internal codenames from the tree
 - [x] Housekeeping: tracking `declined/` folder + audit `planned/` tasks (QMD-62 is a live feature — kept)
-- [ ] Final pre-seed verification gate (grep codenames / secrets / LFS) — run at seed time
+- [x] Final pre-seed verification gate (grep codenames / secrets / LFS) — run against the pushed public tree; no secrets, LFS pointers intact, two codename/path leaks found inside the kept `docs/tracking/` and redacted (see [[#qmd61_result.qmd61_result_gate]])
 
 ### OSS front door
 
@@ -170,12 +171,13 @@ AGPL
 - [x] npm — `@qmdc/cli-*@1.0.4` (7 platform packages)
 - [x] crates.io — `qmdc 1.0.4`
 - [x] Open VSX — `qmdc-vscode 1.0.6` (6 platforms)
-- [ ] npm main launcher — published as scoped `@qmdc/qmdc` (npm rejected the unscoped `qmdc` name via its similarity filter; support declined, so we use the scope already owned for `@qmdc/cli-*`)
-- [ ] VS Code Marketplace — pending `VSCE_PAT`
+- [x] npm main launcher — `@qmdc/qmdc@1.0.6` (npm rejected the unscoped `qmdc` name via its similarity filter; support declined, so we use the scope already owned for `@qmdc/cli-*`)
+- [x] VS Code Marketplace — `MiKiLabs.qmdc-vscode@1.0.11`
 
 ### Go public (operator-run)
 
-- [ ] Create empty `mikilabs/qmdc` repo on GitHub
-- [ ] Orphan-branch seed + push (command sequence delivered)
-- [ ] GitHub repo metadata: description, topics, branch protection, social preview
-- [ ] DNS / custom-domain wiring for the docs site
+- [x] Create empty `mikilabs/qmdc` repo on GitHub — exists, visibility PUBLIC
+- [x] Orphan-branch seed + push — root commit `6e89a28` (2026-06-28, no parent), `public/main` now 16 commits
+- [x] GitHub repo metadata: description, 14 topics, custom social preview
+- [ ] Branch protection on `main` — still unset (`GET .../branches/main/protection` → 404 "Branch not protected"); a GitHub setting, no code, left to the operator
+- [x] DNS / custom-domain wiring for the docs site — <https://qmdc.mikilabs.io/> serves 200 via the Cloudflare custom domain in `wrangler.toml`

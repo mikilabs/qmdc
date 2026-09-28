@@ -13,7 +13,7 @@ and all parser `__ParsingError` kinds) are CLI-only, so the editor and MCP silen
 miss them. This task closes the surface gaps AND consolidates the duplicated logic to
 one source of truth so the surfaces can't drift again.
 
-- status: done_review
+- status: done
 - priority: high
 - category: lsp
 - related_task: [[#qmd67_ns_dup]]

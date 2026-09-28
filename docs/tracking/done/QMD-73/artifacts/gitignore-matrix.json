@@ -1,0 +1,946 @@
+{
+  "_comment": "QMD-73 triage. Every file of `tree` exists in a scratch workspace whose .qmdcignore holds `patterns`; `git` lists the files git ignores with the same lines as .gitignore (git ls-files --others --exclude-standard, core.ignorecase=false); `impl` lists what each parser ignored on 2026-09-27, before the fix.",
+  "tree": [
+    "a.qmd.md",
+    "tests/a.qmd.md",
+    "tests/sub/b.qmd.md",
+    "tests/sub/deep/c.qmd.md",
+    "docs/tests/d.qmd.md",
+    "docs/x.qmd.md",
+    "docs/sub/y.qmd.md",
+    "build/e.qmd.md",
+    "src/build/f.qmd.md",
+    "test_one.qmd.md",
+    "src/test_two.qmd.md",
+    "temp/g.qmd.md",
+    "notes.draft.qmd.md",
+    "src/notes.draft.qmd.md",
+    "keep/important.qmd.md",
+    "keep/other.qmd.md",
+    "tracking/artifacts/w.qmd.md",
+    "tracking/a/artifacts/z.qmd.md",
+    "tracking/a/b/artifacts/v.qmd.md",
+    "tracking/a/notes.qmd.md"
+  ],
+  "cases": [
+    {
+      "patterns": [
+        "tests/*"
+      ],
+      "git": [
+        "tests/a.qmd.md",
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "py": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "ts": [
+          "tests/a.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "tests/"
+      ],
+      "git": [
+        "docs/tests/d.qmd.md",
+        "tests/a.qmd.md",
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "py": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "ts": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "tests"
+      ],
+      "git": [
+        "docs/tests/d.qmd.md",
+        "tests/a.qmd.md",
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [],
+        "py": [],
+        "ts": []
+      }
+    },
+    {
+      "patterns": [
+        "/tests"
+      ],
+      "git": [
+        "tests/a.qmd.md",
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [],
+        "py": [],
+        "ts": []
+      }
+    },
+    {
+      "patterns": [
+        "tests/**"
+      ],
+      "git": [
+        "tests/a.qmd.md",
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "py": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "ts": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "**/tests"
+      ],
+      "git": [
+        "docs/tests/d.qmd.md",
+        "tests/a.qmd.md",
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [],
+        "py": [],
+        "ts": []
+      }
+    },
+    {
+      "patterns": [
+        "**/tests/**"
+      ],
+      "git": [
+        "docs/tests/d.qmd.md",
+        "tests/a.qmd.md",
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "docs/tests/d.qmd.md",
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "py": [
+          "docs/tests/d.qmd.md",
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "ts": [
+          "docs/tests/d.qmd.md",
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "tests/*/"
+      ],
+      "git": [
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "py": [
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "ts": [
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "tests/sub"
+      ],
+      "git": [
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [],
+        "py": [],
+        "ts": []
+      }
+    },
+    {
+      "patterns": [
+        "docs/*.qmd.md"
+      ],
+      "git": [
+        "docs/x.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "docs/sub/y.qmd.md",
+          "docs/tests/d.qmd.md",
+          "docs/x.qmd.md"
+        ],
+        "py": [
+          "docs/sub/y.qmd.md",
+          "docs/tests/d.qmd.md",
+          "docs/x.qmd.md"
+        ],
+        "ts": [
+          "docs/x.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "*.draft.qmd.md"
+      ],
+      "git": [
+        "notes.draft.qmd.md",
+        "src/notes.draft.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "notes.draft.qmd.md",
+          "src/notes.draft.qmd.md"
+        ],
+        "py": [
+          "notes.draft.qmd.md",
+          "src/notes.draft.qmd.md"
+        ],
+        "ts": [
+          "notes.draft.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "a.qmd.md"
+      ],
+      "git": [
+        "a.qmd.md",
+        "tests/a.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "a.qmd.md"
+        ],
+        "py": [
+          "a.qmd.md",
+          "tests/a.qmd.md"
+        ],
+        "ts": [
+          "a.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "/a.qmd.md"
+      ],
+      "git": [
+        "a.qmd.md"
+      ],
+      "impl": {
+        "rs": [],
+        "py": [],
+        "ts": []
+      }
+    },
+    {
+      "patterns": [
+        "build/"
+      ],
+      "git": [
+        "build/e.qmd.md",
+        "src/build/f.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "build/e.qmd.md"
+        ],
+        "py": [
+          "build/e.qmd.md"
+        ],
+        "ts": [
+          "build/e.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "**/test_*.qmd.md"
+      ],
+      "git": [
+        "src/test_two.qmd.md",
+        "test_one.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "src/test_two.qmd.md",
+          "test_one.qmd.md"
+        ],
+        "py": [
+          "src/test_two.qmd.md",
+          "test_one.qmd.md"
+        ],
+        "ts": [
+          "src/test_two.qmd.md",
+          "test_one.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "test_*.qmd.md"
+      ],
+      "git": [
+        "src/test_two.qmd.md",
+        "test_one.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "test_one.qmd.md"
+        ],
+        "py": [
+          "src/test_two.qmd.md",
+          "test_one.qmd.md"
+        ],
+        "ts": [
+          "test_one.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "temp/"
+      ],
+      "git": [
+        "temp/g.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "temp/g.qmd.md"
+        ],
+        "py": [
+          "temp/g.qmd.md"
+        ],
+        "ts": [
+          "temp/g.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "src/"
+      ],
+      "git": [
+        "src/build/f.qmd.md",
+        "src/notes.draft.qmd.md",
+        "src/test_two.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "src/build/f.qmd.md",
+          "src/notes.draft.qmd.md",
+          "src/test_two.qmd.md"
+        ],
+        "py": [
+          "src/build/f.qmd.md",
+          "src/notes.draft.qmd.md",
+          "src/test_two.qmd.md"
+        ],
+        "ts": [
+          "src/build/f.qmd.md",
+          "src/notes.draft.qmd.md",
+          "src/test_two.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "sub/"
+      ],
+      "git": [
+        "docs/sub/y.qmd.md",
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [],
+        "py": [],
+        "ts": []
+      }
+    },
+    {
+      "patterns": [
+        "deep"
+      ],
+      "git": [
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [],
+        "py": [],
+        "ts": []
+      }
+    },
+    {
+      "patterns": [
+        "*/sub/"
+      ],
+      "git": [
+        "docs/sub/y.qmd.md",
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "docs/sub/y.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "py": [
+          "docs/sub/y.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "ts": [
+          "docs/sub/y.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "docs/**/y.qmd.md"
+      ],
+      "git": [
+        "docs/sub/y.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "docs/sub/y.qmd.md"
+        ],
+        "py": [
+          "docs/sub/y.qmd.md"
+        ],
+        "ts": [
+          "docs/sub/y.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "te?ts/"
+      ],
+      "git": [
+        "docs/tests/d.qmd.md",
+        "tests/a.qmd.md",
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "py": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "ts": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "[bt]uild/"
+      ],
+      "git": [
+        "build/e.qmd.md",
+        "src/build/f.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "build/e.qmd.md"
+        ],
+        "py": [
+          "build/e.qmd.md"
+        ],
+        "ts": [
+          "build/e.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "tracking/**/artifacts/**"
+      ],
+      "git": [
+        "tracking/a/artifacts/z.qmd.md",
+        "tracking/a/b/artifacts/v.qmd.md",
+        "tracking/artifacts/w.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "tracking/a/artifacts/z.qmd.md",
+          "tracking/a/b/artifacts/v.qmd.md",
+          "tracking/artifacts/w.qmd.md"
+        ],
+        "py": [
+          "tracking/a/artifacts/z.qmd.md",
+          "tracking/a/b/artifacts/v.qmd.md",
+          "tracking/artifacts/w.qmd.md"
+        ],
+        "ts": [
+          "tracking/a/artifacts/z.qmd.md",
+          "tracking/a/b/artifacts/v.qmd.md",
+          "tracking/artifacts/w.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "keep/*",
+        "!keep/important.qmd.md"
+      ],
+      "git": [
+        "keep/other.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "keep/important.qmd.md",
+          "keep/other.qmd.md"
+        ],
+        "py": [
+          "keep/important.qmd.md",
+          "keep/other.qmd.md"
+        ],
+        "ts": [
+          "a.qmd.md",
+          "build/e.qmd.md",
+          "docs/sub/y.qmd.md",
+          "docs/tests/d.qmd.md",
+          "docs/x.qmd.md",
+          "keep/important.qmd.md",
+          "keep/other.qmd.md",
+          "notes.draft.qmd.md",
+          "src/build/f.qmd.md",
+          "src/notes.draft.qmd.md",
+          "src/test_two.qmd.md",
+          "temp/g.qmd.md",
+          "test_one.qmd.md",
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md",
+          "tracking/a/artifacts/z.qmd.md",
+          "tracking/a/b/artifacts/v.qmd.md",
+          "tracking/a/notes.qmd.md",
+          "tracking/artifacts/w.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "# only a comment"
+      ],
+      "git": [],
+      "impl": {
+        "rs": [],
+        "py": [],
+        "ts": []
+      }
+    },
+    {
+      "patterns": [
+        "tests/* "
+      ],
+      "git": [
+        "tests/a.qmd.md",
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "py": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "ts": [
+          "tests/a.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "keep/",
+        "!keep/important.qmd.md"
+      ],
+      "git": [
+        "keep/important.qmd.md",
+        "keep/other.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "keep/important.qmd.md",
+          "keep/other.qmd.md"
+        ],
+        "py": [
+          "keep/important.qmd.md",
+          "keep/other.qmd.md"
+        ],
+        "ts": [
+          "a.qmd.md",
+          "build/e.qmd.md",
+          "docs/sub/y.qmd.md",
+          "docs/tests/d.qmd.md",
+          "docs/x.qmd.md",
+          "keep/important.qmd.md",
+          "keep/other.qmd.md",
+          "notes.draft.qmd.md",
+          "src/build/f.qmd.md",
+          "src/notes.draft.qmd.md",
+          "src/test_two.qmd.md",
+          "temp/g.qmd.md",
+          "test_one.qmd.md",
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md",
+          "tracking/a/artifacts/z.qmd.md",
+          "tracking/a/b/artifacts/v.qmd.md",
+          "tracking/a/notes.qmd.md",
+          "tracking/artifacts/w.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "keep/**",
+        "!keep/important.qmd.md"
+      ],
+      "git": [
+        "keep/other.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "keep/important.qmd.md",
+          "keep/other.qmd.md"
+        ],
+        "py": [
+          "keep/important.qmd.md",
+          "keep/other.qmd.md"
+        ],
+        "ts": [
+          "a.qmd.md",
+          "build/e.qmd.md",
+          "docs/sub/y.qmd.md",
+          "docs/tests/d.qmd.md",
+          "docs/x.qmd.md",
+          "keep/important.qmd.md",
+          "keep/other.qmd.md",
+          "notes.draft.qmd.md",
+          "src/build/f.qmd.md",
+          "src/notes.draft.qmd.md",
+          "src/test_two.qmd.md",
+          "temp/g.qmd.md",
+          "test_one.qmd.md",
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md",
+          "tracking/a/artifacts/z.qmd.md",
+          "tracking/a/b/artifacts/v.qmd.md",
+          "tracking/a/notes.qmd.md",
+          "tracking/artifacts/w.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "tests/*",
+        "!tests/a.qmd.md"
+      ],
+      "git": [
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "py": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "ts": [
+          "a.qmd.md",
+          "build/e.qmd.md",
+          "docs/sub/y.qmd.md",
+          "docs/tests/d.qmd.md",
+          "docs/x.qmd.md",
+          "keep/important.qmd.md",
+          "keep/other.qmd.md",
+          "notes.draft.qmd.md",
+          "src/build/f.qmd.md",
+          "src/notes.draft.qmd.md",
+          "src/test_two.qmd.md",
+          "temp/g.qmd.md",
+          "test_one.qmd.md",
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md",
+          "tracking/a/artifacts/z.qmd.md",
+          "tracking/a/b/artifacts/v.qmd.md",
+          "tracking/a/notes.qmd.md",
+          "tracking/artifacts/w.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "tests/*",
+        "!tests/sub/b.qmd.md"
+      ],
+      "git": [
+        "tests/a.qmd.md",
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "py": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "ts": [
+          "a.qmd.md",
+          "build/e.qmd.md",
+          "docs/sub/y.qmd.md",
+          "docs/tests/d.qmd.md",
+          "docs/x.qmd.md",
+          "keep/important.qmd.md",
+          "keep/other.qmd.md",
+          "notes.draft.qmd.md",
+          "src/build/f.qmd.md",
+          "src/notes.draft.qmd.md",
+          "src/test_two.qmd.md",
+          "temp/g.qmd.md",
+          "test_one.qmd.md",
+          "tests/a.qmd.md",
+          "tests/sub/deep/c.qmd.md",
+          "tracking/a/artifacts/z.qmd.md",
+          "tracking/a/b/artifacts/v.qmd.md",
+          "tracking/a/notes.qmd.md",
+          "tracking/artifacts/w.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "!keep/important.qmd.md"
+      ],
+      "git": [],
+      "impl": {
+        "rs": [],
+        "py": [],
+        "ts": [
+          "a.qmd.md",
+          "build/e.qmd.md",
+          "docs/sub/y.qmd.md",
+          "docs/tests/d.qmd.md",
+          "docs/x.qmd.md",
+          "keep/other.qmd.md",
+          "notes.draft.qmd.md",
+          "src/build/f.qmd.md",
+          "src/notes.draft.qmd.md",
+          "src/test_two.qmd.md",
+          "temp/g.qmd.md",
+          "test_one.qmd.md",
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md",
+          "tracking/a/artifacts/z.qmd.md",
+          "tracking/a/b/artifacts/v.qmd.md",
+          "tracking/a/notes.qmd.md",
+          "tracking/artifacts/w.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "Tests/"
+      ],
+      "git": [],
+      "impl": {
+        "rs": [],
+        "py": [],
+        "ts": []
+      }
+    },
+    {
+      "patterns": [
+        "src/*.qmd.md"
+      ],
+      "git": [
+        "src/notes.draft.qmd.md",
+        "src/test_two.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "src/build/f.qmd.md",
+          "src/notes.draft.qmd.md",
+          "src/test_two.qmd.md"
+        ],
+        "py": [
+          "src/build/f.qmd.md",
+          "src/notes.draft.qmd.md",
+          "src/test_two.qmd.md"
+        ],
+        "ts": [
+          "src/notes.draft.qmd.md",
+          "src/test_two.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "**/*.draft.qmd.md"
+      ],
+      "git": [
+        "notes.draft.qmd.md",
+        "src/notes.draft.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "notes.draft.qmd.md",
+          "src/notes.draft.qmd.md"
+        ],
+        "py": [
+          "notes.draft.qmd.md",
+          "src/notes.draft.qmd.md"
+        ],
+        "ts": [
+          "notes.draft.qmd.md",
+          "src/notes.draft.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "tracking/*/artifacts/"
+      ],
+      "git": [
+        "tracking/a/artifacts/z.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "tracking/a/artifacts/z.qmd.md",
+          "tracking/a/b/artifacts/v.qmd.md"
+        ],
+        "py": [
+          "tracking/a/artifacts/z.qmd.md",
+          "tracking/a/b/artifacts/v.qmd.md"
+        ],
+        "ts": [
+          "tracking/a/artifacts/z.qmd.md"
+        ]
+      }
+    },
+    {
+      "patterns": [
+        "tests/**/*.qmd.md"
+      ],
+      "git": [
+        "tests/a.qmd.md",
+        "tests/sub/b.qmd.md",
+        "tests/sub/deep/c.qmd.md"
+      ],
+      "impl": {
+        "rs": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "py": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ],
+        "ts": [
+          "tests/a.qmd.md",
+          "tests/sub/b.qmd.md",
+          "tests/sub/deep/c.qmd.md"
+        ]
+      }
+    }
+  ]
+}
