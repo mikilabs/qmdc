@@ -41,11 +41,17 @@ With `[[clo: map]]` the same shape gives rs one `invalid_map_content` at the dec
 entry inside the map; py and ts give TWO at the offending line and a clean map.
 
 **An indented sub-item whose text looks like a field.** `- issues:` followed by an indented
-`- AMBIGUOUS: text`, with `- status: ok` after it. Rust makes a field `AMBIGUOUS`, treats the rest as
-comment content and loses `status`; Python and TypeScript report `nested_subitems`, drop `issues` and
-keep `status`. QMD-71 left this open on purpose, having found that suppressing the field for
-bullet-nested items traded one divergence for another. It is the whole remaining error gap on the
-external corpus: 125 `nested_subitems` in Rust against 148 in the other two.
+`- AMBIGUOUS: text`, with `- status: ok` after it. All three lose the parent field `issues`. Rust
+additionally promotes the sub-item to a real field of the parent object, keyed by whatever text
+precedes the colon, and reports nothing; a further sub-item without a colon becomes comment content
+anchored on that invented field. Python and TypeScript drop the sub-item and report
+`nested_subitems`. A field written after the sub-item survives in all three, so the loss is the
+parent field plus, in Rust, a field that the author never wrote. Re-measured on the corpus shape
+(`sim/runs/2026-05-17T12-39-34/s05_file-upload/trace.qmd.md`, four fields then the sub-item): Rust
+emits `AMBIGUOUS` with the sentence as its value and zero errors. QMD-71 left this open on purpose,
+having found that suppressing the field for bullet-nested items traded one divergence for another.
+It is the whole remaining error gap on the external corpus: 125 `nested_subitems` in Rust against
+148 in the other two.
 
 - category: parser
 - related_to: [[#qmd77_tails]]
@@ -138,37 +144,85 @@ which no current test performs — that, not the fix, is the work.
 - related_to: [[#qmd77_tails]]
 - solution: The first is three lines. The second needs a Linux job before it can be verified at all.
 
+## Fidelity: Rust rewrites the markup in a field value [[qmd77_finding_fidelity: Finding]]
+
+Filed on the public tracker as [issue 12](https://github.com/mikilabs/qmdc/issues/12), open since
+2026-09-28 and re-measured live on this build. A list-item field value is returned by Rust rebuilt
+from its Markdown events rather than sliced from the source, so every inline construct whose canonical
+form differs from the written one comes back changed, and a construct with no arm in the match comes
+back missing. One field:
+
+```text
+written  - summary: guard __main__, name _x_, tag <b>bold</b>, star *y*, tick `z`
+rs    -> guard **main**, name *x*, tag bold, star *y*, tick `z`
+py    -> guard __main__, name _x_, tag <b>bold</b>, star *y*, tick `z`
+ts    -> guard __main__, name _x_, tag <b>bold</b>, star *y*, tick `z`
+```
+
+The issue measured nine constructs that change: `__x__`, `_x_`, inline HTML (dropped), `~s~`, escaped
+`\_e\_`, `&amp;`, an autolink, a titled link and an image. `**y**`, `*y*`, `~~d~~` and code spans come
+back unchanged only because the rebuilt form happens to equal the written one. The consequence is not
+cosmetic: a value read through Rust and written back alters the document, which is the round-trip
+guarantee the format sells.
+
+The `Event::Code` arm in the same match already takes `&markdown[range.start..range.end]`, so the
+mechanism is present — the fix is to take the source slice for the whole value instead of extending the
+rebuild construct by construct. Same shape as the QMD-71 ordered-list fix, where a correct raw-slice
+branch existed and a rebuild path was deleted.
+
+- category: parser
+- related_to: [[#qmd77_tails]]
+- solution: Slice the source for the whole value; pin it with the tracker's own CLI fixture.
+
 ## Open questions [[qmd77_finding_questions: Finding]]
 
 Four decisions belong to the operator, because in each the three parsers disagree and no document in
 the repository states which is right. Nothing should be coded on these until they are answered — that
-is exactly how QMD-75's first rule came to be written too narrow.
+is exactly how QMD-75's first rule came to be written too narrow. Two are now ANSWERED (2026-09-30):
+Q1 and Q4 below carry the decision; Q2 and Q3 are still open, the operator having asked for a worked
+example of each before deciding.
 
-**Q1. What does a wrapped field value mean?** `- note: first line` with an indented continuation.
-Space-join (Rust), newline-join (Python), first line only (TypeScript), or a parsing error in all three
-because the format never defined it. The fourth is worth weighing seriously: a value that must be
-written on one line is a rule a reader can hold, and the other three are silent rewrites of the author's
-text. Every `.qmd.md` in this repository is affected, and both defects that exposed it were found
-because a tracking file of ours wrapped a value.
+**Q1. What does a wrapped field value mean? ANSWERED: a parsing error, in all three.** `- note: first
+line` with an indented continuation. The three current readings — space-join (Rust), newline-join
+(Python), first line only (TypeScript) — are each a silent rewrite of the author's text, and "a value
+is written on one line" is a rule a reader can hold. Every `.qmd.md` in this repository is affected,
+and both defects that exposed it were found because a tracking file of ours wrapped a value. The error
+must name the continuation's line, and the rule has to hold in every carrier of a wrapped item, not
+only in a field value: `[[#qmd77_goal_b2]]` measured three distinct groupings across the carriers
+(field value three-way, text block `rs+py` against `ts`, object body `rs` against `py+ts`).
 
-**Q2. Does a declared `array` or `map` swallow a deeper declaration?** QMD-75 settled that
-`[[id: text]]` swallows everything below it, deeper declarations included, because the declared kind
-decides. Consistency says `array` and `map` do the same, which is Rust's behaviour — and then an author
-who writes an object under an array section loses it with no diagnostic. The alternative is that a
-declaration always wins over an enclosing field, which is Python's and TypeScript's behaviour and
-contradicts the `text` rule we just wrote down. A third option exists: swallow, but report.
+**Q2. Does a declared `array` or `map` swallow a deeper declaration? ANSWERED: it swallows, and the
+mix is reported.** QMD-75 settled that `[[id: text]]` swallows everything below it, deeper declarations
+included, because the declared kind decides; `array` and `map` do the same, so the object does not
+survive — but the loss is never silent, because mixing an element of another shape into a declared
+collection is a type mix and the format already has codes for it. The operator's words: "это и есть
+`invalid_map_content`, потому что смешиваются типы в массиве".
 
-**Q3. Can an indented sub-item ever be a field?** `- issues:` with an indented `- AMBIGUOUS: text`
-below it. Either a sub-item is always content and the parent always reports `nested_subitems` (Python,
-TypeScript), or a sub-item whose own text parses as `key: value` becomes a field (Rust) — which costs
-the field it was indented under. QMD-71 measured that suppressing the Rust reading trades one
-divergence for another, so this needs the rule, not another attempt.
+The vocabulary needs no new code. `[[clo: map]]` already raises `invalid_map_content`
+(`[[#err_invalid_map_content]]`); `[[clo: array]]` raises `mixed_array` (`[[#err_mixed_array]]`), whose
+declared cause is this exact consequence — "a following element heading cannot join it, so it silently
+becomes a plain field on the parent and its declared Kind is lost". Today that code fires only for a
+table-fed object array, so its scope widens to any declared collection meeting a declaring heading.
+Two contract details go with it, decided here because they are counting rather than syntax: ONE error
+per offending element, and at the ELEMENT's own line, not the declaration's. Rust currently reports
+one `invalid_map_content` at the declaration's line; Python and TypeScript report two at the element's
+line for a single offender. Both are wrong, in different ways.
 
-**Q4. What belongs in the text block above the first heading, and does a `---` survive anywhere?**
-Rust keeps only a fence there, the other two keep prose and tables as well, and all three drop a
-thematic break. The second half is the larger question: a `---` inside an object's body IS preserved as
-a comment (QMD-75 pinned that), so dropping it at the top level is inconsistent with the rest of the
-format.
+**Q3. Can an indented sub-item ever be a field? ANSWERED: never — they are forbidden.** A sub-item is
+always content and the parent always reports `nested_subitems` (`[[#err_nested_subitems]]`), which is
+what Python and TypeScript already do and what `docs/format/fields.qmd.md` already states: a nested
+list under a field key is forbidden. Rust's reading — a sub-item whose text parses as
+`key: value` becomes a field of the parent — is the behaviour to remove, along with its silence. The
+operator's words: "это и есть `nested_subitems`, так и есть, они запрещены". This closes the whole
+remaining error gap on the external corpus, 125 against 148, since every one of those 23 is this shape.
+
+**Q4. What belongs in the text block above the first heading, and does a `---` survive anywhere?
+ANSWERED: every block belongs there, and `---` is preserved everywhere.** Rust keeps only a fence
+there, the other two keep prose and tables as well, and all three drop a thematic break. The second
+half was the larger question: a `---` inside an object's body IS preserved as a comment (QMD-75 pinned
+that), so dropping it at the top level was inconsistent with the rest of the format. So the text block
+takes prose, tables, fences and thematic breaks alike, and a round trip through any of the three
+reproduces the source.
 
 Two more decisions are contract rather than syntax, and are proposed here rather than asked:
 
@@ -177,7 +231,7 @@ Two more decisions are contract rather than syntax, and are proposed here rather
 
 - category: parser
 - related_to: [[#qmd77_tails]]
-- solution: Answer Q1-Q4 at triage; the two proposals stand unless overridden.
+- solution: All four answered 2026-09-30; the two proposals stand unless overridden.
 
 ## How this one has to be verified [[qmd77_finding_tests: Finding]]
 

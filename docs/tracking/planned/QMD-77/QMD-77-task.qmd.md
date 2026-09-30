@@ -20,7 +20,7 @@ own task and is not deferred into a list again.
 - category: parser
 - related_task: [[#qmd75_body_identity]]
 - requires_changes: []
-- findings: [[#qmd77_finding_identity]], [[#qmd77_finding_content]], [[#qmd77_finding_contract]], [[#qmd77_finding_robustness]], [[#qmd77_finding_questions]], [[#qmd77_finding_tests]]
+- findings: [[#qmd77_finding_identity]], [[#qmd77_finding_content]], [[#qmd77_finding_contract]], [[#qmd77_finding_robustness]], [[#qmd77_finding_fidelity]], [[#qmd77_finding_questions]], [[#qmd77_finding_tests]]
 - result: null
 
 ### Goals [[goals: [Goal]]]
@@ -162,3 +162,18 @@ it needs a Linux run, which no test currently performs.
 
 - group: D_robustness
 - done: false
+
+#### E1: A field value keeps the markup the author wrote [[qmd77_goal_e1]]
+
+A field value comes back byte-identical to the source, in all three. Rust rebuilds a list-item value
+from its Markdown events, so it rewrites every inline construct whose canonical form differs from the
+written one, and drops the ones it has no arm for. Filed as
+[issue 12](https://github.com/mikilabs/qmdc/issues/12) and still live on this build:
+`guard __main__, name _x_, tag <b>bold</b>` reads back from Rust as
+`guard **main**, name *x*, tag bold`, while Python and TypeScript return it as written. A value read
+through Rust and written back therefore changes the document. The `Event::Code` arm in the same match
+already takes the raw source slice; taking the slice for the whole value closes every construct at
+once instead of adding an arm per construct.
+
+- group: E_fidelity
+- done: true
