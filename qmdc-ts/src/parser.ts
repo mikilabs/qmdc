@@ -1535,6 +1535,24 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           ] = parseFieldsFromList(tokens, i, blockTree);
           const currentObj = objects[currentId];
           if (currentObj) {
+            // QMD-77 A4: report the forbidden construct BEFORE the branches below. A list whose
+            // only content was `- key:` plus an indented sub-list yields no fields, so it fell into
+            // the "whole list is prose" branch whose `continue` skipped the emission further down —
+            // the construct stayed as comment text and no error was raised, where rs and py report
+            // it and drop it. Dropped either way, exactly as when the object has other fields.
+            const droppedNestedSubitemList =
+              nestedSubitemsErrors.length > 0 && invalidItems.length === 0;
+            for (const nsErr of nestedSubitemsErrors) {
+              parsingErrors.push({
+                __id: `error_${parsingErrors.length}`,
+                __kind: '__ParsingError',
+                type: 'nested_subitems',
+                field: nsErr.key,
+                object: `[[#${currentId}]]`,
+                line: nsErr.line,
+              });
+            }
+
             // Check if any field keys already exist in the object.
             // If so, this bullet list is a DUPLICATE — treat it as
             // comment content instead of overwriting existing fields.
@@ -1581,7 +1599,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
                     ? tokens[scanJ]!.map![1]
                     : token.map[1];
                 const rawList = blockTree.getLinesRaw(token.map[0], endLine).trim();
-                if (rawList) {
+                if (rawList && !droppedNestedSubitemList) {
                   if (!currentObj.__comments) {
                     currentObj.__comments = [];
                   }
@@ -1693,17 +1711,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
               });
             }
 
-            // nested_subitems errors
-            for (const nsErr of nestedSubitemsErrors) {
-              parsingErrors.push({
-                __id: `error_${parsingErrors.length}`,
-                __kind: '__ParsingError',
-                type: 'nested_subitems',
-                field: nsErr.key,
-                object: `[[#${currentId}]]`,
-                line: nsErr.line,
-              });
-            }
+            // nested_subitems errors are emitted above, before the no-fields branches.
 
             // QMD-70: an indented block under a field that HAS a value. The field is kept, the
             // block is preserved verbatim anchored on that field, and the error names it.

@@ -1273,6 +1273,25 @@ def parse(
                         unsupported_number_errors,
                     ) = parse_fields_from_list(tokens, i, block_tree)
 
+                    # QMD-77 A4: report the forbidden construct BEFORE the branches below, not
+                    # after them. A list whose only content was `- key:` plus an indented sub-list
+                    # yields no fields at all, so it fell into the "whole list is prose" branch and
+                    # its `continue` skipped the emission further down — the construct was silently
+                    # kept as comment text while Rust reported it. The construct is dropped either
+                    # way, exactly as it already was when the object had other fields.
+                    dropped_nested_subitem_list = bool(nested_subitems_errors) and not invalid_items
+                    for ns_err in nested_subitems_errors:
+                        parsing_errors.append(
+                            {
+                                "__id": f"error_{len(parsing_errors)}",
+                                "__kind": "__ParsingError",
+                                "type": "nested_subitems",
+                                "field": ns_err["key"],
+                                "object": f"[[#{current_id}]]",
+                                "line": ns_err["line"],
+                            }
+                        )
+
                     # Check if any field keys already exist in the object.
                     # If so, this bullet list is a DUPLICATE — treat it as
                     # comment content instead of overwriting existing fields.
@@ -1345,7 +1364,7 @@ def parse(
                                 else token.map[1]
                             )
                             raw_list = block_tree.get_lines_raw(token.map[0], end_line).strip()
-                            if raw_list:
+                            if raw_list and not dropped_nested_subitem_list:
                                 append_comment(current_id, comment_anchor, raw_list)
                             i = scan_j + 1
                         else:
@@ -1443,18 +1462,7 @@ def parse(
                             }
                         )
 
-                    # nested_subitems errors
-                    for ns_err in nested_subitems_errors:
-                        parsing_errors.append(
-                            {
-                                "__id": f"error_{len(parsing_errors)}",
-                                "__kind": "__ParsingError",
-                                "type": "nested_subitems",
-                                "field": ns_err["key"],
-                                "object": f"[[#{current_id}]]",
-                                "line": ns_err["line"],
-                            }
-                        )
+                    # nested_subitems errors are emitted above, before the no-fields branches.
 
                     # QMD-70: an indented block under a field that HAS a value. The field is
                     # kept, the block is preserved verbatim anchored on that field, and the

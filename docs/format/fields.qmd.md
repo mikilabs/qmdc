@@ -111,5 +111,5 @@ Heading-syntax fields (`text`, `array`, `yaml`, `json`, `object_array`) require 
 - References `[[#id]]` in text fields are validated for existence but remain as text (not resolved into objects)
 - References in YAML pipe blocks are not parsed at all
 - References inside inline code and `example`-modified code fences are not parsed
-- Nested lists `- key:\n  - item` are forbidden (`nested_subitems` error). Use YAML arrays or heading-syntax instead.
+- Nested lists `- key:\n  - item` are forbidden (`nested_subitems` error). Use YAML arrays or heading-syntax instead. An indented sub-item is never a field, whatever its own text looks like: `- AMBIGUOUS: text` under `- issues:` does not become an `AMBIGUOUS` field, it is part of the forbidden construct. The parent key is dropped, the construct is dropped, one error names the parent key at its line, and a comment that followed re-anchors on the last surviving field or on `__self` — never on the key that was removed. This holds whether or not the object has other fields.
 - Map fields (`[[field: map]]`) accept only bullet lists with `- key: value` pairs. All values are strings (no type auto-detection).

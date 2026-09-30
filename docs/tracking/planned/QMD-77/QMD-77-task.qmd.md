@@ -65,7 +65,7 @@ QMD-71 left open deliberately, and it is the entire remaining error gap on the e
 reports against 148. Needs Q3.
 
 - group: A_identity
-- done: false
+- done: true
 
 #### B1: Non-field content above the first heading is preserved identically [[qmd77_goal_b1]]
 
@@ -132,7 +132,7 @@ error Rust anchors the following comment on the offending field name, which no p
 field, so the anchor dangles.
 
 - group: C_contract
-- done: false
+- done: true
 
 #### C6: The parse envelope is pinned by a fixture [[qmd77_goal_c6]]
 
@@ -151,7 +151,7 @@ three. TypeScript's `scanWorkspace` throws an uncaught `EACCES` and returns NOTH
 file — where Rust, Python and `git` itself skip the directory and carry on.
 
 - group: D_robustness
-- done: false
+- done: true
 
 #### D2: A path byte that is not valid UTF-8 matches the same way [[qmd77_goal_d2]]
 

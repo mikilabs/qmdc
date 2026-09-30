@@ -1864,8 +1864,11 @@ impl Backend {
                     meta_kind
                 };
 
-                // Skip system objects (auto-generated IDs like doc_xxx, text_xxx)
-                if id.starts_with("doc_") || id.starts_with("text_") {
+                // QMD-77: skip every object a reference cannot name. Filtering by the `doc_` /
+                // `text_` id prefix missed `__ParsingError`, so an `error_0` was offered as a
+                // completion the moment a document held a parse error — and none of these three
+                // kinds carries a `__global_id`, which is what makes them unreferenceable.
+                if matches!(meta_kind, "__ParsingError" | "__Document" | "__TextBlock") {
                     return None;
                 }
 
@@ -1921,8 +1924,9 @@ impl Backend {
                         .and_then(|v| v.as_str())
                         .unwrap_or("__Object");
 
-                    // Skip system objects (auto-generated IDs)
-                    if id.starts_with("doc_") || id.starts_with("text_") {
+                    // QMD-77: skip every object a reference cannot name — see the kind filter
+                    // above. The id-prefix form missed `__ParsingError`.
+                    if matches!(kind, "__ParsingError" | "__Document" | "__TextBlock") {
                         return None;
                     }
 

@@ -192,6 +192,23 @@ file is maintained by hand.
   `Event::Code` arm already did, so every construct is covered at once instead of one arm per
   construct. `docs/format/fields.qmd.md` states the rule
   ([issue 12](https://github.com/mikilabs/qmdc/issues/12), QMD-77).
+- An indented sub-item is never a field, in all three parsers, and the forbidden construct is always
+  reported. Rust promoted a sub-item whose text happened to parse as `key: value` to a real field of
+  the parent object — `- AMBIGUOUS: text` under `- issues:` became an `AMBIGUOUS` field — keyed by
+  prose and with no diagnostic, which on one external corpus of 240 documents cost 23 of the 148
+  reports the other two made. Separately, when the construct was an object's ONLY content, Python and
+  TypeScript kept it as comment text and reported nothing where Rust reported it, and Rust anchored a
+  following comment on the removed key, so the anchor named a field no parser keeps. All three now
+  drop the key and the construct, raise one `nested_subitems` at the key's line, and re-anchor a
+  following comment on the last surviving field or on `__self` (QMD-77 A4, C5).
+- A parse error is no longer offered as an LSP completion. The candidate filter skipped system
+  objects by the `doc_` / `text_` id prefix, which missed `__ParsingError`, so `error_0` appeared in
+  the reference completion list of any document holding a parse error. Filtered by kind now, which is
+  what makes these three unreferenceable: none carries a `__global_id` (QMD-77).
+- A workspace scan that meets a directory it cannot read now skips it and returns everything else, in
+  TypeScript as in Rust, Python and `git`. An uncaught `EACCES` from `readdirSync` cost the WHOLE
+  result — not one readable file came back — for three of the four scanners in `workspace.ts`
+  (QMD-77 D1).
 - **The three parsers now produce identical `parse` output for every document in the repository** —
   0 divergent of 111, measured by `make validate-compare`, which had reported 32 when the check was
   first added. `scripts/parse-parity-baseline.json` is deleted rather than set to 0, so any new

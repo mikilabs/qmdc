@@ -181,7 +181,14 @@ export function findNestedWorkspaceRoots(rootPath: string): string[] {
   const ignorePatterns = loadQmdcignore(rootPath);
 
   function scan(dir: string): void {
-    const entries = readdirSync(dir, { withFileTypes: true });
+    // QMD-77 D1: a directory we cannot read is skipped, exactly as rs, py and `git` itself do.
+    // Letting EACCES escape returned NOTHING -- not one readable file -- for the whole scan.
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
@@ -224,7 +231,13 @@ export function scanWorkspace(rootPath: string, excludeNested = true): string[] 
   const ignorePatterns = loadQmdcignore(rootPath);
 
   function scan(dir: string): void {
-    const entries = readdirSync(dir, { withFileTypes: true });
+    // QMD-77 D1: skip a directory we cannot read, as rs, py and `git` do.
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
 
     for (const entry of entries) {
       const fullPath = join(dir, entry.name);
@@ -1463,7 +1476,13 @@ function scanWorkspaceDirs(rootPath: string, maxDepth: number): string[] {
  */
 function findQmdcFiles(dir: string): string[] {
   const results: string[] = [];
-  const entries = readdirSync(dir, { withFileTypes: true });
+  // QMD-77 D1: skip a directory we cannot read, as rs, py and `git` do.
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return results;
+  }
 
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);

@@ -2456,6 +2456,19 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             error.insert("object".to_string(), json!(format!("[[#{}]]", obj.id)));
                             error.insert("line".to_string(), json!(error_line));
                             parsing_errors.push(error);
+
+                            // QMD-77 C5: the field is gone, so an anchor naming it would dangle —
+                            // a comment's `after` must name a field the object actually has. Fall
+                            // back to the last surviving field, or to `__self` when this was the
+                            // object's only one.
+                            if obj.comment_anchor == *field_name {
+                                obj.comment_anchor = obj
+                                    .fields
+                                    .keys()
+                                    .next_back()
+                                    .cloned()
+                                    .unwrap_or_else(|| "__self".to_string());
+                            }
                         }
                     }
                     multiline_list_items.clear();
@@ -3561,23 +3574,22 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // Ordered list items (1. 2. 3.) are always comment content.
                     // Items inside a yaml_multiline pipe field are raw content, not fields.
                     let first_line = trimmed.lines().next().unwrap_or(trimmed);
-                    // QMD-71: top-level list items only. A NESTED item's `key: value` entries used
-                    // to become real fields on the object, which Python and TypeScript never do —
-                    // they treat the whole construct as comment content. The one real occurrence in
-                    // the corpus is `docs/tracking/workflow.sop.qmd.md`, where the SOP's own prose
-                    // describes what a Finding should contain; Rust turned that description into
-                    // `affected_files`, `affected_functions` and `solution` fields on the Step
-                    // object. Inventing fields out of documentation text settles which side is
-                    // right, so Rust now matches the other two.
-                    // Only when an ANCESTOR list is ordered. Nesting alone was too blunt: for a
-                    // bullet list nested under an EMPTY-valued bullet item (`- items:` then
-                    // `- product: x`) suppressing the field made Rust emit `nested_subitems` where
-                    // the other two emit nothing, trading one divergence for another. The real
-                    // divergence is an ordered item with an indented field-like list under it.
-                    if !list_order_stack
-                        .iter()
-                        .take(list_nesting_level.saturating_sub(1))
-                        .any(|o| o.is_some())
+                    // QMD-77 A4 (Q3): only a TOP-LEVEL list item can be a field. An indented
+                    // sub-item is content, always — `docs/format/fields.qmd.md` forbids the
+                    // construct and the parent reports `nested_subitems`. Rust used to promote a
+                    // sub-item whose text happened to parse as `key: value` to a real field of the
+                    // parent object, keyed by whatever preceded the colon, and reported nothing;
+                    // the parent's own field was lost either way. That invented a field out of
+                    // prose — in `docs/tracking/workflow.sop.qmd.md` the SOP's description of what
+                    // a Finding should contain became `affected_files`, `affected_functions` and
+                    // `solution` fields on the Step object.
+                    //
+                    // QMD-71 kept the reading for a bullet sub-item because suppressing it made
+                    // Rust report `nested_subitems` where the other two reported nothing. That is
+                    // no longer what they do: measured on this build, `- items:` with an indented
+                    // `- product: x` gives `nested_subitems` on `items` in both, so the guard that
+                    // traded one divergence for another now closes it.
+                    if list_nesting_level <= 1
                         && current_list_order.is_none()
                         && pending_yaml_multiline_pipe_field.is_none()
                         && field_re.is_match(first_line)
