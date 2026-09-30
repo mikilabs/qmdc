@@ -79,6 +79,13 @@ Subheadings without `[[field_id]]` inside an object are comment headings — the
 
 Subheadings with `[[field_id]]` are structural elements that create fields, nested objects, or arrays.
 
+A field's value is the source text as WRITTEN, character for character. Markdown inside it is not
+interpreted, normalised or re-rendered: `__x__` stays `__x__` and does not become `**x**`, an escape
+keeps its backslash, an entity keeps its `&name;` form, inline HTML keeps its tags, and a link keeps
+its title. This is what makes a read followed by a write leave the document unchanged — a value
+rebuilt from parsed Markdown would come back in whatever form the renderer prefers, which for half
+the constructs is not the form the author chose.
+
 ## YAML Multiline Strings [[yaml_multiline: text]]
 
 Fields support YAML pipe syntax for multiline strings:

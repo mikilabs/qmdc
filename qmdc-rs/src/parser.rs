@@ -506,8 +506,33 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
         };
 
     let mut i = 0;
+    // QMD-77 E1 (issue 12): an inline construct inside a list item is taken as a SOURCE SLICE, so a
+    // field value is the text the author wrote. Rebuilding it from events rewrote every construct
+    // whose canonical form differs from the written one (`__x__` -> `**x**`) and dropped the ones
+    // with no arm at all (inline HTML). The slice already covers the construct's inner events, so
+    // they are skipped here instead of being appended a second time in canonical form. Depth,
+    // not a flag: emphasis nests inside strong.
+    let mut inline_raw_depth: usize = 0;
     while i < events.len() {
         let (event, range) = &events[i];
+
+        if inline_raw_depth > 0 {
+            match event {
+                Event::Start(Tag::Strong)
+                | Event::Start(Tag::Emphasis)
+                | Event::Start(Tag::Strikethrough)
+                | Event::Start(Tag::Link { .. })
+                | Event::Start(Tag::Image { .. }) => inline_raw_depth += 1,
+                Event::End(TagEnd::Strong)
+                | Event::End(TagEnd::Emphasis)
+                | Event::End(TagEnd::Strikethrough)
+                | Event::End(TagEnd::Link)
+                | Event::End(TagEnd::Image) => inline_raw_depth -= 1,
+                _ => {}
+            }
+            i += 1;
+            continue;
+        }
 
         match event {
             // QMD-70: a BLOCK opening inside a list item, after that item's own text. An inline
@@ -1988,7 +2013,19 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 } else if in_list_item {
                     // Not while an offending block is open — see `list_item_block`.
                     if list_item_block.is_none() {
-                        list_item_text.push_str(text);
+                        // Source slice, not the decoded text: `&amp;` came back as `&`, so a value
+                        // read here and written back changed meaning. An ESCAPE needs one more
+                        // byte: pulldown-cmark reports `\_` as the text `_` over the range of the
+                        // character alone, leaving the backslash inside no event's range at all, so
+                        // it is picked up here when the accumulated value does not already hold it.
+                        let mut slice_start = range.start;
+                        if slice_start > 0
+                            && markdown.as_bytes()[slice_start - 1] == b'\\'
+                            && !list_item_text.ends_with('\\')
+                        {
+                            slice_start -= 1;
+                        }
+                        list_item_text.push_str(&markdown[slice_start..range.end]);
                         // Latch a YAML multiline declaration here rather than at the paragraph's
                         // end: a TIGHT list item emits no paragraph events at all, so the latch
                         // never ran there and the pipe's own fence was reported as stray content.
@@ -2041,17 +2078,15 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
             Event::Start(Tag::Strong) => {
                 // Check in_list_item FIRST (same order as Event::Text)
                 if in_list_item {
-                    list_item_text.push_str("**");
+                    list_item_text.push_str(&markdown[range.start..range.end]);
+                    inline_raw_depth = 1;
                 } else if in_paragraph {
                     paragraph_text.push_str("**");
                 }
             }
 
             Event::End(TagEnd::Strong) => {
-                // Check in_list_item FIRST (same order as Event::Text)
-                if in_list_item {
-                    list_item_text.push_str("**");
-                } else if in_paragraph {
+                if in_paragraph {
                     paragraph_text.push_str("**");
                 }
             }
@@ -2059,17 +2094,15 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
             Event::Start(Tag::Emphasis) => {
                 // Check in_list_item FIRST (same order as Event::Text)
                 if in_list_item {
-                    list_item_text.push('*');
+                    list_item_text.push_str(&markdown[range.start..range.end]);
+                    inline_raw_depth = 1;
                 } else if in_paragraph {
                     paragraph_text.push('*');
                 }
             }
 
             Event::End(TagEnd::Emphasis) => {
-                // Check in_list_item FIRST (same order as Event::Text)
-                if in_list_item {
-                    list_item_text.push('*');
-                } else if in_paragraph {
+                if in_paragraph {
                     paragraph_text.push('*');
                 }
             }
@@ -2077,38 +2110,56 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
             Event::Start(Tag::Strikethrough) => {
                 // Check in_list_item FIRST (same order as Event::Text)
                 if in_list_item {
-                    list_item_text.push_str("~~");
+                    list_item_text.push_str(&markdown[range.start..range.end]);
+                    inline_raw_depth = 1;
                 } else if in_paragraph {
                     paragraph_text.push_str("~~");
                 }
             }
 
             Event::End(TagEnd::Strikethrough) => {
-                // Check in_list_item FIRST (same order as Event::Text)
-                if in_list_item {
-                    list_item_text.push_str("~~");
-                } else if in_paragraph {
+                if in_paragraph {
                     paragraph_text.push_str("~~");
                 }
             }
 
             Event::Start(Tag::Link { dest_url, .. }) => {
-                in_link = true;
-                link_url = dest_url.to_string();
-                link_text.clear();
+                // Check in_list_item FIRST (same order as Event::Text). The rebuild below cannot
+                // carry a link title (`[t](url "T")`) and turns an autolink into a full link, so a
+                // field value takes the source slice instead.
+                if in_list_item {
+                    list_item_text.push_str(&markdown[range.start..range.end]);
+                    inline_raw_depth = 1;
+                } else {
+                    in_link = true;
+                    link_url = dest_url.to_string();
+                    link_text.clear();
+                }
             }
 
             Event::End(TagEnd::Link) => {
                 in_link = false;
                 let formatted = format!("[{}]({})", link_text, link_url);
-                // Check in_list_item FIRST (same order as Event::Text)
-                if in_list_item {
-                    list_item_text.push_str(&formatted);
-                } else if in_paragraph {
+                if in_paragraph {
                     paragraph_text.push_str(&formatted);
                 }
                 link_text.clear();
                 link_url.clear();
+            }
+
+            Event::Start(Tag::Image { .. }) => {
+                // No arm existed, so an image in a field value was reduced to its alt text.
+                if in_list_item {
+                    list_item_text.push_str(&markdown[range.start..range.end]);
+                    inline_raw_depth = 1;
+                }
+            }
+
+            Event::InlineHtml(_) => {
+                // No arm existed, so `<b>bold</b>` lost its tags and `<br>` vanished outright.
+                if in_list_item {
+                    list_item_text.push_str(&markdown[range.start..range.end]);
+                }
             }
 
             Event::SoftBreak | Event::HardBreak => {

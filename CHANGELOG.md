@@ -182,6 +182,16 @@ file is maintained by hand.
 
 ### Fixed
 
+- A field value is now the source text as written, in Rust as it already was in Python and
+  TypeScript. Rust rebuilt a list-item value from its Markdown events, so it returned whatever form
+  the renderer prefers rather than the author's: `__main__` came back as `**main**`, `_x_` as `*x*`,
+  `~s~` as `~~s~~`, an escape lost its backslash, `&amp;` came back decoded, an autolink and a titled
+  link were rewritten, an image was reduced to its alt text, and inline HTML was dropped outright —
+  `<br>` vanished. A value read through Rust and written back therefore altered the document, which
+  is exactly the round trip the format guarantees. The inline arms now take the source slice, as the
+  `Event::Code` arm already did, so every construct is covered at once instead of one arm per
+  construct. `docs/format/fields.qmd.md` states the rule
+  ([issue 12](https://github.com/mikilabs/qmdc/issues/12), QMD-77).
 - **The three parsers now produce identical `parse` output for every document in the repository** —
   0 divergent of 111, measured by `make validate-compare`, which had reported 32 when the check was
   first added. `scripts/parse-parity-baseline.json` is deleted rather than set to 0, so any new
