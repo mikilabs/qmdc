@@ -233,6 +233,39 @@ Two more decisions are contract rather than syntax, and are proposed here rather
 - related_to: [[#qmd77_tails]]
 - solution: All four answered 2026-09-30; the two proposals stand unless overridden.
 
+## The synthesised id collision costs objects, and the id does resolve [[qmd77_finding_synth_ids: Finding]]
+
+Measured on the current build with all three parsers, which agree on every number below, so this is a
+format defect and not a parity one.
+
+`doc_<x>` is not occasionally colliding — it is a CONSTANT. The LCG is seeded per parse (default seed
+666), so every document in every workspace gets the literal id `doc_ry4ljv`. `text_<n>` counts from
+zero within a file, so every file with content above its first heading holds `text_0`.
+
+The graph keys on `__global_id`, a generated column computed as `<workspace>::<id>`, so the collision
+is a key collision and the last file read wins. Two files, each with a fence above its first heading:
+
+| | `workspace parse` | `query ... FROM objects` |
+|---|---|---|
+| objects | both files' `doc_ry4ljv` + `text_0` | one of each, from `specs/beta.qmd.md` only |
+
+On our own `docs/`: `workspace parse` returns 55 `__Document` and 70 `__TextBlock` under 8 distinct
+ids, and the query layer sees 4 and 10. So 111 of 125 synthesised objects are dropped, and which
+survivor remains depends on file order. The containment graph collapses with them — one `doc_ry4ljv`
+node owns `content` edges to objects from every file at once.
+
+A reference DOES resolve. `- points_to: [[#doc_ry4ljv]]` and `- text_to: [[#text_0]]` validate clean
+in all three and produce edges, pointing at whichever document won the merge rather than at the one
+the reference was written beside. The external corpus is unaffected for a reason worth keeping: every
+file in it opens with a heading, so it synthesises neither object.
+
+25 parser fixtures plus five workspace, sql and lsp fixtures pin these literal ids, and the format
+docs never state their shape, so the id scheme is unpinned by the spec and free to choose.
+
+- category: parser
+- related_to: [[#qmd77_goal_c2]]
+- solution: The collision is total, not occasional; it costs 111 of 125 objects in our own docs and the ids are addressable.
+
 ## How this one has to be verified [[qmd77_finding_tests: Finding]]
 
 Every item on this list survived at least one release, and each survived for the same reason: the
