@@ -262,6 +262,35 @@ file in it opens with a heading, so it synthesises neither object.
 25 parser fixtures plus five workspace, sql and lsp fixtures pin these literal ids, and the format
 docs never state their shape, so the id scheme is unpinned by the spec and free to choose.
 
+Nothing authored references them. Zero `[[#doc_...]]` or `[[#text_...]]` in our own documents or in
+the external corpus, and no product code consumes them either — the mkdocs plugin, the extension and
+the semantic chunker all read a `__kind`, never one of these ids. One thing does persist them: the
+semantic index stores the global id as its `object_id` (`docs:architecture:text_0` and three more in
+the live index), but it is a derived artifact rebuilt by `make semantic-index`, so a scheme change
+costs a reindex rather than compatibility.
+
+The collision is per NAMESPACE, not per workspace, which is why it survived releases. The graph key is
+`<workspace>:<namespace>:<id>`, so the 125 synthesised objects in `docs/` fall under 14 distinct
+(namespace, id) pairs and only 6 of those pairs are shared by more than one file. Almost all of the
+damage sits in one namespace: `tracking` holds 52 files that all carry `doc_ry4ljv` and `text_0`. A
+repository with one document per namespace never sees any of this.
+
+What each id scheme is actually worth, measured on 368 real files across both corpora:
+
+| scheme | uniqueness | length, median / max |
+|---|---|---|
+| path hash, 6 chars | probabilistic — 2.3% at 10k documents | 6 |
+| path hash, 8+ chars | probabilistic — 1.2% at 10k, the seed is 32 bits | 8 |
+| file basename | COLLIDES for real: `readme` in three of our files, `operations` and `schema` once per module in the corpus | 11 / 22 |
+| path slug relative to the namespace root | guaranteed — 0 collisions on 368 files | 16 / 90 |
+| full relative path slug | guaranteed — 0 collisions on 368 files | 46 / 90 |
+
+Widening the printed id past about 8 characters buys nothing on its own: the LCG state is masked to
+32 bits so that all three parsers agree on `doc_ry4ljv` for seed 666, and that mask is the ceiling on
+how many distinct ids any seed can produce. Measured on a replica of that LCG: 200 000 distinct seeds
+give 15 colliding ids at 6 characters and none at 12, so from roughly 8 characters the id is
+injective in the seed and the hash width alone decides.
+
 - category: parser
 - related_to: [[#qmd77_goal_c2]]
 - solution: The collision is total, not occasional; it costs 111 of 125 objects in our own docs and the ids are addressable.
