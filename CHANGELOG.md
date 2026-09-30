@@ -12,6 +12,14 @@ file is maintained by hand.
 
 ### Added
 
+- New `wrapped_field_value` parsing error: a field value — or an element of a `[[field: array]]` list —
+  continued on an indented second line. A value is written on ONE line. The continuation used to be
+  read three ways (Rust joined the lines with a space, Python with a newline, TypeScript kept the
+  first line and dropped the rest in silence), so the same document carried three different values;
+  the value is now the authored first line everywhere and the continuation is reported. The two legal
+  multiline forms are untouched, because each announces itself on the first line: YAML pipe
+  (`- key: |`) and a YAML array whose bracket opens the value (`- key: [`) (QMD-77).
+
 - References can be qualified with a workspace: `[[#workspace:namespace:id.field]]`, a
   right-aligned suffix of the object's global id. `[[#ws::id]]` elides the namespace and matches
   any namespace of that workspace. A reference that crosses a workspace boundary MUST now be
@@ -71,6 +79,33 @@ file is maintained by hand.
   graph can represent, since every id in one would collide with the other's) (QMD-72).
 
 ### Changed
+
+- **Breaking:** `workspace parse` names an error's owning object `objectId` and adds `fieldName` —
+  the same keys `workspace validate` already used. The envelope's own spellings `object` and `field`
+  are gone, so one error reads the same whichever command produced it. A consumer reading `object`
+  from `workspace parse` must be updated (QMD-77 C3).
+- A declaration inside a declared collection no longer creates an object: `[[field: array]]` and
+  `[[field: map]]` decide what their section is, the rule QMD-75 settled for `text`. Such a heading
+  closes the collection's content, exactly as prose between two lists does, and is reported once at
+  its own line — `mixed_array` for an array, `invalid_map_content` for a map. Rust used to swallow it
+  into the collection as a value; Python and TypeScript used to create the object (QMD-77 A3).
+- A map is populated only from its FIRST bullet list, as the spec said all along: an additional list
+  in the section is reported once instead of being merged (Rust) or reported twice (Python,
+  TypeScript). A list item that is not a valid `key: value` pair is `invalid_map_entry` in all three,
+  including the first item of the list. An indented sub-item under an entry is `nested_subitems` when
+  the entry has no value and `block_in_inline_field` when it has one, instead of becoming an entry the
+  author never wrote (QMD-77 A3).
+- Content above a document's first heading is preserved whole: prose and tables now reach the
+  `__TextBlock` in Rust too, and a thematic break (`---`) inside a text block is kept by all three.
+  Rust also no longer treats a `---` or `+++` fence at the top of a file as front matter — QMD.md
+  defines none, so it is ordinary Markdown, and a file holding nothing else now yields a `__Document`
+  and a `__TextBlock` instead of nothing (QMD-77 B1, C1).
+- A duplicate id keeps both objects in document order with one error each, in all three. TypeScript
+  used to drop the first colliding NESTED object and report nothing; Rust ordered the duplicated
+  subtrees by an (id, label) look-up that collides when both match (QMD-77 A1).
+- An object-array element written as a bare `### Alice` carries `__has_explicit_id: false` in all
+  three, as the spec requires for an auto-generated id — without it a rebuild printed an id the author
+  never wrote (QMD-77 C4).
 
 - **A heading's declaration decides what it is; the content below it no longer does.** A `[[id]]`
   heading whose body was a paragraph, a `---`, a table or a code fence used to be read three
