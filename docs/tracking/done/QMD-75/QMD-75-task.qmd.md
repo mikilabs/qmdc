@@ -23,13 +23,13 @@ Invisible to the suite because the three-parser parity corpus is `docs/`, where 
 is a field list. Found while looking into the error a user hit running `workspace validate` on a
 repository (see `[[#qmd76_nested_message]]` for that error, which is unrelated).
 
-- status: planned
+- status: done
 - priority: high
 - category: parser
 - related_task: [[#qmd74_unanchored]]
 - requires_changes: []
-- findings: [[#qmd75_finding_body]], [[#qmd75_finding_prose_bullet]], [[#qmd75_finding_subitems]], [[#qmd75_finding_shape]], [[#qmd75_finding_questions]], [[#qmd75_finding_tests]]
-- result: null
+- findings: [[#qmd75_finding_body]], [[#qmd75_finding_kind_decides]], [[#qmd75_finding_content_gate]], [[#qmd75_finding_ts_startline]], [[#qmd75_finding_ts_hr_levels]], [[#qmd75_finding_py_mixed]], [[#qmd75_finding_subitems]], [[#qmd75_finding_shape]], [[#qmd75_finding_questions]], [[#qmd75_finding_tests]], [[#qmd75_finding_residuals]], [[#qmd75_finding_review]]
+- result: [[#qmd75_result]]
 
 ### Goals [[goals: [Goal]]]
 
@@ -42,7 +42,7 @@ format does not currently say what a heading's body is when it is not a field li
 is chosen, no object may be dropped in one parser and kept in another.
 
 - group: A_identity
-- done: false
+- done: true
 
 #### A2: Two objects never collapse onto one id in silence [[qmd75_goal_a2]]
 
@@ -51,7 +51,7 @@ Python and TypeScript each produce a colliding pair on `tg-acp` and report nothi
 holds an object that no reference can reach and no diagnostic names.
 
 - group: A_identity
-- done: false
+- done: true
 
 #### A3: A prose bullet is prose in all three [[qmd75_goal_a3]]
 
@@ -60,7 +60,7 @@ in every parser. TypeScript currently promotes the first such bullet to a field 
 `mixed_field_keys` on the next one, which is the same field-or-prose decision as A1.
 
 - group: A_identity
-- done: false
+- done: true
 
 #### B1: nested_subitems fires on the same shape everywhere [[qmd75_goal_b1]]
 
@@ -70,7 +70,7 @@ and Python and TypeScript only the last two, so on `tg-acp` the same 148 array e
 errors in two parsers and none in the third.
 
 - group: B_diagnostics
-- done: false
+- done: true
 
 #### C1: parse output carries the same top-level keys [[qmd75_goal_c1]]
 
@@ -79,7 +79,7 @@ Python and TypeScript both emit, so a consumer written against one parser reads 
 another.
 
 - group: C_shape
-- done: false
+- done: true
 
 #### D1: the parity corpus covers bodies that are not fields [[qmd75_goal_d1]]
 
@@ -89,4 +89,4 @@ the suite. All five divergences above survived every release because the corpus 
 objects always carry field bodies.
 
 - group: D_coverage
-- done: false
+- done: true
