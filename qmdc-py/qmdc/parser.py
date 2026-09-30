@@ -721,6 +721,7 @@ def parse(
                                 map_nested_errors,
                                 map_block_errors,
                                 _unsupported_numbers,
+                                map_wrapped_errors,
                             ) = parse_fields_from_list(
                                 tokens, list_scan, block_tree, raw_strings=True
                             )
@@ -752,6 +753,17 @@ def parse(
                                         "field": blk_err["key"],
                                         "object": f"[[#{parent_id}]]",
                                         "line": blk_err["line"],
+                                    }
+                                )
+                            for wr_err in map_wrapped_errors:
+                                parsing_errors.append(
+                                    {
+                                        "__id": f"error_{len(parsing_errors)}",
+                                        "__kind": "__ParsingError",
+                                        "type": "wrapped_field_value",
+                                        "field": wr_err["key"],
+                                        "object": f"[[#{parent_id}]]",
+                                        "line": wr_err["line"],
                                     }
                                 )
                             # QMD-77 A3: report EVERY item of the first list that is not a valid
@@ -1369,7 +1381,18 @@ def parse(
             if pending_array_field:
                 # This list is for a [[field: array]] section
                 parent_id, field_name = pending_array_field
-                items, next_i = parse_array_items_from_list(tokens, i)
+                items, next_i, array_wrapped_errors = parse_array_items_from_list(tokens, i)
+                for wr_err in array_wrapped_errors:
+                    parsing_errors.append(
+                        {
+                            "__id": f"error_{len(parsing_errors)}",
+                            "__kind": "__ParsingError",
+                            "type": "wrapped_field_value",
+                            "field": field_name,
+                            "object": f"[[#{parent_id}]]",
+                            "line": wr_err["line"],
+                        }
+                    )
                 objects[parent_id][field_name] = items
 
                 # Add __syntax for markdown_list
@@ -1393,6 +1416,7 @@ def parse(
                         nested_subitems_errors,
                         block_in_field_errors,
                         unsupported_number_errors,
+                        wrapped_value_errors,
                     ) = parse_fields_from_list(tokens, i, block_tree)
 
                     # QMD-77 A4: report the forbidden construct BEFORE the branches below, not
@@ -1402,6 +1426,17 @@ def parse(
                     # kept as comment text while Rust reported it. The construct is dropped either
                     # way, exactly as it already was when the object had other fields.
                     dropped_nested_subitem_list = bool(nested_subitems_errors) and not invalid_items
+                    for wr_err in wrapped_value_errors:
+                        parsing_errors.append(
+                            {
+                                "__id": f"error_{len(parsing_errors)}",
+                                "__kind": "__ParsingError",
+                                "type": "wrapped_field_value",
+                                "field": wr_err["key"],
+                                "object": f"[[#{current_id}]]",
+                                "line": wr_err["line"],
+                            }
+                        )
                     for ns_err in nested_subitems_errors:
                         parsing_errors.append(
                             {
@@ -1641,6 +1676,15 @@ def parse(
                             pending_text_block_content.append("\n".join(list_items))
                 else:
                     i += 1
+        elif token.type == "hr" and pending_text_block_started:
+            # QMD-77 B1 (Q4): a thematic break inside a text block is content. No parser had an
+            # `hr` branch here at all, so `---` was dropped by all three — while in an OBJECT's
+            # body it survives, because a comment is a raw source slice that spans it.
+            if token.map:
+                raw_rule = block_tree.get_lines_raw(token.map[0], token.map[1]).strip()
+                if raw_rule:
+                    pending_text_block_content.append(raw_rule)
+            i += 1
         elif token.type == "table_open" and pending_text_block_started:
             # Collect table as raw markdown text for TextBlock
             if token.map:

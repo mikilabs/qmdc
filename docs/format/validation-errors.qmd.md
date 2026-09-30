@@ -836,3 +836,36 @@ Dot-ID declarations (`[[parent.child]]`) are legal only on top-level headings. A
 ### Solution [[solution: text]]
 
 Use a simple local id for the nested heading (`[[child]]`); the dot-path (`parent.child`) is composed automatically.
+
+## Wrapped Field Value [[err_wrapped_field_value: ValidationError]]
+
+A field value, or an array element, continued on an indented second line.
+
+- code: wrapped_field_value
+- severity: error
+
+### Cause [[cause: text]]
+
+A value is written on one line. A continuation line was read three different ways — Rust joined the
+lines with a space, Python with a newline, TypeScript kept only the first line and dropped the rest in
+silence — so the same document carried three different values depending on which parser read it. The
+value is now the authored first line everywhere, and the continuation is reported instead of being
+absorbed or discarded quietly.
+
+```markdown example
+## Session [[s: Session]]
+
+- note: first line
+  second line
+```
+
+`note` is `first line`, and one `wrapped_field_value` error points at the continuation's line. An
+element of a `[[field: array]]` list behaves the same way.
+
+The two legal multiline forms are untouched, because each announces itself on the first line: YAML
+pipe (`- key: |`) and a YAML array whose bracket opens the value (`- key: [`).
+
+### Solution [[solution: text]]
+
+Put the value on one line, use the YAML pipe form for genuinely multiline text, or move it to a
+heading-syntax text field (`### Note [[note: text]]`).

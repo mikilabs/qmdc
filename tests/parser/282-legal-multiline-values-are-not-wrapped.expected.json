@@ -1,0 +1,23 @@
+[
+  {
+    "__id": "s",
+    "__label": "Session",
+    "__kind": "Session",
+    "pipe": "line one\nline two",
+    "arr": [
+      "aaa",
+      "bbb"
+    ],
+    "plain": "ok",
+    "__types": {
+      "pipe": "string",
+      "arr": "array",
+      "plain": "string"
+    },
+    "__syntax": {
+      "pipe": "yaml_multiline",
+      "arr": "yaml_multiline_array"
+    },
+    "__level": 1
+  }
+]

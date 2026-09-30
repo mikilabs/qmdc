@@ -943,8 +943,18 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
                 continue;
               }
               foundList = true;
-              const [fields, , , invalidItems, nextI, , mapNestedErrors, mapBlockErrors] =
-                parseFieldsFromList(tokens, listScan, blockTree, { rawStrings: true });
+              const [
+                fields,
+                ,
+                ,
+                invalidItems,
+                nextI,
+                ,
+                mapNestedErrors,
+                mapBlockErrors,
+                ,
+                mapWrappedErrors,
+              ] = parseFieldsFromList(tokens, listScan, blockTree, { rawStrings: true });
               Object.assign(mapData, fields as Record<string, string>);
               // QMD-77 A3: a map is a FLAT `str -> str` dictionary, so an indented sub-item is not
               // an entry. Both error lists were collected and then thrown away here, so the
@@ -970,6 +980,16 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
                   field: blkErr.key,
                   object: `[[#${parentId}]]`,
                   line: blkErr.line,
+                });
+              }
+              for (const wrErr of mapWrappedErrors) {
+                parsingErrors.push({
+                  __id: `error_${parsingErrors.length}`,
+                  __kind: '__ParsingError',
+                  type: 'wrapped_field_value',
+                  field: wrErr.key,
+                  object: `[[#${parentId}]]`,
+                  line: wrErr.line,
                 });
               }
               // QMD-77 A3: report EVERY item of the first list that is not a valid `key: value`
@@ -1618,7 +1638,17 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
       } else if (pendingArrayField) {
         // This list is for a [[field: array]] section
         const [parentId, fieldName] = pendingArrayField;
-        const [items, nextI] = parseArrayItemsFromList(tokens, i);
+        const [items, nextI, arrayWrappedErrors] = parseArrayItemsFromList(tokens, i);
+        for (const wrErr of arrayWrappedErrors) {
+          parsingErrors.push({
+            __id: `error_${parsingErrors.length}`,
+            __kind: '__ParsingError',
+            type: 'wrapped_field_value',
+            field: fieldName,
+            object: `[[#${parentId}]]`,
+            line: wrErr.line,
+          });
+        }
         const parentObj = objects[parentId];
         if (parentObj) {
           parentObj[fieldName] = items;
@@ -1646,6 +1676,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
             nestedSubitemsErrors,
             blockInFieldErrors,
             unsupportedNumberErrors,
+            wrappedValueErrors,
           ] = parseFieldsFromList(tokens, i, blockTree);
           const currentObj = objects[currentId];
           if (currentObj) {
@@ -1656,6 +1687,16 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
             // it and drop it. Dropped either way, exactly as when the object has other fields.
             const droppedNestedSubitemList =
               nestedSubitemsErrors.length > 0 && invalidItems.length === 0;
+            for (const wrErr of wrappedValueErrors) {
+              parsingErrors.push({
+                __id: `error_${parsingErrors.length}`,
+                __kind: '__ParsingError',
+                type: 'wrapped_field_value',
+                field: wrErr.key,
+                object: `[[#${currentId}]]`,
+                line: wrErr.line,
+              });
+            }
             for (const nsErr of nestedSubitemsErrors) {
               parsingErrors.push({
                 __id: `error_${parsingErrors.length}`,
@@ -1857,7 +1898,30 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           }
           i = nextI;
         } else if (pendingTextBlockStarted) {
-          // Collect bullet list as markdown text for TextBlock
+          // Collect bullet list as markdown text for TextBlock.
+          //
+          // QMD-77 B2: from the RAW source, not rebuilt from inline content. markdown-it strips a
+          // continuation line's indent inside the inline token, so `- item` + `  continued` came
+          // back with the continuation flush left, where Rust and Python keep the source bytes.
+          if (token.map) {
+            let scanJ = i + 1;
+            let depth = 1;
+            while (scanJ < tokens.length && depth > 0) {
+              const tt = tokens[scanJ]?.type;
+              if (tt === 'bullet_list_open') depth++;
+              else if (tt === 'bullet_list_close') depth--;
+              if (depth === 0) break;
+              scanJ++;
+            }
+            const endLine =
+              scanJ < tokens.length && tokens[scanJ]?.map ? tokens[scanJ]!.map![1] : token.map[1];
+            const rawList = blockTree.getLinesRaw(token.map[0], endLine).trim();
+            if (rawList) {
+              pendingTextBlockContent.push(rawList);
+            }
+            i = scanJ + 1;
+            continue;
+          }
           const listItems: string[] = [];
           i++; // Skip bullet_list_open
           while (i < tokens.length && tokens[i]?.type !== 'bullet_list_close') {
@@ -2037,6 +2101,17 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
       } else {
         i++;
       }
+    } else if (token.type === 'hr' && pendingTextBlockStarted) {
+      // QMD-77 B1 (Q4): a thematic break inside a text block is content. No parser had an `hr`
+      // branch here at all, so `---` was dropped by all three — while in an OBJECT's body it
+      // survives, because a comment is a raw source slice that spans it.
+      if (token.map) {
+        const rawRule = blockTree.getLinesRaw(token.map[0], token.map[1]).trim();
+        if (rawRule) {
+          pendingTextBlockContent.push(rawRule);
+        }
+      }
+      i++;
     } else if (token.type === 'table_open' && pendingTextBlockStarted) {
       // Collect table as raw markdown text for TextBlock
       if (token.map) {

@@ -306,6 +306,7 @@ export function parseFieldsFromList(
   NestedSubitemsError[],
   BlockInFieldError[],
   UnsupportedNumberError[],
+  NestedSubitemsError[],
 ] {
   const fields: Record<string, unknown> = {};
   const types: Record<string, string> = {};
@@ -314,6 +315,8 @@ export function parseFieldsFromList(
   const nestedSubitemsErrors: NestedSubitemsError[] = [];
   const blockInFieldErrors: BlockInFieldError[] = [];
   const unsupportedNumberErrors: UnsupportedNumberError[] = [];
+  // QMD-77 A2: values continued on a second line. Same shape as NestedSubitemsError ({key, line}).
+  const wrappedValueErrors: NestedSubitemsError[] = [];
   const rawValues: Record<string, string> = {};
   let i = startIdx;
 
@@ -517,6 +520,17 @@ export function parseFieldsFromList(
             syntax[key] = 'yaml_multiline';
             lastValidField = key;
             continue;
+          }
+
+          // QMD-77 A2: a field value is written on ONE line. A continuation line was read three
+          // different ways — Rust joined with a space, Python with a newline, TypeScript kept only
+          // the first line and dropped the rest in silence — so the same document carried three
+          // different values. The value is now the authored first line in all three and the
+          // continuation is reported. The legal multiline forms are untouched: YAML pipe
+          // (`key: |`) returned above, and a multiline YAML array opens with `[`.
+          if (content.includes('\n') && !valueStr.trimStart().startsWith('[')) {
+            wrappedValueErrors.push({ key, line: token.map ? token.map[0] + 2 : 0 });
+            valueStr = (valueStr.split('\n', 1)[0] ?? '').replace(/\s+$/, '');
           }
 
           if (options?.rawStrings) {
@@ -730,6 +744,7 @@ export function parseFieldsFromList(
     nestedSubitemsErrors,
     blockInFieldErrors,
     unsupportedNumberErrors,
+    wrappedValueErrors,
   ];
 }
 
@@ -740,8 +755,15 @@ export function parseFieldsFromList(
  *
  * Returns: [items_list, next_index]
  */
-export function parseArrayItemsFromList(tokens: Token[], startIdx: number): [unknown[], number] {
+export function parseArrayItemsFromList(
+  tokens: Token[],
+  startIdx: number
+): [unknown[], number, { line: number }[]] {
+  // QMD-77 A2: an array ELEMENT is a value, so it is written on one line too. A continuation was
+  // joined with a space by Rust and kept with a newline by the other two; it is now cut back to the
+  // authored line and reported.
   const items: unknown[] = [];
+  const wrappedValueErrors: { line: number }[] = [];
   let i = startIdx;
   let nesting = 0;
 
@@ -788,7 +810,11 @@ export function parseArrayItemsFromList(tokens: Token[], startIdx: number): [unk
     }
 
     if (token.type === 'inline') {
-      const content = token.content?.trim() ?? '';
+      let content = token.content?.trim() ?? '';
+      if (content.includes('\n') && !content.trimStart().startsWith('[')) {
+        wrappedValueErrors.push({ line: token.map ? token.map[0] + 2 : 0 });
+        content = (content.split('\n', 1)[0] ?? '').replace(/\s+$/, '');
+      }
       const [value] = parseFieldValue(content);
       items.push(value);
       i++;
@@ -799,5 +825,5 @@ export function parseArrayItemsFromList(tokens: Token[], startIdx: number): [unk
     i++;
   }
 
-  return [items, i];
+  return [items, i, wrappedValueErrors];
 }

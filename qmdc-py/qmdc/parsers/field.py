@@ -255,6 +255,7 @@ def parse_fields_from_list(
                    that look like fields but have invalid keys (e.g. Cyrillic).
                    "after" is the last valid field key before this item, or "__self".
     nested_subitems_errors: list of {"key": str, "line": int} for fields with nested sub-items
+    wrapped_value_errors: list of {"key": str, "line": int} for values continued on a second line
     unsupported_number_errors: list of {"key": str, "line": int, "hint": str} for values that look
                    like a number QMD.md cannot carry (see `unsupported_number_hint`)
                            (pattern `- key:\n  - item` which is forbidden).
@@ -264,6 +265,7 @@ def parse_fields_from_list(
     syntax: dict[str, str] = {}
     invalid_items: list[dict[str, Any]] = []
     nested_subitems_errors: list[dict[str, Any]] = []
+    wrapped_value_errors: list[dict[str, Any]] = []
     # QMD-70: fields with a NON-empty value followed by an indented block.
     # {"key": str, "line": int, "content": str}
     block_in_field_errors: list[dict[str, Any]] = []
@@ -437,6 +439,17 @@ def parse_fields_from_list(
                         syntax[key] = "yaml_multiline"
                         last_valid_field = key
                         continue
+
+                # QMD-77 A2: a field value is written on ONE line. A continuation line was read
+                # three different ways — Rust joined with a space, Python with a newline,
+                # TypeScript kept only the first line and dropped the rest in silence — so the same
+                # document carried three different values. The value is now the authored first line
+                # in all three and the continuation is reported. The legal multiline forms are
+                # untouched: YAML pipe (`key: |`) returned above, and a multiline YAML array opens
+                # with `[`.
+                if "\n" in value_str and not value_str.lstrip().startswith("["):
+                    wrapped_value_errors.append({"key": key, "line": current_line + 1})
+                    value_str = value_str.split("\n", 1)[0].rstrip()
 
                 if raw_strings:
                     fields[key] = value_str
@@ -624,10 +637,13 @@ def parse_fields_from_list(
         nested_subitems_errors,
         block_in_field_errors,
         unsupported_number_errors,
+        wrapped_value_errors,
     )
 
 
-def parse_array_items_from_list(tokens: list[Token], start_idx: int) -> tuple[list[Any], int]:
+def parse_array_items_from_list(
+    tokens: list[Token], start_idx: int
+) -> tuple[list[Any], int, list[dict[str, Any]]]:
     """
     Parse list items as array elements (no key: prefix).
 
@@ -635,10 +651,15 @@ def parse_array_items_from_list(tokens: list[Token], start_idx: int) -> tuple[li
     Only bullet lists reach this function — ordered lists are intercepted
     by the parser and emitted as ordered_list_in_array errors.
 
+    QMD-77 A2: an array ELEMENT is a value, so it is written on one line too. A continuation was
+    joined with a space by Rust and kept with a newline by the other two; it is now cut back to the
+    authored line and reported.
+
     Returns:
-        (items_list, next_index)
+        (items_list, next_index, wrapped_value_errors)
     """
     items: list[Any] = []
+    wrapped_value_errors: list[dict[str, Any]] = []
     i = start_idx
     nesting = 0
 
@@ -669,10 +690,13 @@ def parse_array_items_from_list(tokens: list[Token], start_idx: int) -> tuple[li
             continue
         if token.type == "inline":
             content = token.content.strip()
+            if "\n" in content and not content.lstrip().startswith("["):
+                wrapped_value_errors.append({"line": (token.map[0] + 2) if token.map else 0})
+                content = content.split("\n", 1)[0].rstrip()
             value, _ = parse_field_value(content)
             items.append(value)
             i += 1
             continue
         i += 1
 
-    return items, i
+    return items, i, wrapped_value_errors

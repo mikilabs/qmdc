@@ -797,6 +797,7 @@ done
 | `dangling_field` | Heading-syntax field (`text`, `array`, `yaml`, ...) with no parent object at a higher heading level |
 | `invalid_map_entry` | List item inside `[[field: map]]` that is not a valid `key: value` pair |
 | `invalid_map_content` | Content inside `[[field: map]]` that is not a bullet list of `key: value` items |
+| `wrapped_field_value` | A field value or array element continued on an indented second line (a value is written on one line; use `- key: \|` or a text field) |
 
 ### Pre-Commit Checklist [[pre_commit_checklist: text]]
 

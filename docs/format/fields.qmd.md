@@ -86,6 +86,13 @@ its title. This is what makes a read followed by a write leave the document unch
 rebuilt from parsed Markdown would come back in whatever form the renderer prefers, which for half
 the constructs is not the form the author chose.
 
+A field's value is also written on ONE line. A continuation line — the value carried on an indented
+second line of the same list item — is not part of the value: it raises `wrapped_field_value`, and the
+value is the authored first line. The same holds for an element of a `[[field: array]]` list. The two
+legal multiline forms stay legal, because both announce themselves on the first line: YAML pipe
+(`- key: |`) and a YAML array whose bracket opens the value (`- key: [`). Write a long value with the
+pipe form, or move it to a heading-syntax text field.
+
 ## YAML Multiline Strings [[yaml_multiline: text]]
 
 Fields support YAML pipe syntax for multiline strings:

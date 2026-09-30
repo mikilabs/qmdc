@@ -298,6 +298,9 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     // text's tail alone stopped working once that value had been accumulated.
     let mut list_item_pipe = false;
     let mut list_item_text = String::new();
+    // QMD-77 A2: the line a soft break inside the current list item continued onto, if any. A field
+    // value is one line, so a continuation is reported and the value cut back to the authored line.
+    let mut item_softbreak_line: Option<u32> = None;
     let mut list_item_start: Option<usize> = None; // Start offset of current list item
     let mut in_text_field_list = false; // Track if we're in a list inside text field
     let mut current_list_order: Option<u64> = None; // None = unordered, Some(n) = ordered starting at n
@@ -2295,6 +2298,9 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
             Event::SoftBreak | Event::HardBreak => {
                 if in_list_item {
                     list_item_text.push(' ');
+                    if item_softbreak_line.is_none() {
+                        item_softbreak_line = Some(get_line(range.end));
+                    }
                 } else if in_paragraph {
                     paragraph_text.push('\n');
                 }
@@ -3508,6 +3514,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
 
             Event::Start(Tag::Item) => {
                 in_list_item = true;
+                item_softbreak_line = None;
                 list_item_text.clear();
                 list_item_start = Some(range.start);
                 list_item_block = None;
@@ -3586,11 +3593,46 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     if is_array_on_current {
                         // Skip pushing items if this is an ordered list in array (forbidden)
                         if !ordered_list_in_array_error {
+                            // QMD-77 A2: an array ELEMENT is a value, so it is written on one line
+                            // too. A soft break was joined with a space here and kept with a newline
+                            // by the other two; the element is now the authored line and the
+                            // continuation is reported.
+                            let element: String = match item_softbreak_line {
+                                Some(_) if !trimmed.starts_with('[') => list_item_start
+                                    .and_then(|start| {
+                                        block_tree.source.get(start..range.end)?.lines().next()
+                                    })
+                                    .map(|raw_first| {
+                                        raw_first
+                                            .trim_start()
+                                            .trim_start_matches("- ")
+                                            .trim()
+                                            .to_string()
+                                    })
+                                    .unwrap_or_else(|| trimmed.to_string()),
+                                _ => trimmed.to_string(),
+                            };
+                            if let Some(break_line) = item_softbreak_line {
+                                if !trimmed.starts_with('[') {
+                                    let error_id = format!("error_{}", parsing_errors.len());
+                                    let mut error = IndexMap::new();
+                                    error.insert("__id".to_string(), json!(error_id));
+                                    error.insert("__kind".to_string(), json!("__ParsingError"));
+                                    error.insert("type".to_string(), json!("wrapped_field_value"));
+                                    error.insert("field".to_string(), json!(field_name));
+                                    error.insert(
+                                        "object".to_string(),
+                                        json!(format!("[[#{}]]", parent_id)),
+                                    );
+                                    error.insert("line".to_string(), json!(break_line));
+                                    parsing_errors.push(error);
+                                }
+                            }
                             // Write array items directly to current_obj
                             if let Some(ref mut obj) = current_obj {
                                 if let Some(arr) = obj.fields.get_mut(field_name) {
                                     if let Some(arr_vec) = arr.as_array_mut() {
-                                        arr_vec.push(json!(trimmed));
+                                        arr_vec.push(json!(element));
 
                                         // Extract references from list item
                                         if let Some(start_offset) = list_item_start {
@@ -3726,7 +3768,52 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     {
                         let caps = field_re.captures(first_line).unwrap();
                         let field_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-                        let field_value_str = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                        let mut field_value_str = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+
+                        // QMD-77 A2: a field value is written on ONE line. A soft break inside the
+                        // item was joined with a space here, so the value silently absorbed the
+                        // continuation — Python kept it with a newline, TypeScript dropped it, and
+                        // the same document carried three different values. The value is now the
+                        // authored first line and the continuation is reported. The legal multiline
+                        // forms are excluded: YAML pipe (`key: |`, handled below) and a multiline
+                        // YAML array, which opens with `[`.
+                        let value_trimmed = field_value_str.trim_start();
+                        let cut_value: Option<String> = if let Some(break_line) =
+                            item_softbreak_line
+                        {
+                            if !value_trimmed.starts_with('|') && !value_trimmed.starts_with('[') {
+                                let error_id = format!("error_{}", parsing_errors.len());
+                                let mut error = IndexMap::new();
+                                error.insert("__id".to_string(), json!(error_id));
+                                error.insert("__kind".to_string(), json!("__ParsingError"));
+                                error.insert("type".to_string(), json!("wrapped_field_value"));
+                                error.insert("field".to_string(), json!(field_name));
+                                error.insert(
+                                    "object".to_string(),
+                                    json!(format!("[[#{}]]", obj.id)),
+                                );
+                                error.insert("line".to_string(), json!(break_line));
+                                parsing_errors.push(error);
+
+                                list_item_start
+                                    .and_then(|start| {
+                                        block_tree.source.get(start..range.end)?.lines().next()
+                                    })
+                                    .and_then(|raw_first| {
+                                        let after_marker =
+                                            raw_first.trim_start().trim_start_matches("- ");
+                                        let colon = after_marker.find(':')?;
+                                        Some(after_marker[colon + 1..].trim().to_string())
+                                    })
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+                        if let Some(ref cut) = cut_value {
+                            field_value_str = cut.as_str();
+                        }
 
                         // Check if this field key already exists in the object,
                         // OR if a duplicate was already found in this list.
@@ -4388,6 +4475,16 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             line_offset += line_text.len() + 1;
                         }
                     }
+                    // QMD-77 B1 (Q4): prose above the FIRST heading is the document's own text
+                    // block. Nothing claimed it here — no blockquote, no text field, no pending
+                    // text block, no object yet — so it was dropped outright, where Python and
+                    // TypeScript open a `__TextBlock` for it. Only before the first object: after
+                    // one, unclaimed prose is that object's comment, which the branch above owns.
+                    else if object_stack.is_empty() && objects_map.is_empty() {
+                        pending_text_block = Some(vec![raw_text.clone()]);
+                        pending_text_block_line = get_line(paragraph_start_offset) as usize;
+                        pending_text_block_level = 0;
+                    }
                 }
 
                 paragraph_text.clear();
@@ -4431,6 +4528,12 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         // path, and the same overshoot when the flag was set unconditionally.
                         last_comment_was_block = true;
                     }
+                }
+                // QMD-77 B1 (Q4): a thematic break inside a text block is content. This arm only
+                // ever knew about an object's comments, so `---` above the first heading was
+                // dropped — by all three, in fact; none had a branch for it here.
+                else if let Some(ref mut parts) = pending_text_block {
+                    parts.push(rule_text);
                 }
             }
 
