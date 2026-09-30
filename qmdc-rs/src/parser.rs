@@ -381,22 +381,6 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     // Calculate line number from byte offset
     let get_line = |offset: usize| -> u32 { block_tree.offset_to_line(offset) };
 
-    // Helper to check if there's a table right after heading (for table fields)
-    let has_table_after = |start_idx: usize, events: &[(Event, std::ops::Range<usize>)]| -> bool {
-        for (event, _) in events.iter().skip(start_idx) {
-            match event {
-                Event::Start(Tag::Heading { .. }) => return false,
-                Event::Start(Tag::Table(_)) => return true,
-                Event::Start(Tag::List(_)) => return false,
-                Event::Start(Tag::Paragraph) => {} // Skip paragraphs
-                Event::End(TagEnd::Paragraph) => {}
-                Event::Text(_) => {}
-                _ => {}
-            }
-        }
-        false
-    };
-
     // Regex for field detection in has_fields_after (compiled once, outside the loop)
     let field_check_re = re_field_check();
 
@@ -492,11 +476,18 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     };
 
     // Helper to check if there are nested headings with [[...]] at a deeper level.
-    // Returns true if any heading at a deeper level contains [[...]] bracket syntax.
+    // Returns true if any heading at a deeper level DECLARES an identifier.
     // Stops at headings at same or higher level.
+    //
+    // QMD-75: "declares" is the format's own grammar, not "contains two brackets". The regex
+    // used to be `\[\[[^\]]+\]\]`, which counted a code span (`### Uses `[[x]]` syntax`) and a
+    // reference (`### See [[#s]]`) as declarations — so a comment heading that names a
+    // reference decided whether its PARENT is an object, and the parent then grew a field
+    // literally called `#s`. Code spans are stripped and a leading `#` is excluded, so only a
+    // real declaration counts.
     let has_nested_structured_headings =
         |start_idx: usize, current_level: u8, events: &[(Event, std::ops::Range<usize>)]| -> bool {
-            let bracket_re = Regex::new(r"\[\[[^\]]+\]\]").unwrap();
+            let declares_re = Regex::new(r"\[\[\s*[^#\]][^\]]*\]\]").unwrap();
 
             for (event, range) in events.iter().skip(start_idx) {
                 if let Event::Start(Tag::Heading { level, .. }) = event {
@@ -505,7 +496,8 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         return false;
                     }
                     let heading_text = block_tree.source.get(range.clone()).unwrap_or("");
-                    if bracket_re.is_match(heading_text) {
+                    let stripped = backtick_re_strip.replace_all(heading_text, "");
+                    if declares_re.is_match(&stripped) {
                         return true;
                     }
                 }
@@ -907,78 +899,15 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     }
                 }
 
-                // Check if this is a table field: [[id]] (no Kind) followed by table
-                // This handles patterns like ### Statuses [[task_statuses]] with a table below
-                //
-                // QMD-70: this lookahead must not claim a heading that is an ELEMENT of an
-                // enclosing object array. `has_table_after` skips paragraphs, so an element
-                // written as prose-then-table matched the pattern and was taken as a table
-                // FIELD of the grandparent instead — the element's explicit id became an
-                // empty array, its fields were dropped, and the table's rows still landed in
-                // the enclosing array. Inside an array context every deeper heading is an
-                // element (see the element branch below), so the two readings cannot both
-                // apply and the element wins.
-                let would_be_array_element = pending_object_array
-                    .as_ref()
-                    .is_some_and(|(_, _, _, arr_level)| heading_level > *arr_level)
-                    && header.field_type.as_deref() != Some("text");
-                if header.has_explicit_id
-                    && header.kind.is_none()
-                    && header.field_type.is_none()
-                    && !would_be_array_element
-                    && has_table_after(i + 1, &events)
-                {
-                    if let Some(ref pid) = parent_id {
-                        // This is a table field of the parent object
-                        // Finalize current object (the parent) before setting up table field
-                        if let Some(obj) = current_obj.take() {
-                            finalize_object(
-                                &mut objects_map,
-                                &mut duplicate_objects,
-                                &mut parsing_errors,
-                                &mut first_seen_lines,
-                                obj,
-                            );
-                        }
-
-                        // Initialize empty array in parent for table rows
-                        if let Some(parent) = objects_map.get_mut(pid) {
-                            parent.insert(header.id.clone(), json!([]));
-
-                            // Add __syntax for table
-                            let syntax = parent
-                                .entry("__syntax".to_string())
-                                .or_insert_with(|| json!({}));
-                            if let Some(obj) = syntax.as_object_mut() {
-                                obj.insert(header.id.clone(), json!("table"));
-                            }
-
-                            // Track field position for LSP (heading-defined table field)
-                            let positions = parent
-                                .entry("__positions".to_string())
-                                .or_insert_with(|| json!({}));
-                            if let Some(pos_obj) = positions.as_object_mut() {
-                                let line_text = lines.get(heading_line as usize - 1).unwrap_or(&"");
-                                let col =
-                                    line_text.find(&format!("[[{}", header.id)).unwrap_or(0) as u32;
-                                pos_obj.insert(
-                                    header.id.clone(),
-                                    json!({"line": heading_line, "col": col}),
-                                );
-                            }
-                        }
-
-                        // Set pending_text_field to collect table content
-                        pending_text_field = Some((
-                            pid.clone(),
-                            header.id.clone(),
-                            heading_level,
-                            "table".to_string(),
-                        ));
-                        i += 1;
-                        continue;
-                    }
-                }
+                // QMD-75: a table under a bare `[[id]]` is that heading's own content, not a
+                // table FIELD of the parent. The lookahead that used to claim it never filled
+                // any rows — it produced a string value labelled `__syntax: table` beside
+                // `__types: string`, a combination nothing consumes, while Python and
+                // TypeScript both reported `multiline_text` for the identical value. A bare
+                // `[[id]]` declares no array, so the body cannot turn it into one; the heading
+                // now falls through to the one structural rule — object when a field list of its
+                // own or a declaring deeper heading follows, implicit text field otherwise —
+                // like every other unrecognised body.
 
                 // Check if this is an object array header [[field: [Kind]]]
                 if header.field_type.as_deref() == Some("object_array") {
@@ -2899,15 +2828,20 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     }
                 } else if let Some(ref mut obj) = current_obj {
                     // Code block as comment content
-                    // Capture if object has fields, prior comments, or explicit Kind
+                    // Capture if object has fields, prior comments, or was DECLARED
                     let has_same_anchor_comment = obj
                         .comments
                         .last()
                         .map(|c| c.get("after") == Some(&obj.comment_anchor))
                         .unwrap_or(false);
-                    let has_explicit_kind = obj.kind.is_some();
+                    // QMD-75: an object whose heading declares an id keeps its fence content too.
+                    // Gating on `kind.is_some()` alone silently DROPPED the fence under a bare
+                    // `[[id]]` object that had no fields yet, while the same fence under
+                    // `[[id: Kind]]` was kept — the author's choice to spell a kind decided
+                    // whether content survived.
+                    let was_declared = obj.kind.is_some() || obj.has_explicit_id;
 
-                    if !obj.fields.is_empty() || has_same_anchor_comment || has_explicit_kind {
+                    if !obj.fields.is_empty() || has_same_anchor_comment || was_declared {
                         // Preserve original markdown fences (``` vs ```` etc.)
                         let raw_code_text = block_tree
                             .source
@@ -3302,15 +3236,18 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         // Add table to comments if:
                         // 1. Object has fields (table is supplementary content), OR
                         // 2. There's a comment with the same anchor (table follows text), OR
-                        // 3. Object has explicit Kind (like Section) — table is always content
+                        // 3. Object was DECLARED — a table is always its content
                         let has_same_anchor_comment = obj
                             .comments
                             .last()
                             .map(|c| c.get("after") == Some(&obj.comment_anchor))
                             .unwrap_or(false);
-                        let has_explicit_kind = obj.kind.is_some();
+                        // QMD-75: same as the fence path — gating on `kind.is_some()` dropped a
+                        // table under a bare `[[id]]` object with no fields, while keeping it
+                        // under `[[id: Kind]]`.
+                        let was_declared = obj.kind.is_some() || obj.has_explicit_id;
 
-                        if (!obj.fields.is_empty() || has_same_anchor_comment || has_explicit_kind)
+                        if (!obj.fields.is_empty() || has_same_anchor_comment || was_declared)
                             && !table_rows.is_empty()
                         {
                             // Preserve original markdown separators and spacing
@@ -3923,7 +3860,18 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                 parsing_errors.push(error);
                             }
                         } // end else (not duplicate key)
-                    } else if !trimmed.is_empty() && pending_object_array.is_none() {
+                    } else if !trimmed.is_empty()
+                        && (pending_object_array.is_none() || obj.is_array_element)
+                    {
+                        // QMD-75: `pending_object_array` stays set for the whole array SUBTREE, so
+                        // gating on it alone switched this branch off inside every array ELEMENT
+                        // too — and with it the sub-item accumulation that `nested_subitems` is
+                        // reported from. An element's own `- issues:` plus an indented item was
+                        // therefore silent in Rust while Python and TypeScript both reported it
+                        // (148 times on one real repository). Inside an element the ordinary field
+                        // rules apply, exactly as they do on a plain subobject; only the array's
+                        // OWN content is special. Same over-broad scoping QMD-70 had to narrow for
+                        // the element-vs-table reading.
                         // Check if this is a nested sub-item for a yaml_multiline_list field
                         if list_nesting_level > 1 && pending_multiline_list_field.is_some() {
                             multiline_list_items.push(trimmed.to_string());

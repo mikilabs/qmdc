@@ -72,6 +72,43 @@ file is maintained by hand.
 
 ### Changed
 
+- **A heading's declaration decides what it is; the content below it no longer does.** A `[[id]]`
+  heading whose body was a paragraph, a `---`, a table or a code fence used to be read three
+  different ways: Rust kept the object and nested a deeper declaration under it, Python dropped the
+  object **and its whole subtree**, and TypeScript dropped the object and **re-parented** the
+  declaration onto the grandparent — so the same file produced different `__id` values in each, and a
+  reference that resolved in one was broken in another. One rule now decides in all three: a bare
+  `[[id]]` is an object when, before the next heading at its own level or shallower, there is either
+  a field list of its own or a deeper heading that DECLARES an identifier; otherwise it is an
+  implicit text field whose value runs to that same boundary. "Declares" is the definition syntax, so
+  brackets written inside a code span, and a reference such as `### See [[#other]]`, no longer count —
+  a reference used to make the heading above it an object AND give it a field literally named
+  `#other`.
+  `[[id: text]]` swallows everything below it, deeper declarations included, as Rust and Python
+  already did. Non-field content is preserved in `__comments` whether or not the heading spelled a
+  Kind — it used to survive under `[[id: Kind]]` and be dropped under `[[id]]`.
+
+  **Migration.** A document whose objects only ever carried field bodies is unaffected. Otherwise all
+  three parsers can change: where a body sat between a heading and its child, Python and TypeScript
+  GAIN the object, and in TypeScript an existing id CHANGES (`s.t5` → `s.clo.t5`), which breaks a
+  `[[#s.t5]]` reference written against the old reading; where a body sat in front of a heading's own
+  field list, Python and TypeScript gain the object and Rust keeps the one it had; and a table
+  directly under a bare `[[id]]` is a text field in all three rather than a `table`-tagged string
+  (QMD-75).
+- **`workspace parse` carries `index` in all three parsers**, and its sub-key is `by_global_id`
+  everywhere — Rust omitted the key entirely and TypeScript spelled it `byGlobalId`, so a consumer
+  written against one parser read a missing key from another. `workspace parse`'s own `errors` block
+  now carries the same keys in all three as well. Note that it is not the same shape as
+  `workspace validate`'s: parse names the owning object `object`, validate names it `objectId` and
+  adds `fieldName`. That difference is older than this task and unchanged by it (QMD-75).
+- **`nested_subitems` is reported on an element of an object array too.** Rust already reported it on
+  a file's top-level object and on a plain subobject, but the check was switched off for the whole
+  subtree of an object array, so on one real repository 148 array elements were 148 errors in Python
+  and TypeScript and none in Rust (QMD-75).
+- **A list whose items carry no valid key at all is prose, not a mixed field list.** Python reported
+  `mixed_field_keys` for it; the error means "some items have valid keys, some do not", so a list
+  with none was never a mixed case. Rust and TypeScript already read it as prose (QMD-75).
+
 - **`workspace parse` output has one shape.** It always carries `workspaces`, a list of
   `{id, root, path}` entries — `root` where the workspace is on disk, `path` where its files sit in
   `__file` — replacing the three shapes a consumer had to tell apart: `"workspace": "<id>"` for one

@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "s",
+    "__label": "Session",
+    "__kind": "Session",
+    "status": "done",
+    "clo": "(filled during Step 3)\n\n\n### Task [[t5: SessionTask]]\n\n- status: x",
+    "__types": {
+      "status": "string",
+      "clo": "string"
+    },
+    "__syntax": {
+      "clo": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "clo": "Closure"
+    }
+  }
+]

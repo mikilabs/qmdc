@@ -1323,17 +1323,23 @@ def workspace_to_json(result: WorkspaceResult) -> dict[str, Any]:
                     for k, v in result.index.get("by_file", {}).items()
                 },
             },
+            # QMD-75: absent values are OMITTED, not emitted as null -- Rust and TypeScript
+            # both leave them out, so a consumer reading this parser saw three extra keys.
             "errors": [
                 {
-                    "type": e.type,
-                    "message": e.message,
-                    "file": e.file,
-                    "line": e.line,
-                    "object": e.object_id,
-                    "field": e.field_name,
-                    "reference": e.reference,
-                    "candidates": e.candidates,
-                    "severity": e.severity,
+                    k: v
+                    for k, v in {
+                        "type": e.type,
+                        "message": e.message,
+                        "file": e.file,
+                        "line": e.line,
+                        "object": e.object_id,
+                        "field": e.field_name,
+                        "reference": e.reference,
+                        "candidates": e.candidates,
+                        "severity": e.severity,
+                    }.items()
+                    if v is not None
                 }
                 for e in result.errors
             ],

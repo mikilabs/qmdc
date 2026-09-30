@@ -338,11 +338,16 @@ def parse(
 
     def has_nested_structured_headings(start_idx: int, current_level: int) -> bool:
         """
-        Look-ahead to check if there are nested headings with [[...]] at a deeper level.
-        Returns True if any heading at a deeper level contains [[...]] bracket syntax.
+        Look-ahead to check whether any heading at a deeper level DECLARES an identifier.
         Stops at headings at same or higher level.
+
+        QMD-75: "declares" is the format's own grammar, not "contains two brackets". The regex
+        used to be r"\\[\\[[^\\]]+\\]\\]", which counted a code span (`### Uses `[[x]]` syntax`)
+        and a reference (`### See [[#s]]`) as declarations — so a comment heading that names a
+        reference decided whether its PARENT is an object, and the parent then grew a field
+        literally called `#s`. Code spans are stripped and a leading `#` is excluded.
         """
-        bracket_re = re.compile(r"\[\[[^\]]+\]\]")
+        declares_re = re.compile(r"\[\[\s*[^#\]][^\]]*\]\]")
         j = start_idx + 3  # Skip heading_open, inline, heading_close
         while j < len(tokens):
             tok = tokens[j]
@@ -350,10 +355,10 @@ def parse(
                 next_level = get_heading_level(tok.tag)
                 if next_level <= current_level:
                     return False
-                # Check if the heading text contains [[...]]
+                # Check whether the heading declares an identifier
                 if j + 1 < len(tokens) and tokens[j + 1].type == "inline":
                     heading_content = tokens[j + 1].content or ""
-                    if bracket_re.search(heading_content):
+                    if declares_re.search(_BACKTICK_STRIP_RE.sub("", heading_content)):
                         return True
                 j += 3  # Skip heading_open, inline, heading_close
                 continue
@@ -751,98 +756,71 @@ def parse(
                     next_idx = i + 3  # After heading_open, inline, heading_close
                     next_token = tokens[next_idx] if next_idx < len(tokens) else None
 
-                    if next_token and next_token.type == "bullet_list_open":
-                        # List follows - check if it has fields
-                        has_fields = has_fields_after_heading(i, level)
-                        if has_fields:
-                            # Nested object with fields
-                            local_id = header["id"]
-                            composed_id, local_id_out = resolve_child_id(parent_id, local_id)
-                            parent_full_id = objects[parent_id]["__id"]
-                            obj = {
-                                "__id": composed_id,
-                                "__kind": "__Object",
-                                "__level": level,
-                                "__line": line_num,
-                            }
-                            if local_id_out is not None:
-                                obj["__local_id"] = local_id_out
-                            if header["label"]:
-                                obj["__label"] = header["label"]
-                            obj["__parent"] = f"[[#{parent_full_id}]]"
-                            obj["__parent_field"] = local_id
-                            objects[parent_id][local_id] = f"[[#{composed_id}]]"
-                            objects[composed_id] = obj
-                            object_stack.append((composed_id, level))
-                        else:
-                            # List without fields - text field: use raw slice
-                            content_start_line = token.map[1] if token.map else 0
-                            content_end_line = block_tree.line_count
-                            scan_idx = i + 3
-                            while scan_idx < len(tokens):
-                                scan_tok = tokens[scan_idx]
-                                if scan_tok.type == "heading_open":
-                                    next_level = get_heading_level(scan_tok.tag)
-                                    if next_level <= level:
-                                        content_end_line = (
-                                            scan_tok.map[0] if scan_tok.map else content_end_line
-                                        )
-                                        break
-                                scan_idx += 1
-                            raw_content = block_tree.get_lines_raw(
-                                content_start_line, content_end_line
-                            ).strip()
-                            objects[parent_id][header["id"]] = raw_content
-                            if "__types" not in objects[parent_id]:
-                                objects[parent_id]["__types"] = {}
-                            objects[parent_id]["__types"][header["id"]] = "string"
-                            if "__syntax" not in objects[parent_id]:
-                                objects[parent_id]["__syntax"] = {}
-                            objects[parent_id]["__syntax"][header["id"]] = "multiline_text"
-                            if "__labels" not in objects[parent_id]:
-                                objects[parent_id]["__labels"] = {}
-                            objects[parent_id]["__labels"][header["id"]] = header["label"]
-                            comment_anchor = header["id"]
-                            i = scan_idx
-                            continue
-                    elif next_token and next_token.type == "heading_open":
-                        # Another heading follows - check if it's a child
-                        next_level = get_heading_level(next_token.tag)
-                        if next_level > level:
-                            # Child heading - nested object
-                            local_id = header["id"]
-                            composed_id, local_id_out = resolve_child_id(parent_id, local_id)
-                            parent_full_id = objects[parent_id]["__id"]
-                            obj = {
-                                "__id": composed_id,
-                                "__kind": "__Object",
-                                "__level": level,
-                                "__line": line_num,
-                            }
-                            if local_id_out is not None:
-                                obj["__local_id"] = local_id_out
-                            if header["label"]:
-                                obj["__label"] = header["label"]
-                            obj["__parent"] = f"[[#{parent_full_id}]]"
-                            obj["__parent_field"] = local_id
-                            objects[parent_id][local_id] = f"[[#{composed_id}]]"
-                            objects[composed_id] = obj
-                            object_stack.append((composed_id, level))
-                        else:
-                            # Same or higher level - empty text field
-                            objects[parent_id][header["id"]] = ""
-                            if "__types" not in objects[parent_id]:
-                                objects[parent_id]["__types"] = {}
-                            objects[parent_id]["__types"][header["id"]] = "string"
-                            if "__syntax" not in objects[parent_id]:
-                                objects[parent_id]["__syntax"] = {}
-                            objects[parent_id]["__syntax"][header["id"]] = "multiline_text"
-                            if "__labels" not in objects[parent_id]:
-                                objects[parent_id]["__labels"] = {}
-                            objects[parent_id]["__labels"][header["id"]] = header["label"]
-                            comment_anchor = header["id"]
+                    # QMD-75: ONE predicate decides, and prose is not part of it. A bare
+                    # `[[id]]` heading is an object when, before the next heading at its own
+                    # level or shallower, there is either a field list or a deeper heading that
+                    # DECLARES an identifier; otherwise it is the implicit text field pinned by
+                    # fixtures 021/030/107 (`### Description [[description]]` plus prose).
+                    #
+                    # Two earlier readings are gone because each let the body decide identity,
+                    # which is what this task is about. `next_is_deeper_heading` made ANY deeper
+                    # heading an object-maker, so `## Closure [[clo]]` + `### Note` was an object
+                    # while the same pair with one paragraph between them was a text field.
+                    # And the field-list test required the list to be the very NEXT token, so a
+                    # paragraph, a `---`, a table or a fence in front of a field list turned the
+                    # object into a text field that swallowed its own fields. Rust decides with
+                    # `has_fields_after`, which walks past non-field blocks; Python and
+                    # TypeScript now ask the same question.
+                    has_declared_children = has_nested_structured_headings(i, level)
+                    has_field_list = has_fields_after_heading(i, level)
+
+                    if has_declared_children or has_field_list:
+                        # Nested object
+                        local_id = header["id"]
+                        composed_id, local_id_out = resolve_child_id(parent_id, local_id)
+                        parent_full_id = objects[parent_id]["__id"]
+                        obj = {
+                            "__id": composed_id,
+                            "__kind": "__Object",
+                            "__level": level,
+                            "__line": line_num,
+                        }
+                        if local_id_out is not None:
+                            obj["__local_id"] = local_id_out
+                        if header["label"]:
+                            obj["__label"] = header["label"]
+                        obj["__parent"] = f"[[#{parent_full_id}]]"
+                        obj["__parent_field"] = local_id
+                        objects[parent_id][local_id] = f"[[#{composed_id}]]"
+                        objects[composed_id] = obj
+                        object_stack.append((composed_id, level))
+                    elif (
+                        next_token
+                        and next_token.type == "heading_open"
+                        and get_heading_level(next_token.tag) <= level
+                    ):
+                        # Sibling or shallower heading follows - empty text field
+                        #
+                        # QMD-75: the level test is what makes this branch mean what its comment
+                        # says. It used to fire for ANY heading, which was unreachable while a
+                        # deeper heading made the heading an object; once that reading was
+                        # dropped, a DEEPER heading landed here and the field came out empty
+                        # while its content became a comment on the PARENT — where Rust and
+                        # TypeScript put the whole block in the field, which is its value.
+                        objects[parent_id][header["id"]] = ""
+                        if "__types" not in objects[parent_id]:
+                            objects[parent_id]["__types"] = {}
+                        objects[parent_id]["__types"][header["id"]] = "string"
+                        if "__syntax" not in objects[parent_id]:
+                            objects[parent_id]["__syntax"] = {}
+                        objects[parent_id]["__syntax"][header["id"]] = "multiline_text"
+                        if "__labels" not in objects[parent_id]:
+                            objects[parent_id]["__labels"] = {}
+                        objects[parent_id]["__labels"][header["id"]] = header["label"]
+                        comment_anchor = header["id"]
                     else:
-                        # Default: text field (paragraph, fence, table, etc.) - use raw slice
+                        # Implicit text field (prose, fence, table, list without fields)
+                        # - use raw slice
                         content_start_line = token.map[1] if token.map else 0
                         content_end_line = block_tree.line_count
                         scan_idx = i + 3
@@ -1326,7 +1304,6 @@ def parse(
                     # No valid fields but has invalid items — treat entire list
                     # as comment content (e.g. bullet list with colons in prose)
                     if not fields and invalid_items:
-                        has_invalid_keys = any(inv.get("key") for inv in invalid_items)
                         if token.map:
                             scan_j = i + 1
                             while (
@@ -1341,21 +1318,13 @@ def parse(
                             raw_list = block_tree.get_lines_raw(token.map[0], end_line).strip()
                             if raw_list:
                                 append_comment(current_id, comment_anchor, raw_list, merge=True)
-                            # Emit mixed_field_keys error if items had invalid keys
-                            if has_invalid_keys:
-                                error_line = next(
-                                    (inv.get("line", 0) for inv in invalid_items if inv.get("key")),
-                                    invalid_items[0].get("line", 0),
-                                )
-                                parsing_errors.append(
-                                    {
-                                        "__id": f"error_{len(parsing_errors)}",
-                                        "__kind": "__ParsingError",
-                                        "type": "mixed_field_keys",
-                                        "object": f"[[#{current_id}]]",
-                                        "line": error_line,
-                                    }
-                                )
+                            # QMD-75: no `mixed_field_keys` here. The name means a list MIXES
+                            # valid fields with invalid keys, and this branch is the case where
+                            # there are no valid fields at all — the whole list is prose, which
+                            # is exactly how it is stored. Rust and TypeScript report nothing and
+                            # produce a byte-identical object; only Python added a diagnostic
+                            # about content it had itself read as prose. The genuine mixed case
+                            # is still reported below, where `fields` is non-empty.
                             i = scan_j + 1
                         else:
                             i = next_i
@@ -1795,10 +1764,18 @@ def parse(
                 token.type == "table_open"
                 and (
                     comment_anchor != "__self"
+                    # QMD-75: a table at an object's own anchor is its content whenever the
+                    # heading DECLARED the object -- by a kind or by an explicit `[[id]]`.
+                    # Testing the kind alone dropped the table under a bare `[[id]]` object
+                    # (`__kind: __Object`) while keeping it under `[[id: Kind]]`, so the
+                    # author's choice to spell a kind decided whether content survived.
                     or (
-                        get_current_object_id()
-                        and objects.get(get_current_object_id(), {}).get("__kind", "")
-                        not in ("__Object", "")
+                        get_current_object_id() is not None
+                        and (
+                            objects.get(get_current_object_id(), {}).get("__kind", "")
+                            not in ("__Object", "")
+                            or "__has_explicit_id" not in objects.get(get_current_object_id(), {})
+                        )
                     )
                 )
             )
@@ -2251,6 +2228,14 @@ def parse(
     if FEATURE_POSITIONS in active_features:
         lines = markdown.split("\n")
         _extract_field_positions(objects, lines)
+        # QMD-75: a duplicate id moves the FIRST occurrence out of `objects` so the second can
+        # parse in its place, and it was then never visited here -- the first of two colliding
+        # objects came back with no `__positions` at all, while Rust and TypeScript both keep
+        # them. It is still output, so its LSP positions must be filled too.
+        if duplicate_objects:
+            _extract_field_positions(
+                {f"__dup_{n}": obj for n, obj in enumerate(duplicate_objects)}, lines
+            )
 
     # Build result list
     result: list[dict[str, Any]] = []

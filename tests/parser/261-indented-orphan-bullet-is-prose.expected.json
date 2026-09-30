@@ -1,0 +1,14 @@
+[
+  {
+    "__id": "legal_docs_research",
+    "__label": "Legal Docs Analysis",
+    "__kind": "NarrativeDoc",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "- Transfer mechanisms: SCCs, adequacy decisions"
+      }
+    ],
+    "__level": 1
+  }
+]

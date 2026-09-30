@@ -1,0 +1,42 @@
+[
+  {
+    "__id": "s",
+    "__label": "Session",
+    "__kind": "Session",
+    "status": "done",
+    "clo": "[[#s.clo]]",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "s.clo",
+    "__local_id": "clo",
+    "__label": "Closure",
+    "__kind": "__Object",
+    "__parent": "[[#s]]",
+    "__parent_field": "clo",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "```\ncode\n```"
+      }
+    ],
+    "t5": "[[#s.clo.t5]]",
+    "__level": 2
+  },
+  {
+    "__id": "s.clo.t5",
+    "__local_id": "t5",
+    "__label": "Task",
+    "__kind": "SessionTask",
+    "__parent": "[[#s.clo]]",
+    "__parent_field": "t5",
+    "status": "x",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 3
+  }
+]

@@ -3,10 +3,76 @@ use qmdc::{
     execute_query, parse, parse_all_workspaces, rebuild, resolve_workspace_input, run_lsp,
     run_mcp_server, OutputFormat, ParseOptions,
 };
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use std::fs;
 use std::io::{self, Read};
 use std::path::PathBuf;
+
+/// Build the `index` block of `workspace parse` output.
+///
+/// QMD-75: Python and TypeScript both emitted this and Rust did not, so the parse contract
+/// depended on which parser a consumer happened to read. Three maps, values are plain `__id`s:
+/// `by_global_id` keyed `namespace:Kind:id` (empty namespace leaves the first segment empty),
+/// `by_kind`, and `by_file`. Objects whose kind is a system kind OTHER than the four
+/// user-facing ones are left out, matching the other two implementations.
+fn build_parse_index(objects: &[Value]) -> Value {
+    const USER_FACING_SYSTEM_KINDS: [&str; 4] =
+        ["__Workspace", "__Namespace", "__Document", "__Object"];
+
+    let mut by_global_id = Map::new();
+    let mut by_kind: Vec<(String, Vec<Value>)> = Vec::new();
+    let mut by_file: Vec<(String, Vec<Value>)> = Vec::new();
+
+    // Insertion order is preserved for the list maps, so a caller sees objects in document
+    // order the way Python's dict and TypeScript's object literal present them.
+    let push = |acc: &mut Vec<(String, Vec<Value>)>, key: &str, id: &Value| {
+        if let Some(entry) = acc.iter_mut().find(|(k, _)| k == key) {
+            entry.1.push(id.clone());
+        } else {
+            acc.push((key.to_string(), vec![id.clone()]));
+        }
+    };
+
+    for obj in objects {
+        let kind = obj.get("__kind").and_then(|v| v.as_str()).unwrap_or("");
+        if kind.starts_with("__") && !USER_FACING_SYSTEM_KINDS.contains(&kind) {
+            continue;
+        }
+        let id = match obj.get("__id") {
+            Some(v) if !v.is_null() => v.clone(),
+            _ => continue,
+        };
+        let namespace = obj
+            .get("__namespace")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        by_global_id.insert(
+            format!("{}:{}:{}", namespace, kind, id.as_str().unwrap_or("")),
+            id.clone(),
+        );
+        if !kind.is_empty() {
+            push(&mut by_kind, kind, &id);
+        }
+        if let Some(file) = obj.get("__file").and_then(|v| v.as_str()) {
+            if !file.is_empty() {
+                push(&mut by_file, file, &id);
+            }
+        }
+    }
+
+    let to_map = |pairs: Vec<(String, Vec<Value>)>| -> Map<String, Value> {
+        pairs
+            .into_iter()
+            .map(|(k, v)| (k, Value::Array(v)))
+            .collect()
+    };
+
+    json!({
+        "by_global_id": by_global_id,
+        "by_kind": to_map(by_kind),
+        "by_file": to_map(by_file),
+    })
+}
 
 #[derive(Parser)]
 #[command(name = "qmdc")]
@@ -259,11 +325,16 @@ async fn main() {
                 // QMD-59 `workspace: id` / `workspaces: [ids]` / `workspace: null` trio a
                 // consumer had to tell apart. `root` is the base every `__file` is relative
                 // to, or null when that base is virtual (`-w`).
+                //
+                // QMD-75: `index` is part of that shape too. Python and TypeScript both emitted
+                // it and Rust did not, so a consumer written against either of them read a
+                // missing key here.
                 let payload = json!({
                     "root": result.root,
                     "workspaces": result.workspaces,
                     "files": result.files,
                     "objects": result.objects,
+                    "index": build_parse_index(&result.objects),
                     "errors": result.errors,
                 });
                 println!("{}", serde_json::to_string_pretty(&payload).unwrap());

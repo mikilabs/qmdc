@@ -1340,14 +1340,18 @@ export function workspaceToJson(result: WorkspaceResult): Record<string, unknown
 
   out.files = result.files;
   out.objects = result.objects;
+  // QMD-75: the EMITTED keys are snake_case, like every other key in the output
+  // (`by_global_id`, not `byGlobalId`). TypeScript published the internal camelCase names
+  // here, so the `index` block itself disagreed with Python even where both emitted one. The
+  // in-memory index keeps its camelCase names; only the wire shape is renamed.
   out.index = {
-    byGlobalId: Object.fromEntries(
+    by_global_id: Object.fromEntries(
       Object.entries(result.index.byGlobalId).map(([k, v]) => [k, v.__id]) // Plain IDs
     ),
-    byKind: Object.fromEntries(
+    by_kind: Object.fromEntries(
       Object.entries(result.index.byKind).map(([k, v]) => [k, v.map((o) => o.__id)]) // Plain IDs
     ),
-    byFile: Object.fromEntries(
+    by_file: Object.fromEntries(
       Object.entries(result.index.byFile).map(([k, v]) => [k, v.map((o) => o.__id)]) // Plain IDs
     ),
   };

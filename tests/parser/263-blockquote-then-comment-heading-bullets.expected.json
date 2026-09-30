@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "legal_docs_research",
+    "__label": "Legal Docs Analysis",
+    "__kind": "NarrativeDoc",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "> Research conducted June 2026."
+      },
+      {
+        "after": "__self",
+        "content": "#### AI-Specific Concerns:\n\n- Explicit: \"We may use your Inputs to train\"\n- Even with opt-out, data used for: safety review"
+      }
+    ],
+    "__level": 1
+  }
+]
