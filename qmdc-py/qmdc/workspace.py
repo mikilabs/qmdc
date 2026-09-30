@@ -1333,8 +1333,11 @@ def workspace_to_json(result: WorkspaceResult) -> dict[str, Any]:
                         "message": e.message,
                         "file": e.file,
                         "line": e.line,
-                        "object": e.object_id,
-                        "field": e.field_name,
+                        # QMD-77 C3: the same keys `workspace validate` uses. This envelope said
+                        # `object`/`field` for the very same error, so a consumer reading both
+                        # commands had to know two spellings of one field.
+                        "objectId": e.object_id,
+                        "fieldName": e.field_name,
                         "reference": e.reference,
                         "candidates": e.candidates,
                         "severity": e.severity,

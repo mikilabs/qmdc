@@ -1373,8 +1373,10 @@ export function workspaceToJson(result: WorkspaceResult): Record<string, unknown
     message: e.message,
     file: e.file,
     line: e.line,
-    object: e.objectId,
-    field: e.fieldName,
+    // QMD-77 C3: the same keys `workspace validate` uses. This envelope said `object`/`field`
+    // for the very same error, so a consumer reading both commands had to know two spellings.
+    objectId: e.objectId,
+    fieldName: e.fieldName,
     reference: e.reference,
     candidates: e.candidates,
     severity: e.severity,

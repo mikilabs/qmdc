@@ -17,6 +17,20 @@ pub enum OutputFormat {
 
 /// Build JSON object from internal map representation
 pub fn build_from_map(obj_map: &IndexMap<String, Value>, format: OutputFormat) -> Value {
+    // QMD-77 A1: carry the source line under a PRIVATE key the caller strips after sorting. The
+    // standard format drops `__line`, so the output order had to be recovered from an (id, label)
+    // map — which is not unique when two headings collide on BOTH: two `## Child [[c]]` under two
+    // `[[dup]]` parents shared one entry, so one line was lost and the duplicated subtrees came out
+    // in the order they happened to be assembled rather than in document order.
+    let sort_line = obj_map.get("__line").cloned();
+    let mut built = build_from_map_inner(obj_map, format);
+    if let (Some(line), Some(map)) = (sort_line, built.as_object_mut()) {
+        map.entry("__sort_line").or_insert(line);
+    }
+    built
+}
+
+fn build_from_map_inner(obj_map: &IndexMap<String, Value>, format: OutputFormat) -> Value {
     match format {
         OutputFormat::Minimal => {
             let mut result = IndexMap::new();

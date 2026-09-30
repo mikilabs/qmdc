@@ -146,15 +146,27 @@ fn expected_by_kind(expected: &serde_json::Value) -> BTreeMap<String, Vec<String
 
 /// Normalize one error to the comparable subset (type/object/reference/file/line/
 /// candidates), dropping empty fields — mirrors the Python error construction.
+///
+/// QMD-77 C3: the CLI envelope names the owning object `objectId` now, the same key
+/// `workspace validate` uses; the FIXTURES keep their own `object` vocabulary, so both
+/// spellings are accepted here rather than rewriting 40 expectation files. The same
+/// function normalises both sides, which is why it cannot simply rename one key.
 fn norm_error(e: &serde_json::Value) -> BTreeMap<String, serde_json::Value> {
     let mut m = BTreeMap::new();
-    for key in ["type", "object", "reference", "file", "line", "candidates"] {
-        if let Some(v) = e.get(key) {
+    for (out_key, env_keys) in [
+        ("type", ["type", "type"]),
+        ("object", ["objectId", "object"]),
+        ("reference", ["reference", "reference"]),
+        ("file", ["file", "file"]),
+        ("line", ["line", "line"]),
+        ("candidates", ["candidates", "candidates"]),
+    ] {
+        if let Some(v) = env_keys.iter().find_map(|k| e.get(k)) {
             let empty = v.is_null()
                 || v.as_str() == Some("")
                 || v.as_array().map(|a| a.is_empty()).unwrap_or(false);
             if !empty {
-                m.insert(key.to_string(), v.clone());
+                m.insert(out_key.to_string(), v.clone());
             }
         }
     }

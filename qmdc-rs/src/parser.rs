@@ -362,16 +362,20 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
 
     let field_re = re_field_kv();
 
-    // QMD-71: pin the extension set instead of taking `Options::all()`, which enabled every
-    // extension the library happens to ship -- a set that GROWS on a dependency bump, so Rust's
-    // idea of Markdown could change without a code change here. Footnotes are the concrete harm
-    // found: with them on, `[^1]: text` becomes a FootnoteDefinition whose inner paragraph starts
-    // AFTER the label, so a comment slice lost the `[^1]: ` prefix that Python and TypeScript keep.
-    // QMD.md defines no footnote syntax, so the construct must stay ordinary text.
-    let md_options = Options::all()
-        - Options::ENABLE_SMART_PUNCTUATION
-        - Options::ENABLE_FOOTNOTES
-        - Options::ENABLE_OLD_FOOTNOTES;
+    // QMD-71 / QMD-77 C1: pin the extension set EXPLICITLY instead of taking `Options::all()` minus
+    // a few, which enabled every extension the library happens to ship -- a set that GROWS on a
+    // dependency bump, so Rust's idea of Markdown could change without a code change here. Footnotes
+    // were the first concrete harm: with them on, `[^1]: text` becomes a FootnoteDefinition whose
+    // inner paragraph starts AFTER the label, so a comment slice lost the `[^1]: ` prefix that
+    // Python and TypeScript keep. The metadata blocks were the second, found by C1: `---` / `+++`
+    // fences at the top of a file were swallowed whole and emitted no events at all, so a file that
+    // held nothing else produced NO objects, where the other two read it as ordinary Markdown (a
+    // thematic break and a setext heading) and synthesised a `__Document` and a `__TextBlock`.
+    // QMD.md defines no footnote and no front-matter syntax, so both constructs stay ordinary text.
+    let md_options = Options::ENABLE_TABLES
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_HEADING_ATTRIBUTES;
     let parser = MdParser::new_ext(markdown, md_options);
 
     // Collect events with source positions
@@ -5172,10 +5176,12 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
             } else if kind == "__Document" {
                 (-1, 0) // __Document always first
             } else {
-                // Try __line first (Full format), then look up from line_by_label, then line_map
+                // Try __line (Full format), then the private `__sort_line` the builder carries for
+                // the formats that strip it, then the legacy (id, label) / id look-ups.
                 let line = obj
                     .get("__line")
                     .and_then(|v| v.as_i64())
+                    .or_else(|| obj.get("__sort_line").and_then(|v| v.as_i64()))
                     .unwrap_or_else(|| {
                         let id = obj.get("__id").and_then(|v| v.as_str()).unwrap_or("");
                         let label = obj.get("__label").and_then(|v| v.as_str()).unwrap_or("");
@@ -5189,6 +5195,13 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 (0, line)
             }
         });
+    }
+
+    // QMD-77 A1: the private sort key never reaches the caller.
+    for obj in &mut all_objects {
+        if let Some(map) = obj.as_object_mut() {
+            map.shift_remove("__sort_line");
+        }
     }
 
     all_objects

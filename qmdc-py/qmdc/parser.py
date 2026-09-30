@@ -859,6 +859,13 @@ def parse(
                         obj["__local_id"] = local_id_out
                     if header["label"]:
                         obj["__label"] = header["label"]
+                    # QMD-77 C4: the spec says `__has_explicit_id` is false when the id was
+                    # AUTO-GENERATED, and absent when the author wrote one. An object-array element
+                    # written as a bare `### Alice` has an auto id like any other heading, but only
+                    # Rust marked it — so a rebuild from this output would print an id the author
+                    # never wrote.
+                    if not header.get("has_explicit_id", False):
+                        obj["__has_explicit_id"] = False
                     objects[arr_parent_id][arr_field].append(f"[[#{composed_id}]]")
                     objects[composed_id] = obj
                     object_stack.append((composed_id, level))

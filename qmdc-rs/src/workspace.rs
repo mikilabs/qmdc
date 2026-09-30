@@ -67,13 +67,13 @@ pub struct WorkspaceError {
     pub file: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    // QMD-77 C3: serialized as `objectId`/`fieldName`, the SAME keys `workspace validate` uses.
+    // `workspace parse` used to say `object`/`field` for the very same error, so a consumer that
+    // read both commands had to know two spellings of one field. Aligning on validate's names keeps
+    // the richer pair (validate also carries `fieldName`) and matches every other error surface.
+    #[serde(rename = "objectId", skip_serializing_if = "Option::is_none")]
     pub object: Option<String>,
-    // QMD-75: serialized as `field`. `workspace parse` emitted `field_name` here while
-    // Python and TypeScript both emitted `field`, so the same error object had a different
-    // key depending on which parser produced it. `workspace validate` builds its own JSON
-    // and is unaffected.
-    #[serde(rename = "field", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "fieldName", skip_serializing_if = "Option::is_none")]
     pub field_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,

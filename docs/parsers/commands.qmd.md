@@ -241,6 +241,11 @@ Given a directory holding several workspaces, each sits at its directory under t
 (`path: "repo_a"`), and a file outside every workspace has no entry: it is located from the
 top-level `root`.
 
+An entry of `errors` carries `type`, `message`, `file`, `line`, `objectId`, `fieldName`, `reference`,
+`candidates` and `severity`, omitting whatever is absent — the SAME key names `workspace validate`
+uses, so one error reads the same whichever command produced it. The names `object` and `field` were
+this envelope's own spelling before QMD-77 and are gone.
+
 ## Workspace Validate [[cmd_workspace_validate: Command]]
 
 Validates workspace: checks for broken links, duplicate IDs, ambiguous references.

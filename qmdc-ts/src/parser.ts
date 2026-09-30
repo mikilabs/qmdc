@@ -1080,6 +1080,13 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           if (header.label) {
             obj.__label = header.label;
           }
+          // QMD-77 C4: the spec says `__has_explicit_id` is false when the id was AUTO-GENERATED and
+          // absent when the author wrote one. An object-array element written as a bare `### Alice`
+          // has an auto id like any other heading, but only Rust marked it — so a rebuild from this
+          // output would print an id the author never wrote.
+          if (!header.hasExplicitId) {
+            obj.__has_explicit_id = false;
+          }
           // Add reference to parent's array
           const parentObj = objects[arrParentId];
           if (parentObj) {
@@ -1387,6 +1394,27 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
               const parentObj = objects[parentId];
               if (parentObj) {
                 parentObj[header.id] = `[[#${resolved.composedId}]]`;
+              }
+              // QMD-77 A1: a NESTED heading can collide too. This branch had no duplicate check at
+              // all, so the first `dup.c` was overwritten by the second and vanished from the graph
+              // with nothing reported, where Rust and Python keep both and report each collision.
+              if (
+                resolved.composedId in objects &&
+                '__line' in (objects[resolved.composedId] ?? {})
+              ) {
+                const existing = objects[resolved.composedId]!;
+                if (!(resolved.composedId in firstSeenLines)) {
+                  firstSeenLines[resolved.composedId] = existing.__line as number;
+                }
+                duplicateObjects.push(existing);
+                parsingErrors.push({
+                  __id: `__error_dup_${resolved.composedId}`,
+                  __kind: '__ParsingError',
+                  type: 'duplicate_id',
+                  message: `Duplicate ID '${resolved.composedId}' (first defined on line ${firstSeenLines[resolved.composedId]})`,
+                  object: `[[#${resolved.composedId}]]`,
+                  line: lineNum ?? null,
+                });
               }
               objects[resolved.composedId] = obj;
               objectStack.push([resolved.composedId, level]);
