@@ -390,6 +390,11 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     let italic_re_strip = Regex::new(r"\*([^*]*)\*").unwrap();
     let strike_re_strip = Regex::new(r"~~([^~]*)~~").unwrap();
 
+    // QMD-77 A3: "this heading declares an identifier" — the same grammar the nested-declaration
+    // look-ahead uses (a leading `#` is a reference, not a declaration; code spans are stripped
+    // before the test).
+    let declares_re_a3 = Regex::new(r"\[\[\s*[^#\]][^\]]*\]\]").unwrap();
+
     // Helper: check if a list starting at `start_idx` contains ANY valid QMD.md field.
     // Scans all items (not just the first), used for boundary detection in comment scanning.
     let _list_has_any_field = |start_idx: usize,
@@ -626,10 +631,51 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 in_heading = false;
 
                 // Check if this heading is inside a text field
-                if let Some((ref parent_id, ref field_name, text_field_level, _)) =
+                if let Some((ref parent_id, ref field_name, text_field_level, ref field_type)) =
                     pending_text_field.clone()
                 {
                     if heading_level > text_field_level {
+                        // QMD-77 A3: a heading deeper than a field declared `array` or `map` does
+                        // NOT create an object — the DECLARED KIND decides what the section is, the
+                        // same rule QMD-75 settled for `text`. But a collection's value is its list
+                        // items, and a heading is not one, so the declaration it carries is lost:
+                        // report it instead of dropping it in silence. The list items BELOW the
+                        // heading keep feeding the collection, because the offending heading does
+                        // not end the field either.
+                        let is_collection = field_type == "array" || field_type == "map";
+                        if is_collection {
+                            let stripped = backtick_re_strip.replace_all(&heading_text, "");
+                            if declares_re_a3.is_match(&stripped) {
+                                let mut error = IndexMap::new();
+                                error.insert(
+                                    "__id".to_string(),
+                                    json!(format!("error_{}", parsing_errors.len())),
+                                );
+                                error.insert("__kind".to_string(), json!("__ParsingError"));
+                                error.insert(
+                                    "type".to_string(),
+                                    json!(if field_type == "array" {
+                                        "mixed_array"
+                                    } else {
+                                        "invalid_map_content"
+                                    }),
+                                );
+                                error.insert("field".to_string(), json!(field_name));
+                                error.insert(
+                                    "object".to_string(),
+                                    json!(format!("[[#{}]]", parent_id)),
+                                );
+                                error.insert("line".to_string(), json!(heading_line));
+                                parsing_errors.push(error);
+                            }
+                            // The offending heading CLOSES the collection's content, exactly as
+                            // prose between two lists does: a collection is fed by the first list
+                            // under its declaration, and nothing below this heading joins it.
+                            pending_text_field = None;
+                            i += 1;
+                            continue;
+                        }
+
                         // This heading is part of the text field content
                         let heading_md = format!(
                             "{} {}",
@@ -1375,11 +1421,91 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             && k.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
                     };
                     let mut idx = 0;
+                    // QMD-77 A3: the spec (`[[#err_invalid_map_content]]`) says a map is populated
+                    // only from the FIRST valid bullet list, and any other content between the map
+                    // heading and the next heading at the same or higher level is an error —
+                    // "additional bullet lists" included. This loop used to merge every list item
+                    // in the section, so an entry after an offending block silently joined the map.
+                    // A blank line does NOT close the list (a loose Markdown list is still one
+                    // list); a non-empty, non-item line does.
+                    let mut saw_first_list = false;
+                    let mut first_list_closed = false;
+                    let mut in_extra_list = false;
+                    // The entry an indented sub-item would belong to: (key, line).
+                    let mut map_entry_owner: Option<(String, u32, bool)> = None;
+                    let mut map_nested_reported = false;
                     while idx < raw_lines.len() {
                         let stripped = raw_lines[idx].trim();
+                        let is_indented =
+                            raw_lines[idx].starts_with(' ') || raw_lines[idx].starts_with('\t');
+                        // QMD-77 A3: a map is a FLAT `str -> str` dictionary, so an indented
+                        // sub-item is not an entry. This loop trimmed every line before looking at
+                        // it, so `  - deep: x` became a top-level entry the author never wrote —
+                        // the same class of invented field QMD-77 A4 removed from field lists.
+                        // Reported like A4 does: `nested_subitems`, once per owning entry, at the
+                        // owning entry's line.
+                        if is_indented && stripped.starts_with("- ") {
+                            if let Some((ref owner_key, owner_line, owner_empty)) =
+                                map_entry_owner.clone()
+                            {
+                                if !map_nested_reported {
+                                    map_nested_reported = true;
+                                    let (err_type, err_line) = if owner_empty {
+                                        map_data.shift_remove(owner_key.as_str());
+                                        ("nested_subitems", owner_line)
+                                    } else {
+                                        // The entry keeps its own value; the indented block under it
+                                        // is reported where an ordinary field list reports it — at
+                                        // the block's own line.
+                                        ("block_in_inline_field", base_line + idx as u32)
+                                    };
+                                    let error_id = format!("error_{}", parsing_errors.len());
+                                    let mut error = IndexMap::new();
+                                    error.insert("__id".to_string(), json!(error_id));
+                                    error.insert("__kind".to_string(), json!("__ParsingError"));
+                                    error.insert("type".to_string(), json!(err_type));
+                                    error.insert("field".to_string(), json!(owner_key));
+                                    error.insert(
+                                        "object".to_string(),
+                                        json!(format!("[[#{}]]", parent)),
+                                    );
+                                    error.insert("line".to_string(), json!(err_line));
+                                    parsing_errors.push(error);
+                                }
+                            }
+                            idx += 1;
+                            continue;
+                        }
                         if let Some(item) = stripped.strip_prefix("- ") {
+                            if first_list_closed {
+                                if !in_extra_list {
+                                    in_extra_list = true;
+                                    let line = base_line + idx as u32;
+                                    let error_id = format!("error_{}", parsing_errors.len());
+                                    let mut error = IndexMap::new();
+                                    error.insert("__id".to_string(), json!(error_id));
+                                    error.insert("__kind".to_string(), json!("__ParsingError"));
+                                    error.insert("type".to_string(), json!("invalid_map_content"));
+                                    error.insert("field".to_string(), json!(header.id));
+                                    error.insert(
+                                        "object".to_string(),
+                                        json!(format!("[[#{}]]", parent)),
+                                    );
+                                    error.insert("line".to_string(), json!(line));
+                                    parsing_errors.push(error);
+                                }
+                                idx += 1;
+                                continue;
+                            }
+                            saw_first_list = true;
                             if let Some(colon_pos) = item.find(':') {
                                 let k = item[..colon_pos].trim();
+                                map_entry_owner = Some((
+                                    k.to_string(),
+                                    base_line + idx as u32,
+                                    item[colon_pos + 1..].trim().is_empty(),
+                                ));
+                                map_nested_reported = false;
                                 if !is_valid_key(k) {
                                     // Invalid key (e.g. **bold**)
                                     let line = base_line + idx as u32;
@@ -1461,6 +1587,10 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             }
                         } else if !stripped.is_empty() {
                             // Non-list content (paragraph, code fence, numbered list, etc.)
+                            if saw_first_list {
+                                first_list_closed = true;
+                            }
+                            in_extra_list = false;
                             let line = base_line + idx as u32;
                             let error_id = format!("error_{}", parsing_errors.len());
                             let mut error = IndexMap::new();

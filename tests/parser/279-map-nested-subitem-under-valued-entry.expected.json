@@ -1,0 +1,31 @@
+[
+  {
+    "__id": "s",
+    "__label": "Session",
+    "__kind": "Session",
+    "status": "done",
+    "env": {
+      "host": "localhost",
+      "port": "8080"
+    },
+    "__types": {
+      "status": "string",
+      "env": "map"
+    },
+    "__syntax": {
+      "env": "map"
+    },
+    "__level": 1,
+    "__labels": {
+      "env": "Env"
+    }
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "block_in_inline_field",
+    "field": "host",
+    "object": "[[#s]]",
+    "line": 8
+  }
+]

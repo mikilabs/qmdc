@@ -787,7 +787,7 @@ done
 | `ordered_list_in_array` | Numbered list in heading-syntax array (bullet lists only) |
 | `table_in_array` | Markdown table under a primitive array field (use a bullet list, or declare an object array) |
 | `extra_table_in_array` | A second Markdown table under one object-array heading (only the first feeds the array) |
-| `mixed_array` | An object array fed by a table that also has heading elements (pick one form) |
+| `mixed_array` | An object array fed by a table that also has heading elements (pick one form), or a declaration inside a primitive `[[field: array]]` (a heading is not a list item, and the declared kind still decides — no object is created) |
 | `nested_subitems` | Nested lists `- key:\n  - item` (forbidden) |
 | `block_in_inline_field` | An indented block under a field that already has a value (YAML multiline `- key: \|` is fine) |
 | `unsupported_number_format` | A value that looks like a number QMD.md cannot carry: not `-?[0-9]+(\.[0-9]+)?`, or a magnitude outside `1e-4`…2^53-1. The text is kept as a String; quote it to say a String was meant. Carries a `hint` field naming what to write — the only error that does |

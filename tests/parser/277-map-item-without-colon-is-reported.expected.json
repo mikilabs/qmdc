@@ -1,0 +1,36 @@
+[
+  {
+    "__id": "s",
+    "__label": "Session",
+    "__kind": "Session",
+    "status": "done",
+    "env": {},
+    "__types": {
+      "status": "string",
+      "env": "map"
+    },
+    "__syntax": {
+      "env": "map"
+    },
+    "__level": 1,
+    "__labels": {
+      "env": "Env"
+    }
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "invalid_map_entry",
+    "field": "env",
+    "object": "[[#s]]",
+    "line": 7
+  },
+  {
+    "__id": "error_1",
+    "__kind": "__ParsingError",
+    "type": "invalid_map_entry",
+    "field": "env",
+    "object": "[[#s]]",
+    "line": 8
+  }
+]

@@ -54,28 +54,18 @@ into the map as an entry) and the object disappears; Python and TypeScript keep 
 settled this principle for `text` only. Q2 is answered — the mix is reported, with `mixed_array` for
 an array and `invalid_map_content` for a map, one error at the offending heading's own line.
 
-MEASURED, so the next pass does not re-investigate: this one is materially larger than its neighbours
-because the three parsers reach the offending heading by three different routes. In Rust an
-`[[f: array]]` heading becomes a `pending_text_field` of type `array`, and a deeper heading is then
-folded into the field's content and the handler exits early (`i += 1; continue`) — which is why the
-declaration's own line vanishes and why the error cannot simply be added to the heading handler, where
-the event never arrives. Emitting it at the fold site works and was measured working. Python tracks
-`pending_array_field` as `(parent_id, field_name)` with NO level, so it cannot tell a deeper heading
-from a sibling until that tuple carries the level and the kind; its `map` declaration is a separate
-branch again. Whichever way the object goes, all three must move together — a half-applied change
-breaks parse parity immediately, which is how this was found.
-
-One design question the implementation must settle first, because it decides how big the change is:
-whether the declaration ENDS the collection and the object is created (Python's and TypeScript's
-behaviour today, one error added to each, and arguably the more coherent reading since an array's
-elements are list items and a declaration is not one), or the declared kind swallows it as with
-`text` (Rust's behaviour today, the object lost, py and ts rewritten to suppress it). The first was
-measured to give `clo = ["one", "two"]` plus `mixed_array` at the heading's line in Rust with a
-four-line change; the object was still not created, so even that route needs work in Rust's
-pending-field path.
+DECIDED and implemented (the design question below was settled by measurement, not preference): the
+declared kind decides, so the heading creates NO object, and it CLOSES the collection's content
+exactly as prose between two lists does. That second half is not a taste call — all three parsers
+already agreed that a primitive array is fed by the FIRST list under its declaration and that
+everything after it is the container's comment content, so "the heading swallows what follows"
+would have been a new rule invented for this one shape. The map half was decided by the spec:
+`[[#err_invalid_map_content]]` already said a map is populated only from the first valid bullet list
+and that additional bullet lists are an error, which Rust contradicted by merging every list item in
+the section.
 
 - group: A_identity
-- done: false
+- done: true
 
 #### A4: An indented sub-item is one thing in all three [[qmd77_goal_a4]]
 

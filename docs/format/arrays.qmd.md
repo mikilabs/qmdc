@@ -128,6 +128,11 @@ on the parent with its Kind silently dropped. To attach a table to an element de
 declare a text field for it (`#### Details [[details: text]]`) — text fields are covered in
 `docs/format/fields.qmd.md`.
 
+A PRIMITIVE array, `[[field: array]]`, holds list items, so a deeper heading inside it cannot be an
+element — and it does not become an object either, because a declared field kind decides what the
+section is (see `docs/format/headings.qmd.md`). Such a heading produces a `mixed_array` error at its
+own line and closes the array's content, exactly as prose between two lists does.
+
 ## Examples [[examples: text]]
 
 Primitive arrays — strings:

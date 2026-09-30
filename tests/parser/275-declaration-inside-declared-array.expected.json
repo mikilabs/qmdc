@@ -1,0 +1,33 @@
+[
+  {
+    "__id": "s",
+    "__label": "Session",
+    "__kind": "Session",
+    "__comments": [
+      {
+        "after": "clo",
+        "content": "- status: x"
+      }
+    ],
+    "status": "done",
+    "clo": [
+      "one",
+      "two"
+    ],
+    "__types": {
+      "status": "string"
+    },
+    "__syntax": {
+      "clo": "markdown_list"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "mixed_array",
+    "field": "clo",
+    "object": "[[#s]]",
+    "line": 10
+  }
+]

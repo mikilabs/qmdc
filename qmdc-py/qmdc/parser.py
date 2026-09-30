@@ -15,6 +15,11 @@ _FIELD_RE = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(.*)$")
 _INVALID_FL_RE = re.compile(r"^([^:]+):\s+(.*)$", re.DOTALL)
 _VALID_KEY_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 _BACKTICK_STRIP_RE = re.compile(r"`[^`]+`")
+# QMD-77 A3: "this heading declares an identifier" — the same grammar the nested-declaration
+# look-ahead uses (a leading `#` is a reference, not a declaration; code spans are stripped first).
+_DECLARES_RE = re.compile(r"\[\[\s*[^#\]][^\]]*\]\]")
+# A valid map entry: a bullet item whose text opens with a valid identifier and a colon.
+_MAP_ENTRY_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*\s*:")
 _BOLD_STRIP_RE = re.compile(r"\*\*([^*]*)\*\*")
 _ITALIC_STRIP_RE = re.compile(r"\*([^*]*)\*")
 _STRIKETHROUGH_STRIP_RE = re.compile(r"~~([^~]*)~~")
@@ -268,6 +273,10 @@ def parse(
 
     # Track pending array field from [[field: array]] heading
     pending_array_field: tuple[str, str] | None = None  # (parent_id, field_name)
+    # QMD-77 A3: the scope a declared `array` field is still open in — (parent_id, field_name,
+    # level). `pending_array_field` is cleared by the first list that feeds the array, so it cannot
+    # answer "is this deeper heading inside a collection field's section?".
+    array_field_scope: tuple[str, str, int] | None = None
 
     # Track pending object array from [[field: [Kind]]] heading
     # (parent_id, field_name, array_kind, level)
@@ -417,6 +426,32 @@ def parse(
             level = get_heading_level(token.tag)
             header: HeaderResult | None = parse_header(tokens, i)
 
+            # QMD-77 A3: a heading deeper than a field declared `array` does NOT create an object —
+            # the DECLARED KIND decides what the section is, the same rule QMD-75 settled for
+            # `text`. A collection's value is its list items and a heading is not one, so the
+            # declaration it carries is lost: report it instead of dropping it in silence. The
+            # heading closes the field's content, exactly as prose between two lists does.
+            if (
+                array_field_scope
+                and level > array_field_scope[2]
+                and i + 1 < len(tokens)
+                and _DECLARES_RE.search(_BACKTICK_STRIP_RE.sub("", tokens[i + 1].content or ""))
+            ):
+                parsing_errors.append(
+                    {
+                        "__id": f"error_{len(parsing_errors)}",
+                        "__kind": "__ParsingError",
+                        "type": "mixed_array",
+                        "field": array_field_scope[1],
+                        "object": f"[[#{array_field_scope[0]}]]",
+                        "line": (token.map[0] + 1) if token.map else None,
+                    }
+                )
+                pending_array_field = None
+                comment_anchor = array_field_scope[1]
+                i += 3  # Skip heading_open, inline, heading_close
+                continue
+
             if header:
                 # Pop objects from stack that are at same or deeper level
                 while object_stack and object_stack[-1][1] >= level:
@@ -459,6 +494,12 @@ def parse(
                     comment_anchor = paf_field_name
                     pending_array_field = None
 
+                # QMD-77 A3: a heading at or above the collection's own level is a sibling, so the
+                # collection's section ends here. A DEEPER one never reaches this point — it was
+                # reported and consumed above.
+                if array_field_scope and level <= array_field_scope[2]:
+                    array_field_scope = None
+
                 # QMD-70: an array fed by a TABLE cannot also take heading elements. A heading
                 # deeper than the array's own level would be such an element, but the array has
                 # already been built from the table, so the heading silently became a plain field
@@ -499,6 +540,7 @@ def parse(
                     # This is a field array, not an object
                     # Mark for next list to be parsed as array items
                     pending_array_field = (parent_id, header["id"])
+                    array_field_scope = (parent_id, header["id"], level)
 
                 # Check if this is an object array [[field: [Kind]]]
                 elif header.get("field_type") == "object_array" and parent_id:
@@ -619,9 +661,31 @@ def parse(
                     list_scan = i + 3
                     found_list = False
                     while list_scan < scan_idx:
+                        if tokens[list_scan].type == "heading_open":
+                            # QMD-77 A3: a heading deeper than the map's own level (a shallower one
+                            # bounded `scan_idx`) is content inside the map that is not a bullet
+                            # list of `key: value` items — the spec's own words. It never creates an
+                            # object: the DECLARED KIND decides, as QMD-75 settled for `text`.
+                            err_line = (
+                                (tokens[list_scan].map[0] + 1) if tokens[list_scan].map else 0
+                            )
+                            parsing_errors.append(
+                                {
+                                    "__id": f"error_{len(parsing_errors)}",
+                                    "__kind": "__ParsingError",
+                                    "type": "invalid_map_content",
+                                    "field": header["id"],
+                                    "object": f"[[#{parent_id}]]",
+                                    "line": err_line,
+                                }
+                            )
+                            list_scan += 3  # heading_open, inline, heading_close
+                            continue
                         if tokens[list_scan].type == "bullet_list_open":
                             if found_list:
-                                # Second bullet list — invalid
+                                # An additional bullet list — the spec populates the map from the
+                                # FIRST valid list only, and reports the rest ONCE per list. Walking
+                                # into it emitted a second error for its own paragraph token.
                                 err_line = (
                                     (tokens[list_scan].map[0] + 1) if tokens[list_scan].map else 0
                                 )
@@ -635,7 +699,17 @@ def parse(
                                         "line": err_line,
                                     }
                                 )
-                                list_scan += 1
+                                depth = 0
+                                while list_scan < scan_idx:
+                                    tt = tokens[list_scan].type
+                                    if tt == "bullet_list_open":
+                                        depth += 1
+                                    elif tt == "bullet_list_close":
+                                        depth -= 1
+                                        if depth == 0:
+                                            list_scan += 1
+                                            break
+                                    list_scan += 1
                                 continue
                             found_list = True
                             (
@@ -644,25 +718,73 @@ def parse(
                                 _field_syntax,
                                 invalid_items,
                                 next_i,
-                                _nested_errors,
-                                _block_errors,
+                                map_nested_errors,
+                                map_block_errors,
                                 _unsupported_numbers,
                             ) = parse_fields_from_list(
                                 tokens, list_scan, block_tree, raw_strings=True
                             )
                             map_data.update(fields)
-                            # Emit errors for invalid entries
-                            for inv in invalid_items:
+                            # QMD-77 A3: a map is a FLAT `str -> str` dictionary, so an indented
+                            # sub-item is not an entry. Both error lists were collected and then
+                            # thrown away here, so the construct was dropped in silence — and a
+                            # silent drop in a document with no errors is content loss the
+                            # round-trip test is entitled to catch. Ordinary field lists already
+                            # report exactly these two: `nested_subitems` under a key with no value,
+                            # `block_in_inline_field` under a key that has one.
+                            for ns_err in map_nested_errors:
                                 parsing_errors.append(
                                     {
                                         "__id": f"error_{len(parsing_errors)}",
                                         "__kind": "__ParsingError",
-                                        "type": "invalid_map_entry",
-                                        "field": header["id"],
+                                        "type": "nested_subitems",
+                                        "field": ns_err["key"],
                                         "object": f"[[#{parent_id}]]",
-                                        "line": inv.get("line", 0),
+                                        "line": ns_err["line"],
                                     }
                                 )
+                            for blk_err in map_block_errors:
+                                parsing_errors.append(
+                                    {
+                                        "__id": f"error_{len(parsing_errors)}",
+                                        "__kind": "__ParsingError",
+                                        "type": "block_in_inline_field",
+                                        "field": blk_err["key"],
+                                        "object": f"[[#{parent_id}]]",
+                                        "line": blk_err["line"],
+                                    }
+                                )
+                            # QMD-77 A3: report EVERY item of the first list that is not a valid
+                            # `key: value` pair. `invalid_items` only carries an item that follows a
+                            # valid field (it exists to preserve such an item in `__comments`), so a
+                            # list whose FIRST item has no colon was reported by nothing at all —
+                            # while the spec says invalid map entries generate `invalid_map_entry`.
+                            item_scan = list_scan + 1
+                            item_depth = 1
+                            while item_scan < next_i and item_depth >= 1:
+                                itok = tokens[item_scan]
+                                if itok.type == "bullet_list_open":
+                                    item_depth += 1
+                                elif itok.type == "bullet_list_close":
+                                    item_depth -= 1
+                                elif (
+                                    itok.type == "inline"
+                                    and item_depth == 1
+                                    and not _MAP_ENTRY_RE.match(
+                                        (itok.content or "").split("\n", 1)[0].strip()
+                                    )
+                                ):
+                                    parsing_errors.append(
+                                        {
+                                            "__id": f"error_{len(parsing_errors)}",
+                                            "__kind": "__ParsingError",
+                                            "type": "invalid_map_entry",
+                                            "field": header["id"],
+                                            "object": f"[[#{parent_id}]]",
+                                            "line": (itok.map[0] + 1) if itok.map else 0,
+                                        }
+                                    )
+                                item_scan += 1
                             list_scan = next_i
                             continue
                         elif tokens[list_scan].type in (

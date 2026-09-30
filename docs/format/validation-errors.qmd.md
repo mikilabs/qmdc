@@ -357,7 +357,8 @@ Put every row in one table:
 
 ## Mixed Array [[err_mixed_array: ValidationError]]
 
-An object array is fed by a table AND also has heading elements.
+An array section holds something that cannot be one of its elements: an object array fed by a table
+AND also carrying heading elements, or a declaration inside a primitive `[[field: array]]`.
 
 - code: mixed_array
 - severity: error
@@ -371,6 +372,14 @@ becomes a plain field on the parent and its declared Kind is lost.
 
 Note this fires only when the TABLE comes first. A table AFTER an element heading is that element's
 own content, which is valid — see the Arrays section.
+
+The same code covers a PRIMITIVE array, `[[field: array]]`, that contains a deeper heading declaring
+an identifier. A primitive array's elements are list items, and a heading is not one, so the
+declaration cannot become an element — and the heading does not become an object either, because the
+declared kind decides what the section is — the rule `docs/format/headings.qmd.md` states for `text`.
+The
+heading closes the array's content, exactly as prose between two lists does, and its own text is not
+preserved: the document is invalid and has to be fixed.
 
 ### Examples [[examples: text]]
 
@@ -390,6 +399,24 @@ own content, which is valid — see the Arrays section.
 
 Here `bob` does not join `members`: it becomes `team.bob`, a field on `team`, with its Kind degraded
 from `User` to `__Object`.
+
+A declaration inside a primitive array:
+
+```markdown example
+## Session [[s: Session]]
+
+### Closure [[clo: array]]
+
+- one
+- two
+
+#### Task [[t5: SessionTask]]
+
+- status: x
+```
+
+`clo` keeps exactly `["one", "two"]`, no object `s.clo.t5` or `s.t5` is created, and one `mixed_array`
+error points at the `#### Task` line.
 
 ### Solution [[solution: text]]
 
@@ -605,9 +632,11 @@ Content inside `[[field: map]]` that is not a bullet list with `key: value` pair
 
 ### Cause [[cause: text]]
 
-A map field accepts only a single bullet list with `- key: value` items. Any other content between the map heading and the next heading at the same or higher level is an error: paragraphs, code fences, numbered lists, additional bullet lists.
+A map field accepts only a single bullet list with `- key: value` items. Any other content between the map heading and the next heading at the same or higher level is an error: paragraphs, code fences, numbered lists, additional bullet lists, and deeper headings — including a deeper heading that DECLARES an identifier, which creates no object, because the declared kind decides what the section is.
 
-Invalid content is ignored; the map is populated only from the first valid bullet list.
+Invalid content is ignored; the map is populated only from the first valid bullet list. An entry after an offending block does not join the map.
+
+A map is a flat `str -> str` dictionary, so an indented sub-item is not an entry either: under a `- key:` with no value it is `invalid_map_entry`'s sibling error `nested_subitems` and the key is dropped; under a `- key: value` the sub-item is dropped and the entry keeps its own value.
 
 ### Examples [[examples: text]]
 

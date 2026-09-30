@@ -266,6 +266,15 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
 
   // Track pending array field from [[field: array]] heading
   let pendingArrayField: [string, string] | null = null; // [parent_id, field_name]
+  // QMD-77 A3: the scope a declared `array` field is still open in — [parent_id, field_name,
+  // level]. `pendingArrayField` is cleared by the first list that feeds the array, so it cannot
+  // answer "is this deeper heading inside a collection field's section?".
+  let arrayFieldScope: [string, string, number] | null = null;
+  // "This heading declares an identifier" — the same grammar the nested-declaration look-ahead
+  // uses (a leading `#` is a reference, not a declaration; code spans are stripped first).
+  const a3DeclaresRe = /\[\[\s*[^#\]][^\]]*\]\]/;
+  // A valid map entry: a bullet item whose text opens with a valid identifier and a colon.
+  const mapEntryRe = /^[a-zA-Z_][a-zA-Z0-9_]*\s*:/;
 
   // Track pending text field from [[field]] or [[field: text]] heading (for multiline text)
   // [parent_id, field_name, field_level, field_label]
@@ -567,6 +576,30 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
       const level = getHeadingLevel(token.tag);
       const header: HeaderData | null = parseHeader(tokens, i);
 
+      // QMD-77 A3: a heading deeper than a field declared `array` does NOT create an object — the
+      // DECLARED KIND decides what the section is, the same rule QMD-75 settled for `text`. A
+      // collection's value is its list items and a heading is not one, so the declaration it
+      // carries is lost: report it instead of dropping it in silence. The heading closes the
+      // field's content, exactly as prose between two lists does.
+      if (
+        arrayFieldScope &&
+        level > arrayFieldScope[2] &&
+        a3DeclaresRe.test((tokens[i + 1]?.content || '').replace(backtickStripRe, ''))
+      ) {
+        parsingErrors.push({
+          __id: `error_${parsingErrors.length}`,
+          __kind: '__ParsingError',
+          type: 'mixed_array',
+          field: arrayFieldScope[1],
+          object: `[[#${arrayFieldScope[0]}]]`,
+          line: token.map ? token.map[0] + 1 : null,
+        });
+        pendingArrayField = null;
+        commentAnchor = arrayFieldScope[1];
+        i += 3; // Skip heading_open, inline, heading_close
+        continue;
+      }
+
       if (header) {
         // Get line number (1-based for LSP)
         const lineNum = token.map ? token.map[0] + 1 : undefined;
@@ -732,6 +765,13 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           pendingArrayField = null;
         }
 
+        // QMD-77 A3: a heading at or above the collection's own level is a sibling, so the
+        // collection's section ends here. A DEEPER one never reaches this point — it was reported
+        // and consumed above.
+        if (arrayFieldScope && level <= arrayFieldScope[2]) {
+          arrayFieldScope = null;
+        }
+
         // QMD-70: an array fed by a TABLE cannot also take heading elements. A heading deeper than
         // the array's own level would be such an element, but the array has already been built from
         // the table, so the heading silently became a plain field on the parent and its declared
@@ -768,6 +808,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           // This is a field array, not an object
           // Mark for next list to be parsed as array items
           pendingArrayField = [parentId, header.id];
+          arrayFieldScope = [parentId, header.id, level];
         }
         // Check if this is an object array [[field: [Kind]]]
         else if (header.fieldType === 'object_array' && parentId) {
@@ -855,9 +896,27 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           let foundList = false;
           while (listScan < scanIdx) {
             const tok = tokens[listScan];
+            if (tok?.type === 'heading_open') {
+              // QMD-77 A3: a heading deeper than the map's own level (a shallower one bounded
+              // `scanIdx`) is content inside the map that is not a bullet list of `key: value`
+              // items — the spec's own words. It never creates an object: the DECLARED KIND
+              // decides, as QMD-75 settled for `text`.
+              parsingErrors.push({
+                __id: `error_${parsingErrors.length}`,
+                __kind: '__ParsingError',
+                type: 'invalid_map_content',
+                field: header.id,
+                object: `[[#${parentId}]]`,
+                line: tok.map ? tok.map[0] + 1 : 0,
+              });
+              listScan += 3; // heading_open, inline, heading_close
+              continue;
+            }
             if (tok?.type === 'bullet_list_open') {
               if (foundList) {
-                // Second bullet list — invalid
+                // An additional bullet list — the spec populates the map from the FIRST valid list
+                // only, and reports the rest ONCE per list. Walking into it emitted a second error
+                // for its own paragraph token.
                 const errLine = tok.map ? tok.map[0] + 1 : 0;
                 parsingErrors.push({
                   __id: `error_${parsingErrors.length}`,
@@ -867,26 +926,81 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
                   object: `[[#${parentId}]]`,
                   line: errLine,
                 });
-                listScan++;
+                let depth = 0;
+                while (listScan < scanIdx) {
+                  const tt = tokens[listScan]?.type;
+                  if (tt === 'bullet_list_open') {
+                    depth++;
+                  } else if (tt === 'bullet_list_close') {
+                    depth--;
+                    if (depth === 0) {
+                      listScan++;
+                      break;
+                    }
+                  }
+                  listScan++;
+                }
                 continue;
               }
               foundList = true;
-              const [fields, , , invalidItems, nextI] = parseFieldsFromList(
-                tokens,
-                listScan,
-                blockTree,
-                { rawStrings: true }
-              );
+              const [fields, , , invalidItems, nextI, , mapNestedErrors, mapBlockErrors] =
+                parseFieldsFromList(tokens, listScan, blockTree, { rawStrings: true });
               Object.assign(mapData, fields as Record<string, string>);
-              for (const inv of invalidItems) {
+              // QMD-77 A3: a map is a FLAT `str -> str` dictionary, so an indented sub-item is not
+              // an entry. Both error lists were collected and then thrown away here, so the
+              // construct was dropped in silence — and a silent drop in a document with no errors is
+              // content loss the round-trip test is entitled to catch. Ordinary field lists already
+              // report exactly these two: `nested_subitems` under a key with no value,
+              // `block_in_inline_field` under a key that has one.
+              for (const nsErr of mapNestedErrors) {
                 parsingErrors.push({
                   __id: `error_${parsingErrors.length}`,
                   __kind: '__ParsingError',
-                  type: 'invalid_map_entry',
-                  field: header.id,
+                  type: 'nested_subitems',
+                  field: nsErr.key,
                   object: `[[#${parentId}]]`,
-                  line: inv.line ?? 0,
+                  line: nsErr.line,
                 });
+              }
+              for (const blkErr of mapBlockErrors) {
+                parsingErrors.push({
+                  __id: `error_${parsingErrors.length}`,
+                  __kind: '__ParsingError',
+                  type: 'block_in_inline_field',
+                  field: blkErr.key,
+                  object: `[[#${parentId}]]`,
+                  line: blkErr.line,
+                });
+              }
+              // QMD-77 A3: report EVERY item of the first list that is not a valid `key: value`
+              // pair. `invalidItems` only carries an item that follows a valid field (it exists to
+              // preserve such an item in `__comments`), so a list whose FIRST item has no colon was
+              // reported by nothing at all — while the spec says "invalid map entries generate
+              // `invalid_map_entry`".
+              void invalidItems;
+              let itemScan = listScan + 1;
+              let itemDepth = 1;
+              while (itemScan < nextI && itemDepth >= 1) {
+                const itok = tokens[itemScan];
+                if (itok?.type === 'bullet_list_open') {
+                  itemDepth++;
+                } else if (itok?.type === 'bullet_list_close') {
+                  itemDepth--;
+                } else if (
+                  itok?.type === 'inline' &&
+                  itemDepth === 1 &&
+                  !mapEntryRe.test(((itok.content || '').split('\n', 1)[0] || '').trim())
+                ) {
+                  parsingErrors.push({
+                    __id: `error_${parsingErrors.length}`,
+                    __kind: '__ParsingError',
+                    type: 'invalid_map_entry',
+                    field: header.id,
+                    object: `[[#${parentId}]]`,
+                    line: itok.map ? itok.map[0] + 1 : 0,
+                  });
+                }
+                itemScan++;
               }
               listScan = nextI;
               continue;
