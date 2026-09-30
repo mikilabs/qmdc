@@ -15,13 +15,13 @@ is written down anywhere.
 This task closes the list. It is the last residual-collection task; anything found after it gets its
 own task and is not deferred into a list again.
 
-- status: planned
+- status: done_review
 - priority: high
 - category: parser
 - related_task: [[#qmd75_body_identity]]
 - requires_changes: []
 - findings: [[#qmd77_finding_identity]], [[#qmd77_finding_content]], [[#qmd77_finding_contract]], [[#qmd77_finding_robustness]], [[#qmd77_finding_fidelity]], [[#qmd77_finding_questions]], [[#qmd77_finding_synth_ids]], [[#qmd77_finding_tests]]
-- result: null
+- result: [[#qmd77_result]]
 
 ### Goals [[goals: [Goal]]]
 
@@ -230,13 +230,14 @@ file — where Rust, Python and `git` itself skip the directory and carry on.
 
 #### D2: A path byte that is not valid UTF-8 matches the same way [[qmd77_goal_d2]]
 
-An ignore rule matches a path whose bytes are not valid UTF-8 identically in all three. Python carries
-the bytes through `surrogateescape` and matches; TypeScript and Rust replace them with U+FFFD and do
-not. Unreachable on APFS, which refuses such a name, and a real difference on Linux ext4 — so closing
-it needs a Linux run, which no test currently performs.
+MOVED to [[#qmd78_non_utf8_path]]. An ignore rule matches a path whose bytes are not valid UTF-8 in
+Python, which carries them through `surrogateescape`, and not in TypeScript or Rust, which replace them
+with U+FFFD. The divergence is unreachable on APFS, which refuses such a filename, and real on Linux
+ext4, so it cannot be seen red here — and this task's own verification rule
+[[#qmd77_finding_tests]] says a goal in that position is split out rather than claimed.
 
 - group: D_robustness
-- done: false
+- done: true
 
 #### E1: A field value keeps the markup the author wrote [[qmd77_goal_e1]]
 
