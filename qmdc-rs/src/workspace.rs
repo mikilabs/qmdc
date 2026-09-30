@@ -307,6 +307,108 @@ fn find_workspace_object(objects: &[Value]) -> Option<&Value> {
         .find(|obj| obj.get("__kind").and_then(|v| v.as_str()) == Some("__Workspace"))
 }
 
+/// The readable, collision-free stem a file's synthesised ids are built from: its path relative to
+/// the directory that declared its namespace (relative to the workspace root when it has none),
+/// lowercased with every run of other characters folded to `_`.
+///
+/// A single-file `parse` has no workspace and no namespace, so it keeps the counter form it has
+/// always had — one document cannot collide with itself. Only the workspace layer, which is where
+/// two files meet and where the graph key `<workspace>:<namespace>:<id>` is formed, qualifies them.
+pub fn synthetic_id_stem(file_path: &str, namespace_dir: Option<&str>) -> String {
+    let rel = match namespace_dir {
+        Some(dir) if !dir.is_empty() => file_path
+            .strip_prefix(dir)
+            .map(|r| r.trim_start_matches('/'))
+            .unwrap_or(file_path),
+        _ => file_path,
+    };
+    let rel = rel.strip_suffix(".qmd.md").unwrap_or(rel);
+    let mut out = String::with_capacity(rel.len());
+    let mut pending_sep = false;
+    for ch in rel.chars() {
+        let lower = ch.to_ascii_lowercase();
+        if lower.is_ascii_lowercase() || lower.is_ascii_digit() {
+            if pending_sep && !out.is_empty() {
+                out.push('_');
+            }
+            pending_sep = false;
+            out.push(lower);
+        } else {
+            pending_sep = true;
+        }
+    }
+    out
+}
+
+/// Map each synthesised `doc_*` / `text_*` id in one file to its path-derived replacement.
+/// Empty when the stem is unusable, which leaves the ids exactly as the parser produced them.
+fn synthetic_id_renames(
+    objects: &[Value],
+    file_path: &str,
+    namespace_dir: Option<&str>,
+) -> HashMap<String, String> {
+    let stem = synthetic_id_stem(file_path, namespace_dir);
+    let mut renames = HashMap::new();
+    if stem.is_empty() {
+        return renames;
+    }
+    for obj in objects {
+        let id = obj.get("__id").and_then(|v| v.as_str()).unwrap_or("");
+        match obj.get("__kind").and_then(|v| v.as_str()) {
+            Some("__Document") => {
+                renames.insert(id.to_string(), format!("doc_{}", stem));
+            }
+            Some("__TextBlock") => {
+                // `text_<n>` keeps its ordinal: a file can hold several text blocks.
+                let ordinal = id.strip_prefix("text_").unwrap_or(id);
+                renames.insert(id.to_string(), format!("text_{}_{}", stem, ordinal));
+            }
+            _ => {}
+        }
+    }
+    renames
+}
+
+/// Apply the file's synthesised-id renames to one object: its own id, the `content` array a
+/// `__Document` uses to list what it holds, and the `__container` every sibling points back with.
+/// Author-written references are deliberately NOT rewritten — a reference to an id that no longer
+/// exists has to surface as a broken link rather than be silently retargeted.
+fn rename_synthetic_ids(obj: &mut Value, renames: &HashMap<String, String>) {
+    if renames.is_empty() {
+        return;
+    }
+    let map = match obj {
+        Value::Object(m) => m,
+        _ => return,
+    };
+    if let Some(new_id) = map
+        .get("__id")
+        .and_then(|v| v.as_str())
+        .and_then(|id| renames.get(id))
+    {
+        let new_id = new_id.clone();
+        map.insert("__id".to_string(), json!(new_id));
+    }
+    if let Some(container) = map.get("__container").and_then(|v| v.as_str()) {
+        if let Some(new_ref) = rename_reference(container, renames) {
+            map.insert("__container".to_string(), json!(new_ref));
+        }
+    }
+    if let Some(Value::Array(items)) = map.get_mut("content") {
+        for item in items.iter_mut() {
+            if let Some(new_ref) = item.as_str().and_then(|s| rename_reference(s, renames)) {
+                *item = json!(new_ref);
+            }
+        }
+    }
+}
+
+/// Rewrite a `[[#id]]` reference when its target was renamed.
+fn rename_reference(raw: &str, renames: &HashMap<String, String>) -> Option<String> {
+    let inner = raw.strip_prefix("[[#")?.strip_suffix("]]")?;
+    renames.get(inner).map(|new| format!("[[#{}]]", new))
+}
+
 /// Find __Namespace object in parsed objects.
 fn find_namespace_object(objects: &[Value]) -> Option<&Value> {
     objects
@@ -497,16 +599,17 @@ pub fn parse_workspace(root_path: &Path, format: OutputFormat) -> WorkspaceResul
         }
     }
 
-    // Resolve namespace for any directory, with memoization
-    let mut ns_cache: HashMap<String, Option<String>> = HashMap::new();
-    let mut resolve_namespace_for_dir = |dir: &str| -> Option<String> {
+    // Resolve namespace for any directory, with memoization. Returns the namespace id and the
+    // directory that declared it — the second is what a synthesised id is made relative to.
+    let mut ns_cache: HashMap<String, Option<(String, String)>> = HashMap::new();
+    let mut resolve_namespace_for_dir = |dir: &str| -> Option<(String, String)> {
         if let Some(v) = ns_cache.get(dir) {
             return v.clone();
         }
         let mut check_dir = dir.to_string();
         loop {
             if let Some(ns) = namespace_map.get(&check_dir) {
-                let v = Some(ns.clone());
+                let v = Some((ns.clone(), check_dir.clone()));
                 ns_cache.insert(dir.to_string(), v.clone());
                 return v;
             }
@@ -524,8 +627,15 @@ pub fn parse_workspace(root_path: &Path, format: OutputFormat) -> WorkspaceResul
     // Build final object list with metadata, without re-parsing files
     let mut all_objects: Vec<Value> = Vec::new();
     for pf in &parsed_files {
-        let namespace_id = resolve_namespace_for_dir(&pf.file_dir);
+        let ns_resolved = resolve_namespace_for_dir(&pf.file_dir);
+        let namespace_id = ns_resolved.as_ref().map(|(ns, _)| ns.clone());
+        let synthetic_renames = synthetic_id_renames(
+            &pf.objects,
+            &pf.file_path,
+            ns_resolved.as_ref().map(|(_, dir)| dir.as_str()),
+        );
         for mut obj in pf.objects.clone() {
+            rename_synthetic_ids(&mut obj, &synthetic_renames);
             let kind = obj
                 .get("__kind")
                 .and_then(|v| v.as_str())

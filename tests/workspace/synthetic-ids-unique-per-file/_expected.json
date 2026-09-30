@@ -1,0 +1,15 @@
+{
+  "workspace_id": "synthetic_ids",
+  "files": [
+    "readme.qmd.md",
+    "notes/alpha.qmd.md",
+    "specs/beta.qmd.md"
+  ],
+  "objects": {
+    "Session": ["alpha", "beta"],
+    "__Document": ["doc_notes_alpha", "doc_specs_beta"],
+    "__TextBlock": ["text_notes_alpha_0", "text_specs_beta_0"],
+    "__Workspace": ["synthetic_ids"]
+  },
+  "errors": []
+}

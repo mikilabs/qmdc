@@ -109,6 +109,100 @@ function extractNamespaceId(namespaceRef: string): string {
 }
 
 /**
+ * The readable, collision-free stem a file's synthesised ids are built from: its path relative
+ * to the directory that declared its namespace (relative to the workspace root when it has
+ * none), lowercased with every run of other characters folded to `_`.
+ *
+ * A single-file `parse` has no workspace and no namespace, so it keeps the counter form it has
+ * always had — one document cannot collide with itself. Only the workspace layer, which is where
+ * two files meet and where the graph key `<workspace>:<namespace>:<id>` is formed, qualifies them.
+ */
+export function syntheticIdStem(filePath: string, namespaceDir: string | null): string {
+  let rel = filePath;
+  if (namespaceDir && rel.startsWith(namespaceDir)) {
+    rel = rel.slice(namespaceDir.length).replace(/^\/+/, '');
+  }
+  if (rel.endsWith('.qmd.md')) {
+    rel = rel.slice(0, -'.qmd.md'.length);
+  }
+  let out = '';
+  let pendingSep = false;
+  for (const ch of rel) {
+    const lower = ch.toLowerCase();
+    if ((lower >= 'a' && lower <= 'z') || (lower >= '0' && lower <= '9')) {
+      if (pendingSep && out) {
+        out += '_';
+      }
+      pendingSep = false;
+      out += lower;
+    } else {
+      pendingSep = true;
+    }
+  }
+  return out;
+}
+
+/**
+ * Map each synthesised `doc_*` / `text_*` id in one file to its path-derived replacement.
+ * Empty when the stem is unusable, which leaves the ids exactly as the parser produced them.
+ */
+function syntheticIdRenames(
+  objects: Record<string, unknown>[],
+  filePath: string,
+  namespaceDir: string | null
+): Record<string, string> {
+  const stem = syntheticIdStem(filePath, namespaceDir);
+  const renames: Record<string, string> = {};
+  if (!stem) return renames;
+  for (const obj of objects) {
+    const objId = (obj.__id as string) || '';
+    if (obj.__kind === '__Document') {
+      renames[objId] = `doc_${stem}`;
+    } else if (obj.__kind === '__TextBlock') {
+      // `text_<n>` keeps its ordinal: a file can hold several text blocks.
+      const ordinal = objId.startsWith('text_') ? objId.slice('text_'.length) : objId;
+      renames[objId] = `text_${stem}_${ordinal}`;
+    }
+  }
+  return renames;
+}
+
+/** Rewrite a `[[#id]]` reference when its target was renamed. */
+function renameReference(raw: string, renames: Record<string, string>): string | null {
+  if (!raw.startsWith('[[#') || !raw.endsWith(']]')) return null;
+  const next = renames[raw.slice(3, -2)];
+  return next ? `[[#${next}]]` : null;
+}
+
+/**
+ * Apply the file's synthesised-id renames to one object: its own id, the `content` array a
+ * `__Document` uses to list what it holds, and the `__container` every sibling points back with.
+ * Author-written references are deliberately NOT rewritten — a reference to an id that no longer
+ * exists has to surface as a broken link rather than be silently retargeted.
+ */
+function renameSyntheticIds(obj: Record<string, unknown>, renames: Record<string, string>): void {
+  if (Object.keys(renames).length === 0) return;
+  const newId = renames[(obj.__id as string) || ''];
+  if (newId) {
+    obj.__id = newId;
+  }
+  if (typeof obj.__container === 'string') {
+    const nextRef = renameReference(obj.__container, renames);
+    if (nextRef) obj.__container = nextRef;
+  }
+  if (Array.isArray(obj.content)) {
+    const items = obj.content as unknown[];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (typeof item === 'string') {
+        const nextRef = renameReference(item, renames);
+        if (nextRef) items[i] = nextRef;
+      }
+    }
+  }
+}
+
+/**
  * Shared `__Workspace` marker check. Detects `[[id: __Workspace]]` in readme
  * content, allowing optional whitespace after the colon. Single source of truth
  * for workspace-root detection (avoids divergent inline regexes).
@@ -467,14 +561,17 @@ export function parseWorkspace(rootPath: string): WorkspaceResult {
       fileDir = '';
     }
 
-    // Find namespace for this file's directory
+    // Find namespace for this file's directory, and the directory that declared it — the
+    // second is what a synthesised id is made relative to.
     let namespaceId: string | null = null;
+    let namespaceDir: string | null = null;
     let checkDir = fileDir;
 
     while (checkDir) {
       const ns = namespaceMap[checkDir];
       if (ns) {
         namespaceId = ns;
+        namespaceDir = checkDir;
         break;
       }
       const parent = dirname(checkDir);
@@ -490,11 +587,15 @@ export function parseWorkspace(rootPath: string): WorkspaceResult {
       const ns = namespaceMap[fileDir];
       if (ns) {
         namespaceId = ns;
+        namespaceDir = fileDir;
       }
     }
 
+    const syntheticRenames = syntheticIdRenames(objects, filePath, namespaceDir);
+
     // Add metadata to each object
     for (const obj of objects) {
+      renameSyntheticIds(obj, syntheticRenames);
       obj.__file = filePath;
       // Use __line from parser if available, otherwise try to find it
       if (obj.__line === undefined || obj.__line === null) {

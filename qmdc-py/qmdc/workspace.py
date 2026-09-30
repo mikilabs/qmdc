@@ -122,6 +122,95 @@ def _extract_namespace_id(namespace_ref: str) -> str:
     return namespace_ref or ""
 
 
+def synthetic_id_stem(file_path: str, namespace_dir: str | None) -> str:
+    """The readable, collision-free stem a file's synthesised ids are built from.
+
+    The file's path relative to the directory that declared its namespace (relative to the
+    workspace root when it has none), lowercased with every run of other characters folded
+    to ``_``.
+
+    A single-file ``parse`` has no workspace and no namespace, so it keeps the counter form it
+    has always had - one document cannot collide with itself. Only the workspace layer, which
+    is where two files meet and where the graph key ``<workspace>:<namespace>:<id>`` is formed,
+    qualifies them.
+    """
+    rel = file_path
+    if namespace_dir and rel.startswith(namespace_dir):
+        rel = rel[len(namespace_dir) :].lstrip("/")
+    if rel.endswith(".qmd.md"):
+        rel = rel[: -len(".qmd.md")]
+    out: list[str] = []
+    pending_sep = False
+    for ch in rel:
+        lower = ch.lower()
+        if ("a" <= lower <= "z") or lower.isdigit():
+            if pending_sep and out:
+                out.append("_")
+            pending_sep = False
+            out.append(lower)
+        else:
+            pending_sep = True
+    return "".join(out)
+
+
+def _synthetic_id_renames(
+    objects: list[dict[str, Any]], file_path: str, namespace_dir: str | None
+) -> dict[str, str]:
+    """Map each synthesised ``doc_*`` / ``text_*`` id in one file to its path-derived replacement.
+
+    Empty when the stem is unusable, which leaves the ids exactly as the parser produced them.
+    """
+    stem = synthetic_id_stem(file_path, namespace_dir)
+    if not stem:
+        return {}
+    renames: dict[str, str] = {}
+    for obj in objects:
+        obj_id = obj.get("__id", "")
+        kind = obj.get("__kind")
+        if kind == "__Document":
+            renames[obj_id] = f"doc_{stem}"
+        elif kind == "__TextBlock":
+            # `text_<n>` keeps its ordinal: a file can hold several text blocks.
+            ordinal = obj_id[len("text_") :] if obj_id.startswith("text_") else obj_id
+            renames[obj_id] = f"text_{stem}_{ordinal}"
+    return renames
+
+
+def _rename_reference(raw: str, renames: dict[str, str]) -> str | None:
+    """Rewrite a ``[[#id]]`` reference when its target was renamed."""
+    if not (raw.startswith("[[#") and raw.endswith("]]")):
+        return None
+    new = renames.get(raw[3:-2])
+    return f"[[#{new}]]" if new else None
+
+
+def _rename_synthetic_ids(obj: dict[str, Any], renames: dict[str, str]) -> None:
+    """Apply the file's synthesised-id renames to one object.
+
+    Its own id, the ``content`` array a ``__Document`` uses to list what it holds, and the
+    ``__container`` every sibling points back with. Author-written references are deliberately
+    NOT rewritten - a reference to an id that no longer exists has to surface as a broken link
+    rather than be silently retargeted.
+    """
+    if not renames:
+        return
+    new_id = renames.get(obj.get("__id", ""))
+    if new_id:
+        obj["__id"] = new_id
+    container = obj.get("__container")
+    if isinstance(container, str):
+        new_ref = _rename_reference(container, renames)
+        if new_ref:
+            obj["__container"] = new_ref
+    content = obj.get("content")
+    if isinstance(content, list):
+        for i, item in enumerate(content):
+            if isinstance(item, str):
+                new_ref = _rename_reference(item, renames)
+                if new_ref:
+                    content[i] = new_ref
+
+
 def find_workspace_root(start_path: str) -> str | None:
     """
     Find workspace root by searching for readme.qmd.md with __Workspace object.
@@ -443,7 +532,7 @@ def parse_workspace(root_path: str) -> WorkspaceResult:
                         )
 
     # Second pass: parse all files with full metadata (including __references)
-    namespace_for_dir: dict[str, str | None] = {}
+    namespace_for_dir: dict[str, tuple[str | None, str | None]] = {}
     for file_path in files:
         full_path = root / file_path
         content = full_path.read_text(encoding="utf-8")
@@ -454,15 +543,18 @@ def parse_workspace(root_path: str) -> WorkspaceResult:
         if file_dir == ".":
             file_dir = ""
 
-        # Find namespace for this file's directory
+        # Find namespace for this file's directory, and the directory that declared it — the
+        # second is what a synthesised id is made relative to.
         if file_dir in namespace_for_dir:
-            namespace_id = namespace_for_dir[file_dir]
+            namespace_id, namespace_dir = namespace_for_dir[file_dir]
         else:
             namespace_id: str | None = None
+            namespace_dir: str | None = None
             check_dir = file_dir
             while check_dir:
                 if check_dir in namespace_map:
                     namespace_id = namespace_map[check_dir]
+                    namespace_dir = check_dir
                     break
                 # Go up one directory
                 check_dir = str(Path(check_dir).parent)
@@ -473,10 +565,14 @@ def parse_workspace(root_path: str) -> WorkspaceResult:
             # Also check current directory
             if namespace_id is None and file_dir in namespace_map:
                 namespace_id = namespace_map[file_dir]
-            namespace_for_dir[file_dir] = namespace_id
+                namespace_dir = file_dir
+            namespace_for_dir[file_dir] = (namespace_id, namespace_dir)
+
+        synthetic_renames = _synthetic_id_renames(objects, file_path, namespace_dir)
 
         # Add metadata to each object
         for obj in objects:
+            _rename_synthetic_ids(obj, synthetic_renames)
             obj["__file"] = file_path
             # parse(..., format="full") already provides __line using tokenizer offsets.
             # Only fallback to expensive regex scan if missing.

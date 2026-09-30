@@ -7,8 +7,8 @@
   "objects": {
     "Object": ["obj1"],
     "Service": ["svc_a"],
-    "__Document": ["doc_ry4ljv"],
-    "__TextBlock": ["text_0"]
+    "__Document": ["doc_readme"],
+    "__TextBlock": ["text_readme_0"]
   },
   "errors": [
     {

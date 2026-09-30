@@ -54,6 +54,18 @@ QMD.md documents can contain free text between objects. For lossless rebuild, th
 
 Explicit declaration of `[[id: __Document]]`, `[[id: __TextBlock]]`, or `[[id: __Object]]` in a heading is an error (`explicit_system_type`). Only `__Workspace` and `__Namespace` allow explicit declaration.
 
+The id of a synthesised `__Document` or `__TextBlock` is derived from the file it belongs to, so that two files in one namespace never carry the same one. The stem is the file's path relative to the directory that declared its namespace — relative to the workspace root when the file has no namespace — lowercased, with every run of other characters folded to a single `_` and the `.qmd.md` suffix dropped. A `__Document` becomes `doc_<stem>` and a `__TextBlock` keeps the ordinal that separates several blocks in one file: `text_<stem>_<n>`.
+
+A file's path is unique, so the id is unique without relying on a hash. Renaming or moving a file changes its synthesised ids; nothing may be referenced by them from another file, and a `__Document` names its own blocks in `content` while each block and each top-level object names the document in `__container`.
+
+A single-file `parse` has no workspace and no namespace, and one document cannot collide with itself, so there the ids keep the file-local counter form (`doc_<random>`, `text_<n>`). Only a workspace result, where two files meet and where the graph key `<workspace>:<namespace>:<id>` is formed, qualifies them.
+
+```markdown
+notes/alpha.qmd.md, no namespace  ->  doc_notes_alpha    text_notes_alpha_0
+format/deep/commands.qmd.md       ->  doc_deep_commands  text_deep_commands_0
+  (namespace `format` declared in format/readme.qmd.md)
+```
+
 Heading type determination:
 
 | Heading | `[[id]]` | Fields | Result |

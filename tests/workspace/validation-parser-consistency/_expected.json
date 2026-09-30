@@ -12,12 +12,12 @@
   ],
   "objects": {
     "__Document": [
-      "doc_ry4ljv",
-      "doc_ry4ljv",
-      "doc_ry4ljv",
-      "doc_ry4ljv",
-      "doc_ry4ljv",
-      "doc_ry4ljv"
+      "doc_broken_link_inline_code_test",
+      "doc_duplicate_id_line_test",
+      "doc_duplicate_id_line_test_2",
+      "doc_parsing_error_objects_test",
+      "doc_ts_line_bug_test",
+      "doc_ts_line_bug_test_2"
     ],
     "__Object": [
       "another_complex_with_dots",
@@ -40,12 +40,12 @@
       "parent_obj.nested_item"
     ],
     "__TextBlock": [
-      "text_0",
-      "text_0",
-      "text_0",
-      "text_0",
-      "text_0",
-      "text_0"
+      "text_broken_link_inline_code_test_0",
+      "text_duplicate_id_line_test_0",
+      "text_duplicate_id_line_test_2_0",
+      "text_parsing_error_objects_test_0",
+      "text_ts_line_bug_test_0",
+      "text_ts_line_bug_test_2_0"
     ],
     "__Workspace": [
       "parser_consistency"

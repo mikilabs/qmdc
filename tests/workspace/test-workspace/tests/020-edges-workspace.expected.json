@@ -7,9 +7,9 @@
     ["db7", "tbl_orders", "ecommerce"],
     ["db7", "tbl_products", "ecommerce"],
     ["db7", "tbl_users", "ecommerce"],
-    ["doc_ry4ljv", "api_gateway", "ecommerce"],
-    ["doc_ry4ljv", "order_items", "ecommerce"],
-    ["doc_ry4ljv", "order_service", "ecommerce"],
-    ["doc_ry4ljv", "orders", "ecommerce"]
+    ["doc_api", "api_gateway", "ecommerce"],
+    ["doc_api", "order_service", "ecommerce"],
+    ["doc_api", "product_service", "ecommerce"],
+    ["doc_api", "text_api_0", "ecommerce"]
   ]
 }

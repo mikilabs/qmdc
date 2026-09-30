@@ -80,6 +80,16 @@ file is maintained by hand.
 
 ### Changed
 
+- **Breaking:** a synthesised `__Document` / `__TextBlock` id is now derived from the file's path
+  instead of being the same literal in every document. Every document used to get `doc_ry4ljv` (an
+  LCG reseeded per parse) and every file's first text block `text_0`, and the graph keys on
+  `<workspace>:<namespace>:<id>` — so files sharing a namespace collided on that key and the last one
+  read won. In our own `docs/` the query layer returned 14 of the 125 synthesised objects; it now
+  returns all 125, and the sample workspace's edge count rose from 74 to 79 as the containment edges
+  came back with them. The id is `doc_<stem>` / `text_<stem>_<n>`, where the stem is the path relative
+  to the directory that declared the namespace (`format/deep/commands.qmd.md` under namespace `format`
+  becomes `doc_deep_commands`). A single-file `parse` cannot collide with itself and keeps the counter
+  form. Anything storing these ids — the semantic index does — must be rebuilt (QMD-77 C2).
 - **Breaking:** `workspace parse` names an error's owning object `objectId` and adds `fieldName` —
   the same keys `workspace validate` already used. The envelope's own spellings `object` and `field`
   are gone, so one error reads the same whichever command produced it. A consumer reading `object`
