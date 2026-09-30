@@ -43,8 +43,14 @@ Rust joins the lines with a space, Python with a newline, and TypeScript keeps o
 drops the rest in silence. Needs `[[#qmd77_finding_questions]]` Q1 first: the format does not say
 whether a wrapped value is legal at all.
 
+DONE. Q1 was answered "an error": the value is the authored first line in all three and the
+continuation raises the new `wrapped_field_value`. The two legal multiline forms are excluded by the
+only thing visible on the first line — a YAML pipe (`- key: |`) and a bracket that opens a YAML array
+(`- key: [`) — so neither needed a special case. An array ELEMENT is a value too and follows the same
+rule. Not one document in this repository or in the external corpus raises it.
+
 - group: A_identity
-- done: false
+- done: true
 
 #### A3: A declared array or map treats a deeper declaration the same way everywhere [[qmd77_goal_a3]]
 
@@ -84,8 +90,14 @@ The `__TextBlock` synthesised for content before a document's first heading hold
 all three. Today Rust keeps only a code fence where Python and TypeScript keep prose, table and fence,
 and all three drop a `---` entirely. Needs Q4.
 
+DONE. Q4 was answered "every block, and `---` everywhere". Rust dropped the prose because nothing
+claimed it — no blockquote, no text field, no pending text block, no object yet — so a paragraph above
+the first object now OPENS the text block, and the table after it joins in without a second fix. The
+`---` needed a branch none of the three had: in an object's body it survives only because a comment is
+a raw source slice that spans it.
+
 - group: B_content
-- done: false
+- done: true
 
 #### B2: A wrapped list item keeps its shape in every carrier [[qmd77_goal_b2]]
 
@@ -95,8 +107,14 @@ groupings appear: TypeScript strips the continuation's indent in text-block cont
 lines in an object's body, and the field-value carrier is the three-way split of `[[#qmd77_goal_a2]]`.
 Whatever Q1 decides applies to every carrier, with a fixture for each.
 
+DONE, and the four carriers split two ways. A wrapped value (a field value, an array element) is now
+an error — Q1. A wrapped item in PROSE is content and only has to be preserved identically: an
+object's comment already was in all three, and TypeScript's text-block content was not, because it
+rebuilt the list from inline tokens, where markdown-it has already stripped the continuation indent.
+It takes the raw source slice now, like the other two.
+
 - group: B_content
-- done: false
+- done: true
 
 #### C1: System objects are synthesised on the same files [[qmd77_goal_c1]]
 
