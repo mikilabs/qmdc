@@ -318,3 +318,111 @@ So each item needs, in this order:
 - category: parser
 - related_to: [[#qmd77_tails]]
 - solution: A goal is not done until its fixture has been seen red on the previous commit and green on this one.
+
+## Code review round 1: three blockers, all reproduced before any fix [[qmd77_finding_review_round1: Finding]]
+
+- feature: [[#qmd77_tails]]
+- category: review
+- severity: high
+
+A blind reviewer, run on the committed range `e0a6ab1..09f91c9` because the gate came after the
+commits, returned REQUEST_CHANGES. Each finding was reproduced by running all three binaries, and the
+pre-existing ones were confirmed on a build of the base commit.
+
+| finding | what the binaries showed | cause | now |
+|---|---|---|---|
+| F1 blocker | `deep/commands` and `deep_commands`, `a-b` and `a_b`, `x.y` and `x_y` each gave ONE `doc_*` id; the query kept one file | stem folding is not one-to-one; introduced by C2 | suffix by path byte order |
+| (own) | two Cyrillic file names both kept `doc_ry4ljv` / `text_0` | an empty stem skipped the rename | empty stem is `file` |
+| (own) | an author's `[[doc_notes: Session]]` and `notes.qmd.md` merged, `validate` silent | synthesised ids ignored authored ones | authored ids are taken first |
+| (own) | two files outside every explicit workspace both kept `doc_ry4ljv` / `text_0`; the query kept one | a second loop, for such files, never renamed: the twin C2 missed | the same assignment there |
+| F2 high | one object with two errors gave `error_0` twice in Rust; `structured_in_textblock` was `parsing_error_1` | Rust minted ids from two counters; pre-existing | one counter, the result length |
+| F3 blocker | a leading blockquote gave no `__TextBlock` in Rust | pre-existing | verbatim region |
+| F4 medium | a leading HTML block was dropped by all three | pre-existing | verbatim region |
+| F5 blocker | a setext heading gave `## alphabeta` in Rust and `## alpha` + `beta` in Python and TypeScript | text rebuilt from tokens; pre-existing | verbatim region |
+| (own) | a leading table or `---` opened no block anywhere; a leading list lost its bullets in Python and TypeScript; Rust stripped an unnamed heading's markup | same rebuild | verbatim region |
+| F6 info | the map reports the declaring heading and the list after it | wording: one error per offending element | sentence fixed |
+
+The text-block fix replaces how `content` is produced, not the boundaries: it is the source from the
+block's first line to the line before the heading that ends it. Measured before the change, every
+text block in `docs/` (73) and in the parser fixtures (36) already equalled that region in Python and
+Rust, so no pinned output moved; only the lossy shapes did. An HTML comment alone above the first
+heading still opens no block, as fixture 035 and the spec require.
+
+Out of scope and filed separately under this task's own rule: an HTML comment inside an object's
+`__comments` is dropped by Rust, as the spec says, and kept by Python and TypeScript.
+
+## Code review round 2: approved, and a low note that was an A1 defect [[qmd77_finding_review_round2: Finding]]
+
+- feature: [[#qmd77_tails]]
+- category: review
+- severity: medium
+
+A second blind reviewer, continued once after a runtime shutdown killed its first turn, checked every
+round-1 fix on the three current binaries and returned APPROVE: no blocker, no high, one medium (G2)
+and one low (G1). Both notes were measured again before anything was decided.
+
+G1 was filed as low and pre-existing: TypeScript emits a workspace's `files` in another order. The
+order is not cosmetic. TypeScript sorted names with `localeCompare`, which ignores case and
+punctuation, so it read a different file first than Rust and Python did, and the file read first
+decides which occurrence of a duplicate id is reported. Measured with one id declared in five files:
+
+| parser | reported as `duplicate_id` | kept by the query layer |
+|---|---|---|
+| Rust, Python | `a-b`, `a_b`, `c`, `a/x` | `a/x` |
+| TypeScript | `B`, `a-b`, `c`, `a/x` | `a/x` |
+
+With only `B`, `a-b` and `a_b`, TypeScript's query layer also kept another object (`B` against `a_b`).
+That contradicts goal A1, the same diagnostics and object set in all three, so it is fixed here rather
+than filed: one comparator per parser — directory, then `readme.qmd.md`, then file name, by UTF-8
+bytes — named in Rust and Python and mirrored in TypeScript. The walk for files outside every
+workspace had the same gap: all three took the directory listing's order, so the object `query` kept
+there differed between parsers (Rust kept `a-b`, Python `a/x`, TypeScript `c` on this machine) and
+could differ between machines. It now uses the same comparator. The `localeCompare` sort dates from
+June, so G1 is pre-existing as the reviewer said; only its reach was wider than reported.
+
+G2: since the verbatim-slice fix, the text-block fragments each parser still assembles are read only
+by the `structured_in_textblock` gate. Removing them is not a plain deletion, because the gate is not
+the same expression in the three — Rust also counts a first fragment that spans lines — so unifying
+it is a behaviour decision outside this task. The three declarations now say what reads them, and the
+rest is a residual.
+
+The reviewer's list of what it did not reach held one claim this task makes: one file name in two
+namespaces of one workspace. Measured: `ns1/notes.qmd.md` and `ns2/notes.qmd.md` both give
+`doc_notes` and `text_notes_0`, their containment edges are keyed by namespace in all three, and the
+query sees all four objects. Reading the orphan walk turned up one more pre-existing divergence —
+Rust loads such files to depth 5, Python and TypeScript to any depth — filed as
+[[#qmd80_orphan_depth]].
+
+## Code review round 3: approved, and the CHANGELOG claims no round had checked [[qmd77_finding_review_round3: Finding]]
+
+- feature: [[#qmd77_tails]]
+- category: review
+- severity: low
+
+A third blind reviewer checked only the round-2 delta: the one file-order comparator, the walk for
+files outside every workspace, the two new fixtures and their docs. Its first turn died to a runtime
+shutdown after two of six sections, both clean; the continued turn finished and returned APPROVE with
+no blocker, high or medium. It attacked the comparator with case, the three punctuation bytes `-`, `.`
+and `_`, Cyrillic, accented Latin, U+E000 against an emoji — where byte order and UTF-16 order
+disagree — and a directory named like a file, and all three parsers gave one order. On the pre-change
+builds only TypeScript's order moved, and fixture 039 gave three different answers — Rust `a-b`,
+TypeScript `c`, Python `a/x` — as claimed. Two style notes, a closure that could be the function's
+name and a relative path recomputed per comparison, change nothing and were left.
+
+Its one low note was about scope: the CHANGELOG entries written after round 1 had been checked by no
+review, because round 2 verified the fixes but not their text and round 3 only the delta's own entry.
+They were checked by running 21 probes in all three parsers on two builds — the code before the
+round-1 fixes, built fresh from HEAD, and the working tree. Everything held but one sentence, which
+said a list above the first heading opened no text block. That was true only of Rust: Python and
+TypeScript opened one and dropped its bullets, as the same entry said two lines earlier. Measured per
+parser, a table, a `---` or an HTML block opened none in any parser, a list or a blockquote none in
+Rust, and an indented code block none in Python and TypeScript. The probes also showed a loss the
+entry did not name: all three rewrote a `~~~` fence with backticks. Both are corrected, and the count
+"all 125" became "every one", since `docs/` now synthesises 143 objects and the query layer returns
+all of them in all three.
+
+The first HEAD build was not HEAD. It reused a copied Rust target directory, and cargo skipped the
+compile because the archived sources carry the commit's time, older than the copied binary — so it
+was the round-2 build under another name. The missing `Compiling qmdc` line gave it away; the
+sources were touched, rebuilt, and the binary confirmed to differ from the round-2 one before any
+probe was read.
