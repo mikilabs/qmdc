@@ -221,7 +221,7 @@ bump-major:
 	@echo ""
 	@$(MAKE) ts-bump-major
 	@echo ""
-	@$(MAKE) ext-bump
+	@$(MAKE) ext-bump PART=major
 	@echo ""
 	@$(MAKE) mkdocs-bump-major
 	@echo ""
@@ -240,7 +240,7 @@ bump-minor:
 	@echo ""
 	@$(MAKE) ts-bump-minor
 	@echo ""
-	@$(MAKE) ext-bump
+	@$(MAKE) ext-bump PART=minor
 	@echo ""
 	@$(MAKE) mkdocs-bump-minor
 	@echo ""
@@ -259,7 +259,7 @@ bump-patch:
 	@echo ""
 	@$(MAKE) ts-bump-patch
 	@echo ""
-	@$(MAKE) ext-bump
+	@$(MAKE) ext-bump PART=patch
 	@echo ""
 	@$(MAKE) mkdocs-bump-patch
 	@echo ""
@@ -290,7 +290,7 @@ binary-bump-major:
 	@echo ""
 	@$(MAKE) ts-bump-major
 	@echo ""
-	@$(MAKE) ext-bump
+	@$(MAKE) ext-bump PART=major
 	@echo ""
 	@echo "✅ Binary cascade bumped (MAJOR): rs, py, ts, vscode. semantic/mkdocs untouched."
 	@echo ""
@@ -307,7 +307,7 @@ binary-bump-minor:
 	@echo ""
 	@$(MAKE) ts-bump-minor
 	@echo ""
-	@$(MAKE) ext-bump
+	@$(MAKE) ext-bump PART=minor
 	@echo ""
 	@echo "✅ Binary cascade bumped (MINOR): rs, py, ts, vscode. semantic/mkdocs untouched."
 	@echo ""
@@ -324,7 +324,7 @@ binary-bump-patch:
 	@echo ""
 	@$(MAKE) ts-bump-patch
 	@echo ""
-	@$(MAKE) ext-bump
+	@$(MAKE) ext-bump PART=patch
 	@echo ""
 	@echo "✅ Binary cascade bumped (PATCH): rs, py, ts, vscode. semantic/mkdocs untouched."
 	@echo ""
@@ -568,7 +568,7 @@ dist:
 
 ext-bump:
 	@echo "=== VS Code Extension: bump version ==="
-	cd qmdc-vscode && npm run bump-version
+	cd qmdc-vscode && npm run bump-version -- $(PART)
 
 ext-build:
 	@echo "=== VS Code Extension: build ==="

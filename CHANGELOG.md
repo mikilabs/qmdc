@@ -10,6 +10,13 @@ file is maintained by hand.
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-01
+
+Major release: four breaking changes below (`workspaces` envelope, `objectId`/`fieldName`
+error keys, path-derived synthesised ids, no Kind segment in references). Every package
+ships as 2.0.0: `qmdc` (crates, PyPI, npm), `qmdc-vscode`, `qmdc-mkdocs` and
+`qmdc-semantic`, the last two now requiring `qmdc>=2.0.0`.
+
 ### Added
 
 - New `wrapped_field_value` parsing error: a field value — or an element of a `[[field: array]]` list —
@@ -385,6 +392,8 @@ file is maintained by hand.
 
 Initial release.
 
+[Unreleased]: https://github.com/mikilabs/qmdc/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/mikilabs/qmdc/releases/tag/v2.0.0
 [1.0.2]: https://github.com/mikilabs/qmdc/releases/tag/v1.0.2
 [1.0.1]: https://github.com/mikilabs/qmdc/releases/tag/v1.0.1
 [1.0.0]: https://github.com/mikilabs/qmdc/releases/tag/v1.0.0

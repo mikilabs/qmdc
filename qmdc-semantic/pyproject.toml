@@ -1,6 +1,6 @@
 [project]
 name = "qmdc-semantic"
-version = "1.0.0"
+version = "2.0.0"
 description = "Semantic search for QMDC workspaces - hybrid search, graph walk, inferred edges"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -18,7 +18,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "qmdc>=1.0.0",
+    "qmdc>=2.0.0",
     "click>=8.1.7",
     "numpy>=1.26.0",
     "pyyaml>=6.0",
