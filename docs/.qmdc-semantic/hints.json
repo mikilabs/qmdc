@@ -54,29 +54,6 @@
       "id": "mcp_discovery"
     }
   ],
-  "field:description@architecture/algorithms.qmd.md": [
-    {
-      "label": "Reference",
-      "kind": "Reference",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.867,
-      "id": "qmdc_guide.reference"
-    },
-    {
-      "label": "CLI",
-      "kind": "CLI",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.863,
-      "id": "qmdc_guide.cli"
-    },
-    {
-      "label": "Run SQL Query",
-      "kind": "ExtCommand",
-      "file": "extension/commands.qmd.md",
-      "score": 0.852,
-      "id": "ext_cmd_sql"
-    }
-  ],
   "docs:architecture:workspace_indexing": [
     {
       "label": "index",
@@ -96,7 +73,7 @@
       "label": "MCP Server",
       "kind": "Namespace",
       "file": "mcp/readme.qmd.md",
-      "score": 0.732,
+      "score": 0.737,
       "id": "mcp"
     }
   ],
@@ -133,10 +110,10 @@
     },
     {
       "label": "Reference",
-      "kind": "Reference",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.693,
-      "id": "qmdc_guide.reference"
+      "kind": "SyntaxConcept",
+      "file": "format/references.qmd.md",
+      "score": 0.706,
+      "id": "reference"
     }
   ],
   "field:editor_features@extension/readme.qmd.md": [
@@ -144,7 +121,7 @@
       "label": "Use QMDC with VS Code",
       "kind": "HowTo",
       "file": "guides/vscode.qmd.md",
-      "score": 0.822,
+      "score": 0.82,
       "id": "guide_vscode"
     },
     {
@@ -279,11 +256,11 @@
       "id": "guide_query"
     },
     {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.859,
-      "id": "cmd_workspace_validate"
+      "label": "SQLite Mapping",
+      "kind": "Algorithm",
+      "file": "architecture/algorithms.qmd.md",
+      "score": 0.851,
+      "id": "sqlite_mapping"
     }
   ],
   "field:__description@extension/commands.qmd.md": [
@@ -311,6 +288,13 @@
   ],
   "field:examples@format/arrays.qmd.md": [
     {
+      "label": "Mixed Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.798,
+      "id": "validation_errors.err_mixed_array"
+    },
+    {
       "label": "Syntax",
       "kind": "Syntax",
       "file": "guides/qmdc-guide.qmd.md",
@@ -318,50 +302,34 @@
       "id": "qmdc_guide.syntax"
     },
     {
-      "label": "Reference",
-      "kind": "SyntaxConcept",
-      "file": "format/references.qmd.md",
-      "score": 0.748,
-      "id": "reference"
-    },
-    {
-      "label": "Common Errors",
-      "kind": "NarrativeDoc",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.731,
-      "id": "qmdc_guide.common_errors"
-    }
-  ],
-  "field:rules@format/arrays.qmd.md": [
-    {
-      "label": "Validate a Document",
-      "kind": "HowTo",
-      "file": "guides/validate-document.qmd.md",
-      "score": 0.765,
-      "id": "guide_validate"
-    },
-    {
-      "label": "Common Errors",
-      "kind": "NarrativeDoc",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.745,
-      "id": "qmdc_guide.common_errors"
-    },
-    {
-      "label": "Nested Subitems",
+      "label": "Table In Array",
       "kind": "ValidationError",
       "file": "format/validation-errors.qmd.md",
-      "score": 0.735,
-      "id": "validation_errors.err_nested_subitems"
+      "score": 0.764,
+      "id": "validation_errors.err_table_in_array"
     }
   ],
   "docs:format:array": [
+    {
+      "label": "Mixed Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.717,
+      "id": "validation_errors.err_mixed_array"
+    },
     {
       "label": "Ordered List In Array",
       "kind": "ValidationError",
       "file": "format/validation-errors.qmd.md",
       "score": 0.685,
       "id": "validation_errors.err_ordered_list_in_array"
+    },
+    {
+      "label": "Table In Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.681,
+      "id": "validation_errors.err_table_in_array"
     }
   ],
   "field:description@format/comments.qmd.md": [
@@ -504,11 +472,11 @@
       "id": "lsp_formatting.formatting"
     },
     {
-      "label": "Dangling Field",
+      "label": "Block In Inline Field",
       "kind": "ValidationError",
       "file": "format/validation-errors.qmd.md",
-      "score": 0.677,
-      "id": "validation_errors.err_dangling_field"
+      "score": 0.689,
+      "id": "validation_errors.err_block_in_inline_field"
     }
   ],
   "field:heading_syntax_fields@format/fields.qmd.md": [
@@ -534,29 +502,6 @@
       "id": "validation_errors.err_dangling_field"
     }
   ],
-  "field:extraction_rules@format/fields.qmd.md": [
-    {
-      "label": "Validation Errors",
-      "kind": "SyntaxConcept",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.805,
-      "id": "validation_errors"
-    },
-    {
-      "label": "Invalid Map Content",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.711,
-      "id": "validation_errors.err_invalid_map_content"
-    },
-    {
-      "label": "Discovery",
-      "kind": "Category",
-      "file": "mcp/discovery.qmd.md",
-      "score": 0.709,
-      "id": "mcp_discovery"
-    }
-  ],
   "field:yaml_multiline@format/fields.qmd.md": [
     {
       "label": "Syntax",
@@ -566,18 +511,18 @@
       "id": "qmdc_guide.syntax"
     },
     {
+      "label": "Wrapped Field Value",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.767,
+      "id": "validation_errors.err_wrapped_field_value"
+    },
+    {
       "label": "Reference",
       "kind": "Reference",
       "file": "guides/qmdc-guide.qmd.md",
       "score": 0.748,
       "id": "qmdc_guide.reference"
-    },
-    {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.651,
-      "id": "qmdc_guide.validation"
     }
   ],
   "field:dangling_fields@format/fields.qmd.md": [
@@ -592,38 +537,15 @@
       "label": "Validate a Document",
       "kind": "HowTo",
       "file": "guides/validate-document.qmd.md",
-      "score": 0.823,
+      "score": 0.801,
       "id": "guide_validate"
     },
     {
       "label": "Validation",
       "kind": "Validation",
       "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.761,
+      "score": 0.772,
       "id": "qmdc_guide.validation"
-    }
-  ],
-  "field:rules@format/fields.qmd.md": [
-    {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.794,
-      "id": "qmdc_guide.validation"
-    },
-    {
-      "label": "Reference",
-      "kind": "Reference",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.785,
-      "id": "qmdc_guide.reference"
-    },
-    {
-      "label": "Invalid Map Content",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.773,
-      "id": "validation_errors.err_invalid_map_content"
     }
   ],
   "docs:format:field": [
@@ -718,29 +640,6 @@
       "id": "lsp_completion.ctx_kind_header"
     }
   ],
-  "field:rules@format/headings.qmd.md": [
-    {
-      "label": "Multiple Definitions In Heading",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.845,
-      "id": "validation_errors.err_multiple_definitions"
-    },
-    {
-      "label": "Common Errors",
-      "kind": "NarrativeDoc",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.765,
-      "id": "qmdc_guide.common_errors"
-    },
-    {
-      "label": "Structured In TextBlock",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.748,
-      "id": "validation_errors.err_structured_in_textblock"
-    }
-  ],
   "docs:format:heading": [
     {
       "label": "Explicit System Type",
@@ -762,29 +661,6 @@
       "file": "format/validation-errors.qmd.md",
       "score": 0.71,
       "id": "validation_errors.err_multiple_definitions"
-    }
-  ],
-  "field:system_fields@format/objects.qmd.md": [
-    {
-      "label": "Syntax",
-      "kind": "Syntax",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.753,
-      "id": "qmdc_guide.syntax"
-    },
-    {
-      "label": "Workspace",
-      "kind": "Workspace",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.751,
-      "id": "qmdc_guide.workspace"
-    },
-    {
-      "label": "Reference",
-      "kind": "Reference",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.731,
-      "id": "qmdc_guide.reference"
     }
   ],
   "field:hierarchical_ids@format/objects.qmd.md": [
@@ -849,29 +725,6 @@
       "id": "mcp_resources.res_object"
     }
   ],
-  "field:syntax@format/references.qmd.md": [
-    {
-      "label": "Reference",
-      "kind": "Reference",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.846,
-      "id": "qmdc_guide.reference"
-    },
-    {
-      "label": "Completion",
-      "kind": "LSPFeature",
-      "file": "lsp/completion.qmd.md",
-      "score": 0.76,
-      "id": "lsp_completion.completion"
-    },
-    {
-      "label": "Go to Definition",
-      "kind": "LSPFeature",
-      "file": "lsp/navigation.qmd.md",
-      "score": 0.757,
-      "id": "lsp_navigation.definition"
-    }
-  ],
   "field:typed_edges@format/references.qmd.md": [
     {
       "label": "Reference",
@@ -928,10 +781,10 @@
     },
     {
       "label": "Ambiguous Field Reference",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.797,
-      "id": "validation_errors.err_ambiguous_field_reference"
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.803,
+      "id": "lsp_diagnostics.rule_ambiguous_field_ref"
     },
     {
       "label": "Broken Parent",
@@ -939,29 +792,6 @@
       "file": "format/validation-errors.qmd.md",
       "score": 0.783,
       "id": "validation_errors.err_broken_parent"
-    }
-  ],
-  "field:rules@format/references.qmd.md": [
-    {
-      "label": "Reference",
-      "kind": "Reference",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.812,
-      "id": "qmdc_guide.reference"
-    },
-    {
-      "label": "Reference Resolution",
-      "kind": "Algorithm",
-      "file": "architecture/algorithms.qmd.md",
-      "score": 0.785,
-      "id": "reference_resolution"
-    },
-    {
-      "label": "Ambiguous Reference",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.771,
-      "id": "validation_errors.err_ambiguous_ref"
     }
   ],
   "docs:format:reference": [
@@ -985,45 +815,6 @@
       "file": "lsp/diagnostics.qmd.md",
       "score": 0.762,
       "id": "lsp_diagnostics.rule_invalid_ref"
-    }
-  ],
-  "field:syntax@format/types.qmd.md": [
-    {
-      "label": "Common Errors",
-      "kind": "NarrativeDoc",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.753,
-      "id": "qmdc_guide.common_errors"
-    },
-    {
-      "label": "Syntax",
-      "kind": "Syntax",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.733,
-      "id": "qmdc_guide.syntax"
-    }
-  ],
-  "field:primitives@format/types.qmd.md": [
-    {
-      "label": "Array",
-      "kind": "SyntaxConcept",
-      "file": "format/arrays.qmd.md",
-      "score": 0.751,
-      "id": "array"
-    },
-    {
-      "label": "Syntax",
-      "kind": "Syntax",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.735,
-      "id": "qmdc_guide.syntax"
-    },
-    {
-      "label": "Parser Microtests",
-      "kind": "TestSuite",
-      "file": "testing/parser-microtests.qmd.md",
-      "score": 0.718,
-      "id": "suite_parser_microtests"
     }
   ],
   "field:map_type@format/types.qmd.md": [
@@ -1061,7 +852,7 @@
       "label": "Invalid Map Content",
       "kind": "ValidationError",
       "file": "format/validation-errors.qmd.md",
-      "score": 0.696,
+      "score": 0.708,
       "id": "validation_errors.err_invalid_map_content"
     },
     {
@@ -1090,34 +881,34 @@
       "id": "qmdc_guide.validation"
     },
     {
-      "label": "CLI",
-      "kind": "CLI",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.828,
-      "id": "qmdc_guide.cli"
-    },
-    {
       "label": "Workspace In Wrong File",
       "kind": "DiagnosticRule",
       "file": "lsp/diagnostics.qmd.md",
       "score": 0.826,
       "id": "lsp_diagnostics.rule_workspace_wrong_file"
+    },
+    {
+      "label": "Content Generator",
+      "kind": "ContentGenerator",
+      "file": "guides/small-workspace.qmd.md",
+      "score": 0.823,
+      "id": "guide_workspace.guide_workspace_gen"
     }
   ],
   "field:err_structured_in_textblock@format/validation-errors.qmd.md": [
-    {
-      "label": "Field",
-      "kind": "SyntaxConcept",
-      "file": "format/fields.qmd.md",
-      "score": 0.805,
-      "id": "field"
-    },
     {
       "label": "Comment",
       "kind": "SyntaxConcept",
       "file": "format/comments.qmd.md",
       "score": 0.762,
       "id": "comment"
+    },
+    {
+      "label": "Field",
+      "kind": "SyntaxConcept",
+      "file": "format/fields.qmd.md",
+      "score": 0.734,
+      "id": "field"
     },
     {
       "label": "Semantic Storage Schema",
@@ -1128,6 +919,13 @@
     }
   ],
   "field:err_ambiguous_field_reference@format/validation-errors.qmd.md": [
+    {
+      "label": "Ambiguous Field Reference",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.94,
+      "id": "lsp_diagnostics.rule_ambiguous_field_ref"
+    },
     {
       "label": "Field",
       "kind": "SyntaxConcept",
@@ -1141,16 +939,16 @@
       "file": "lsp/completion.qmd.md",
       "score": 0.76,
       "id": "lsp_completion.ctx_field_value"
-    },
-    {
-      "label": "Ambiguous Reference",
-      "kind": "DiagnosticRule",
-      "file": "lsp/diagnostics.qmd.md",
-      "score": 0.756,
-      "id": "lsp_diagnostics.rule_ambiguous_ref"
     }
   ],
   "field:depends@format/validation-errors.qmd.md": [
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.866,
+      "id": "cmd_workspace_validate"
+    },
     {
       "label": "Validate Workspace",
       "kind": "ExtCommand",
@@ -1159,87 +957,57 @@
       "id": "ext_cmd_validate"
     },
     {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.839,
-      "id": "cmd_workspace_validate"
-    },
-    {
       "label": "CLI",
       "kind": "CLI",
       "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.82,
+      "score": 0.829,
       "id": "qmdc_guide.cli"
     }
   ],
   "field:cause@format/validation-errors.qmd.md": [
     {
-      "label": "Validate a Document",
-      "kind": "HowTo",
-      "file": "guides/validate-document.qmd.md",
-      "score": 0.806,
-      "id": "guide_validate"
+      "label": "Workspace In Wrong File",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.911,
+      "id": "lsp_diagnostics.rule_workspace_wrong_file"
+    },
+    {
+      "label": "Workspace",
+      "kind": "SyntaxConcept",
+      "file": "format/workspaces.qmd.md",
+      "score": 0.805,
+      "id": "workspace"
     },
     {
       "label": "Object",
       "kind": "SyntaxConcept",
       "file": "format/objects.qmd.md",
-      "score": 0.804,
+      "score": 0.8,
       "id": "object"
-    },
-    {
-      "label": "Duplicate ID",
-      "kind": "DiagnosticRule",
-      "file": "lsp/diagnostics.qmd.md",
-      "score": 0.801,
-      "id": "lsp_diagnostics.rule_duplicate_id"
-    }
-  ],
-  "field:solution@format/validation-errors.qmd.md": [
-    {
-      "label": "Workspace In Wrong File",
-      "kind": "DiagnosticRule",
-      "file": "lsp/diagnostics.qmd.md",
-      "score": 0.87,
-      "id": "lsp_diagnostics.rule_workspace_wrong_file"
-    },
-    {
-      "label": "Code Action",
-      "kind": "LSPFeature",
-      "file": "lsp/refactoring.qmd.md",
-      "score": 0.809,
-      "id": "lsp_refactoring.code_action"
-    },
-    {
-      "label": "Validate a Document",
-      "kind": "HowTo",
-      "file": "guides/validate-document.qmd.md",
-      "score": 0.791,
-      "id": "guide_validate"
     }
   ],
   "field:__description@format/validation-errors.qmd.md": [
     {
-      "label": "Object",
-      "kind": "SyntaxConcept",
-      "file": "format/objects.qmd.md",
-      "score": 0.796,
-      "id": "object"
+      "label": "Workspace In Wrong File",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.912,
+      "id": "lsp_diagnostics.rule_workspace_wrong_file"
     },
     {
-      "label": "Heading",
+      "label": "Workspace",
       "kind": "SyntaxConcept",
-      "file": "format/headings.qmd.md",
-      "score": 0.771,
-      "id": "heading"
+      "file": "format/workspaces.qmd.md",
+      "score": 0.823,
+      "id": "workspace"
     },
     {
-      "label": "Reference Resolution",
-      "kind": "Algorithm",
-      "file": "architecture/algorithms.qmd.md",
-      "score": 0.753,
-      "id": "reference_resolution"
+      "label": "Array",
+      "kind": "SyntaxConcept",
+      "file": "format/arrays.qmd.md",
+      "score": 0.804,
+      "id": "array"
     }
   ],
   "docs:format:validation_errors.err_broken_link": [
@@ -1265,6 +1033,29 @@
       "id": "qmdc_guide.validation"
     }
   ],
+  "field:solution@format/validation-errors.qmd.md": [
+    {
+      "label": "Workspace In Wrong File",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.87,
+      "id": "lsp_diagnostics.rule_workspace_wrong_file"
+    },
+    {
+      "label": "Workspace",
+      "kind": "SyntaxConcept",
+      "file": "format/workspaces.qmd.md",
+      "score": 0.79,
+      "id": "workspace"
+    },
+    {
+      "label": "Broken Link",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.784,
+      "id": "lsp_diagnostics.rule_broken_link"
+    }
+  ],
   "docs:format:validation_errors.err_duplicate_id": [
     {
       "label": "Ambiguous Reference",
@@ -1275,6 +1066,13 @@
     }
   ],
   "docs:format:validation_errors.err_ambiguous_ref": [
+    {
+      "label": "Ambiguous Field Reference",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.903,
+      "id": "lsp_diagnostics.rule_ambiguous_field_ref"
+    },
     {
       "label": "Invalid Reference Syntax",
       "kind": "DiagnosticRule",
@@ -1288,13 +1086,6 @@
       "file": "lsp/diagnostics.qmd.md",
       "score": 0.741,
       "id": "lsp_diagnostics.rule_duplicate_id"
-    },
-    {
-      "label": "Reference",
-      "kind": "SyntaxConcept",
-      "file": "format/references.qmd.md",
-      "score": 0.737,
-      "id": "reference"
     }
   ],
   "docs:format:validation_errors.err_nested_workspace": [
@@ -1336,14 +1127,21 @@
       "id": "qmdc_guide.validation"
     },
     {
-      "label": "CLI",
-      "kind": "CLI",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.828,
-      "id": "qmdc_guide.cli"
+      "label": "Workspace",
+      "kind": "SyntaxConcept",
+      "file": "format/workspaces.qmd.md",
+      "score": 0.824,
+      "id": "workspace"
     }
   ],
   "field:examples@format/validation-errors.qmd.md": [
+    {
+      "label": "Validate a Document",
+      "kind": "HowTo",
+      "file": "guides/validate-document.qmd.md",
+      "score": 0.838,
+      "id": "guide_validate"
+    },
     {
       "label": "Common Errors",
       "kind": "NarrativeDoc",
@@ -1357,13 +1155,6 @@
       "file": "guides/qmdc-guide.qmd.md",
       "score": 0.803,
       "id": "qmdc_guide.syntax"
-    },
-    {
-      "label": "Object",
-      "kind": "SyntaxConcept",
-      "file": "format/objects.qmd.md",
-      "score": 0.757,
-      "id": "object"
     }
   ],
   "docs:format:validation_errors.err_structured_in_textblock": [
@@ -1375,18 +1166,18 @@
       "id": "field"
     },
     {
+      "label": "Validate a Document",
+      "kind": "HowTo",
+      "file": "guides/validate-document.qmd.md",
+      "score": 0.691,
+      "id": "guide_validate"
+    },
+    {
       "label": "Syntax",
       "kind": "Syntax",
       "file": "guides/qmdc-guide.qmd.md",
       "score": 0.678,
       "id": "qmdc_guide.syntax"
-    },
-    {
-      "label": "YAML Block",
-      "kind": "SyntaxConcept",
-      "file": "format/yaml-blocks.qmd.md",
-      "score": 0.671,
-      "id": "yaml_block"
     }
   ],
   "docs:format:validation_errors.err_multiple_definitions": [
@@ -1394,15 +1185,22 @@
       "label": "Duplicate ID",
       "kind": "DiagnosticRule",
       "file": "lsp/diagnostics.qmd.md",
-      "score": 0.78,
+      "score": 0.752,
       "id": "lsp_diagnostics.rule_duplicate_id"
     },
     {
       "label": "Heading",
       "kind": "SyntaxConcept",
       "file": "format/headings.qmd.md",
-      "score": 0.769,
+      "score": 0.71,
       "id": "heading"
+    },
+    {
+      "label": "Ambiguous Field Reference",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.687,
+      "id": "lsp_diagnostics.rule_ambiguous_field_ref"
     }
   ],
   "docs:format:validation_errors.err_ordered_list_in_array": [
@@ -1453,18 +1251,18 @@
       "id": "lsp_diagnostics.rule_missing_field"
     },
     {
+      "label": "Ambiguous Field Reference",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.804,
+      "id": "lsp_diagnostics.rule_ambiguous_field_ref"
+    },
+    {
       "label": "Invalid Field Type",
       "kind": "DiagnosticRule",
       "file": "lsp/diagnostics.qmd.md",
       "score": 0.779,
       "id": "lsp_diagnostics.rule_invalid_field_type"
-    },
-    {
-      "label": "Field",
-      "kind": "SyntaxConcept",
-      "file": "format/fields.qmd.md",
-      "score": 0.749,
-      "id": "field"
     }
   ],
   "docs:format:validation_errors.err_invalid_map_entry": [
@@ -1481,13 +1279,6 @@
       "file": "format/types.qmd.md",
       "score": 0.721,
       "id": "data_type"
-    },
-    {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.702,
-      "id": "qmdc_guide.validation"
     }
   ],
   "docs:format:validation_errors.err_broken_parent": [
@@ -1502,14 +1293,14 @@
       "label": "Validation",
       "kind": "Validation",
       "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.759,
+      "score": 0.74,
       "id": "qmdc_guide.validation"
     },
     {
       "label": "Workspace Validate",
       "kind": "Command",
       "file": "parsers/commands.qmd.md",
-      "score": 0.72,
+      "score": 0.717,
       "id": "cmd_workspace_validate"
     }
   ],
@@ -1543,20 +1334,6 @@
       "file": "format/types.qmd.md",
       "score": 0.685,
       "id": "data_type"
-    },
-    {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.677,
-      "id": "qmdc_guide.validation"
-    },
-    {
-      "label": "Invalid Field Type",
-      "kind": "DiagnosticRule",
-      "file": "lsp/diagnostics.qmd.md",
-      "score": 0.674,
-      "id": "lsp_diagnostics.rule_invalid_field_type"
     }
   ],
   "field:syntax@format/workspaces.qmd.md": [
@@ -1579,75 +1356,6 @@
       "kind": "Command",
       "file": "parsers/commands.qmd.md",
       "score": 0.759,
-      "id": "cmd_workspace_parse"
-    }
-  ],
-  "field:cross_file_refs@format/workspaces.qmd.md": [
-    {
-      "label": "Workspace",
-      "kind": "Workspace",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.8,
-      "id": "qmdc_guide.workspace"
-    },
-    {
-      "label": "Reference Resolution",
-      "kind": "Algorithm",
-      "file": "architecture/algorithms.qmd.md",
-      "score": 0.765,
-      "id": "reference_resolution"
-    },
-    {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.756,
-      "id": "cmd_workspace_validate"
-    }
-  ],
-  "field:object_metadata@format/workspaces.qmd.md": [
-    {
-      "label": "Workspace",
-      "kind": "Workspace",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.9,
-      "id": "qmdc_guide.workspace"
-    },
-    {
-      "label": "Workspace Parse",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.69,
-      "id": "cmd_workspace_parse"
-    },
-    {
-      "label": "Workspace In Wrong File",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.69,
-      "id": "validation_errors.err_workspace_in_wrong_file"
-    }
-  ],
-  "field:rules@format/workspaces.qmd.md": [
-    {
-      "label": "Workspace",
-      "kind": "Workspace",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.826,
-      "id": "qmdc_guide.workspace"
-    },
-    {
-      "label": "Workspace In Wrong File",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.804,
-      "id": "validation_errors.err_workspace_in_wrong_file"
-    },
-    {
-      "label": "Workspace Parse",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.733,
       "id": "cmd_workspace_parse"
     }
   ],
@@ -1681,13 +1389,6 @@
       "file": "guides/qmdc-guide.qmd.md",
       "score": 0.814,
       "id": "qmdc_guide.syntax"
-    },
-    {
-      "label": "Array",
-      "kind": "SyntaxConcept",
-      "file": "format/arrays.qmd.md",
-      "score": 0.652,
-      "id": "array"
     }
   ],
   "field:json_syntax@format/yaml-blocks.qmd.md": [
@@ -1715,11 +1416,11 @@
       "id": "qmdc_guide.syntax"
     },
     {
-      "label": "Data Type",
-      "kind": "SyntaxConcept",
-      "file": "format/types.qmd.md",
-      "score": 0.66,
-      "id": "data_type"
+      "label": "Parser Microtests",
+      "kind": "TestSuite",
+      "file": "testing/parser-microtests.qmd.md",
+      "score": 0.656,
+      "id": "suite_parser_microtests"
     }
   ],
   "docs:format:yaml_block": [
@@ -1731,18 +1432,18 @@
       "id": "qmdc_guide.syntax"
     },
     {
+      "label": "Block In Inline Field",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.694,
+      "id": "validation_errors.err_block_in_inline_field"
+    },
+    {
       "label": "Array",
       "kind": "SyntaxConcept",
       "file": "format/arrays.qmd.md",
-      "score": 0.709,
+      "score": 0.683,
       "id": "array"
-    },
-    {
-      "label": "Dynamic Block",
-      "kind": "SyntaxConcept",
-      "file": "format/dynamic-blocks.qmd.md",
-      "score": 0.679,
-      "id": "dynamic_block"
     }
   ],
   "field:__description@lsp/commands.qmd.md": [
@@ -1869,18 +1570,18 @@
       "id": "views"
     },
     {
+      "label": "Workspace",
+      "kind": "SyntaxConcept",
+      "file": "format/workspaces.qmd.md",
+      "score": 0.821,
+      "id": "workspace"
+    },
+    {
       "label": "Hover",
       "kind": "LSPFeature",
       "file": "lsp/information.qmd.md",
-      "score": 0.8,
+      "score": 0.798,
       "id": "lsp_information.hover"
-    },
-    {
-      "label": "Workspace Parse",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.79,
-      "id": "cmd_workspace_parse"
     }
   ],
   "docs:lsp:lsp_commands.cmd_get_workspace_tree": [
@@ -1938,34 +1639,27 @@
       "id": "lsp_navigation"
     },
     {
+      "label": "Diagnostics",
+      "kind": "Category",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.695,
+      "id": "lsp_diagnostics"
+    },
+    {
       "label": "Hover",
       "kind": "LSPFeature",
       "file": "lsp/information.qmd.md",
       "score": 0.688,
       "id": "lsp_information.hover"
-    },
-    {
-      "label": "LSP Commands",
-      "kind": "Category",
-      "file": "lsp/commands.qmd.md",
-      "score": 0.686,
-      "id": "lsp_commands"
     }
   ],
   "field:description@lsp/completion.qmd.md": [
     {
-      "label": "Reference",
-      "kind": "SyntaxConcept",
-      "file": "format/references.qmd.md",
-      "score": 0.76,
-      "id": "reference"
-    },
-    {
-      "label": "Array",
-      "kind": "SyntaxConcept",
-      "file": "format/arrays.qmd.md",
-      "score": 0.756,
-      "id": "array"
+      "label": "Hover",
+      "kind": "LSPFeature",
+      "file": "lsp/information.qmd.md",
+      "score": 0.741,
+      "id": "lsp_information.hover"
     },
     {
       "label": "Syntax",
@@ -1973,6 +1667,13 @@
       "file": "guides/qmdc-guide.qmd.md",
       "score": 0.74,
       "id": "qmdc_guide.syntax"
+    },
+    {
+      "label": "Inlay Hint",
+      "kind": "LSPFeature",
+      "file": "lsp/visual.qmd.md",
+      "score": 0.723,
+      "id": "lsp_visual.inlay_hint"
     }
   ],
   "docs:lsp:lsp_completion.completion": [
@@ -2014,11 +1715,11 @@
       "id": "ext_cmd_goto"
     },
     {
-      "label": "Show References",
-      "kind": "ExtCommand",
-      "file": "extension/commands.qmd.md",
-      "score": 0.776,
-      "id": "ext_cmd_show_refs"
+      "label": "Go to Definition",
+      "kind": "LSPFeature",
+      "file": "lsp/navigation.qmd.md",
+      "score": 0.78,
+      "id": "lsp_navigation.definition"
     }
   ],
   "docs:lsp:lsp_completion.ctx_kind_header": [
@@ -2186,41 +1887,18 @@
       "id": "validation_errors.err_workspace_in_wrong_file"
     },
     {
-      "label": "Ambiguous Reference",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.801,
-      "id": "validation_errors.err_ambiguous_ref"
-    },
-    {
       "label": "Workspace",
       "kind": "SyntaxConcept",
       "file": "format/workspaces.qmd.md",
       "score": 0.801,
       "id": "workspace"
-    }
-  ],
-  "docs:lsp:lsp_diagnostics": [
-    {
-      "label": "Diagnostics",
-      "kind": "McpResource",
-      "file": "mcp/resources.qmd.md",
-      "score": 0.873,
-      "id": "mcp_resources.res_diagnostics"
     },
     {
-      "label": "Validate References",
-      "kind": "McpTool",
-      "file": "mcp/graph.qmd.md",
-      "score": 0.844,
-      "id": "mcp_graph.tool_validate_references"
-    },
-    {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.818,
-      "id": "cmd_workspace_validate"
+      "label": "Reference",
+      "kind": "Reference",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.785,
+      "id": "qmdc_guide.reference"
     }
   ],
   "docs:lsp:lsp_diagnostics.diagnostics": [
@@ -2255,18 +1933,18 @@
       "id": "validation_errors.err_workspace_in_wrong_file"
     },
     {
-      "label": "Validate a Document",
-      "kind": "HowTo",
-      "file": "guides/validate-document.qmd.md",
-      "score": 0.838,
-      "id": "guide_validate"
+      "label": "Common Errors",
+      "kind": "NarrativeDoc",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.792,
+      "id": "qmdc_guide.common_errors"
     },
     {
-      "label": "Workspace",
-      "kind": "Workspace",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.801,
-      "id": "qmdc_guide.workspace"
+      "label": "Multiple Definitions In Heading",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.792,
+      "id": "validation_errors.err_multiple_definitions"
     }
   ],
   "docs:lsp:lsp_formatting": [
@@ -2407,29 +2085,6 @@
       "id": "lsp_commands"
     }
   ],
-  "field:description@lsp/information.qmd.md": [
-    {
-      "label": "Get Workspace Tree",
-      "kind": "Command",
-      "file": "lsp/commands.qmd.md",
-      "score": 0.8,
-      "id": "lsp_commands.cmd_get_workspace_tree"
-    },
-    {
-      "label": "Document Symbol",
-      "kind": "LSPFeature",
-      "file": "lsp/navigation.qmd.md",
-      "score": 0.758,
-      "id": "lsp_navigation.document_symbol"
-    },
-    {
-      "label": "Kind in Reference",
-      "kind": "CompletionContext",
-      "file": "lsp/completion.qmd.md",
-      "score": 0.754,
-      "id": "lsp_completion.ctx_kind_ref"
-    }
-  ],
   "docs:lsp:lsp_information.hover": [
     {
       "label": "Completion",
@@ -2499,29 +2154,6 @@
       "id": "ext_cmd_goto"
     }
   ],
-  "field:description@lsp/navigation.qmd.md": [
-    {
-      "label": "Show References",
-      "kind": "ExtCommand",
-      "file": "extension/commands.qmd.md",
-      "score": 0.789,
-      "id": "ext_cmd_show_refs"
-    },
-    {
-      "label": "Use QMDC with VS Code",
-      "kind": "HowTo",
-      "file": "guides/vscode.qmd.md",
-      "score": 0.78,
-      "id": "guide_vscode"
-    },
-    {
-      "label": "Reference",
-      "kind": "Reference",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.778,
-      "id": "qmdc_guide.reference"
-    }
-  ],
   "docs:lsp:lsp_navigation.definition": [
     {
       "label": "Hover",
@@ -2543,6 +2175,29 @@
       "file": "lsp/diagnostics.qmd.md",
       "score": 0.753,
       "id": "lsp_diagnostics.diagnostics"
+    }
+  ],
+  "field:description@lsp/navigation.qmd.md": [
+    {
+      "label": "Find References",
+      "kind": "McpTool",
+      "file": "mcp/graph.qmd.md",
+      "score": 0.811,
+      "id": "mcp_graph.tool_find_references"
+    },
+    {
+      "label": "ID in Reference",
+      "kind": "CompletionContext",
+      "file": "lsp/completion.qmd.md",
+      "score": 0.803,
+      "id": "lsp_completion.ctx_id_ref"
+    },
+    {
+      "label": "Show References",
+      "kind": "ExtCommand",
+      "file": "extension/commands.qmd.md",
+      "score": 0.789,
+      "id": "ext_cmd_show_refs"
     }
   ],
   "docs:lsp:lsp_navigation.references": [
@@ -2656,7 +2311,7 @@
       "label": "Broken Link",
       "kind": "ValidationError",
       "file": "format/validation-errors.qmd.md",
-      "score": 0.809,
+      "score": 0.806,
       "id": "validation_errors.err_broken_link"
     }
   ],
@@ -2764,7 +2419,7 @@
       "label": "Use QMDC with VS Code",
       "kind": "HowTo",
       "file": "guides/vscode.qmd.md",
-      "score": 0.74,
+      "score": 0.738,
       "id": "guide_vscode"
     },
     {
@@ -3102,7 +2757,7 @@
       "label": "Diagnostics",
       "kind": "Category",
       "file": "lsp/diagnostics.qmd.md",
-      "score": 0.844,
+      "score": 0.841,
       "id": "lsp_diagnostics"
     },
     {
@@ -3208,7 +2863,7 @@
       "label": "CLI",
       "kind": "CLI",
       "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.802,
+      "score": 0.79,
       "id": "qmdc_guide.cli"
     }
   ],
@@ -3306,11 +2961,11 @@
       "id": "lsp_commands.cmd_run_sql_query"
     },
     {
-      "label": "Query",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.718,
-      "id": "cmd_query"
+      "label": "Describe Metamodel",
+      "kind": "McpTool",
+      "file": "mcp/discovery.qmd.md",
+      "score": 0.678,
+      "id": "mcp_discovery.tool_describe_metamodel"
     }
   ],
   "docs:mcp:mcp_query.tool_query_sql": [
@@ -3516,7 +3171,7 @@
       "label": "Diagnostics",
       "kind": "Category",
       "file": "lsp/diagnostics.qmd.md",
-      "score": 0.873,
+      "score": 0.878,
       "id": "lsp_diagnostics"
     }
   ],
@@ -3536,11 +3191,11 @@
       "id": "settings"
     },
     {
-      "label": "Components",
-      "kind": "NarrativeDoc",
-      "file": "architecture/components.qmd.md",
-      "score": 0.69,
-      "id": "components"
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.699,
+      "id": "cmd_workspace_validate"
     }
   ],
   "docs:mcp:mcp_server": [
@@ -3586,18 +3241,18 @@
       "id": "qmdc_guide.cli"
     },
     {
-      "label": "index",
-      "kind": "Command",
-      "file": "semantic/commands.qmd.md",
-      "score": 0.751,
-      "id": "semantic_commands.cmd_sem_index"
+      "label": "Validate a Document",
+      "kind": "HowTo",
+      "file": "guides/validate-document.qmd.md",
+      "score": 0.848,
+      "id": "guide_validate"
     },
     {
-      "label": "Run SQL Query",
+      "label": "Validate Workspace",
       "kind": "ExtCommand",
       "file": "extension/commands.qmd.md",
-      "score": 0.75,
-      "id": "ext_cmd_sql"
+      "score": 0.839,
+      "id": "ext_cmd_validate"
     }
   ],
   "field:options@parsers/commands.qmd.md": [
@@ -3605,22 +3260,22 @@
       "label": "Run SQL Query",
       "kind": "ExtCommand",
       "file": "extension/commands.qmd.md",
-      "score": 0.76,
+      "score": 0.734,
       "id": "ext_cmd_sql"
     },
     {
-      "label": "index",
-      "kind": "Command",
-      "file": "semantic/commands.qmd.md",
-      "score": 0.747,
-      "id": "semantic_commands.cmd_sem_index"
+      "label": "Dynamic Block",
+      "kind": "SyntaxConcept",
+      "file": "format/dynamic-blocks.qmd.md",
+      "score": 0.729,
+      "id": "dynamic_block"
     },
     {
-      "label": "Validation Errors",
-      "kind": "SyntaxConcept",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.743,
-      "id": "validation_errors"
+      "label": "Workspace",
+      "kind": "Workspace",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.685,
+      "id": "qmdc_guide.workspace"
     }
   ],
   "field:examples@parsers/commands.qmd.md": [
@@ -3635,15 +3290,15 @@
       "label": "Validate Workspace",
       "kind": "ExtCommand",
       "file": "extension/commands.qmd.md",
-      "score": 0.881,
+      "score": 0.867,
       "id": "ext_cmd_validate"
     },
     {
-      "label": "Query Your Markdown Graph",
+      "label": "Validate a Document",
       "kind": "HowTo",
-      "file": "guides/query-graph.qmd.md",
-      "score": 0.847,
-      "id": "guide_query"
+      "file": "guides/validate-document.qmd.md",
+      "score": 0.838,
+      "id": "guide_validate"
     }
   ],
   "field:__description@parsers/commands.qmd.md": [
@@ -3658,7 +3313,7 @@
       "label": "CLI",
       "kind": "CLI",
       "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.828,
+      "score": 0.821,
       "id": "qmdc_guide.cli"
     },
     {
@@ -3697,7 +3352,7 @@
       "label": "CLI",
       "kind": "CLI",
       "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.831,
+      "score": 0.84,
       "id": "qmdc_guide.cli"
     },
     {
@@ -3713,29 +3368,6 @@
       "file": "format/validation-errors.qmd.md",
       "score": 0.7,
       "id": "validation_errors.err_workspace_in_wrong_file"
-    }
-  ],
-  "docs:parsers:cmd_workspace_validate": [
-    {
-      "label": "Validate Workspace",
-      "kind": "ExtCommand",
-      "file": "extension/commands.qmd.md",
-      "score": 0.912,
-      "id": "ext_cmd_validate"
-    },
-    {
-      "label": "CLI",
-      "kind": "CLI",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.911,
-      "id": "qmdc_guide.cli"
-    },
-    {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.875,
-      "id": "qmdc_guide.validation"
     }
   ],
   "field:__description@semantic/algorithms.qmd.md": [
@@ -3895,7 +3527,7 @@
       "label": "CLI",
       "kind": "CLI",
       "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.672,
+      "score": 0.664,
       "id": "qmdc_guide.cli"
     }
   ],
@@ -4020,25 +3652,25 @@
   ],
   "field:001_010_basic_objects@testing/parser-microtests.qmd.md": [
     {
+      "label": "Write Your First QMD.md File",
+      "kind": "Tutorial",
+      "file": "tutorials/first-file.qmd.md",
+      "score": 0.715,
+      "id": "guide_first_file"
+    },
+    {
       "label": "Array",
       "kind": "SyntaxConcept",
       "file": "format/arrays.qmd.md",
-      "score": 0.72,
+      "score": 0.709,
       "id": "array"
     },
     {
-      "label": "Data Type",
-      "kind": "SyntaxConcept",
-      "file": "format/types.qmd.md",
-      "score": 0.718,
-      "id": "data_type"
-    },
-    {
-      "label": "Field",
-      "kind": "SyntaxConcept",
-      "file": "format/fields.qmd.md",
-      "score": 0.716,
-      "id": "field"
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.708,
+      "id": "qmdc_guide.validation"
     }
   ],
   "docs:testing:suite_cli_tests": [
@@ -4073,18 +3705,18 @@
       "id": "suite_lsp_sql_tests"
     },
     {
+      "label": "Diagnostics",
+      "kind": "Category",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.72,
+      "id": "lsp_diagnostics"
+    },
+    {
       "label": "Parser Microtests",
       "kind": "TestSuite",
       "file": "testing/parser-microtests.qmd.md",
       "score": 0.711,
       "id": "suite_parser_microtests"
-    },
-    {
-      "label": "Diagnostics",
-      "kind": "Category",
-      "file": "lsp/diagnostics.qmd.md",
-      "score": 0.711,
-      "id": "lsp_diagnostics"
     }
   ],
   "docs:testing:suite_lsp_sql_tests": [
@@ -4181,18 +3813,18 @@
   ],
   "field:description@testing/workspace-tests.qmd.md": [
     {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.755,
-      "id": "cmd_workspace_validate"
-    },
-    {
       "label": "CLI",
       "kind": "CLI",
       "file": "guides/qmdc-guide.qmd.md",
       "score": 0.754,
       "id": "qmdc_guide.cli"
+    },
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.748,
+      "id": "cmd_workspace_validate"
     },
     {
       "label": "Workspace",
@@ -4244,7 +3876,7 @@
       "label": "Parse",
       "kind": "Command",
       "file": "parsers/commands.qmd.md",
-      "score": 0.739,
+      "score": 0.734,
       "id": "cmd_parse"
     }
   ],
@@ -4292,6 +3924,29 @@
       "file": "learn/human-machine-readable.qmd.md",
       "score": 0.8,
       "id": "human_machine_readable"
+    }
+  ],
+  "field:description@architecture/algorithms.qmd.md": [
+    {
+      "label": "Reference",
+      "kind": "Reference",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.874,
+      "id": "qmdc_guide.reference"
+    },
+    {
+      "label": "Run SQL Query",
+      "kind": "ExtCommand",
+      "file": "extension/commands.qmd.md",
+      "score": 0.851,
+      "id": "ext_cmd_sql"
+    },
+    {
+      "label": "Query Your Markdown Graph",
+      "kind": "HowTo",
+      "file": "guides/query-graph.qmd.md",
+      "score": 0.832,
+      "id": "guide_query"
     }
   ],
   "field:parser_implementations@architecture/components.qmd.md": [
@@ -4579,34 +4234,34 @@
       "id": "semantic_commands.cmd_sem_index"
     },
     {
-      "label": "CLI",
-      "kind": "CLI",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.847,
-      "id": "qmdc_guide.cli"
-    },
-    {
       "label": "Validation",
       "kind": "Validation",
       "file": "guides/qmdc-guide.qmd.md",
       "score": 0.838,
       "id": "qmdc_guide.validation"
+    },
+    {
+      "label": "Workspace",
+      "kind": "SyntaxConcept",
+      "file": "format/workspaces.qmd.md",
+      "score": 0.828,
+      "id": "workspace"
     }
   ],
   "docs:extension:ext_cmd_validate": [
     {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.912,
-      "id": "cmd_workspace_validate"
-    },
-    {
       "label": "CLI",
       "kind": "CLI",
       "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.899,
+      "score": 0.893,
       "id": "qmdc_guide.cli"
+    },
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.881,
+      "id": "cmd_workspace_validate"
     },
     {
       "label": "Validation",
@@ -4848,48 +4503,25 @@
   ],
   "field:description@format/arrays.qmd.md": [
     {
+      "label": "Table In Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.804,
+      "id": "validation_errors.err_table_in_array"
+    },
+    {
+      "label": "Extra Table In Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.783,
+      "id": "validation_errors.err_extra_table_in_array"
+    },
+    {
       "label": "Common Errors",
       "kind": "NarrativeDoc",
       "file": "guides/qmdc-guide.qmd.md",
       "score": 0.774,
       "id": "qmdc_guide.common_errors"
-    },
-    {
-      "label": "Nested Subitems",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.763,
-      "id": "validation_errors.err_nested_subitems"
-    },
-    {
-      "label": "YAML Block",
-      "kind": "SyntaxConcept",
-      "file": "format/yaml-blocks.qmd.md",
-      "score": 0.726,
-      "id": "yaml_block"
-    }
-  ],
-  "field:syntax@format/arrays.qmd.md": [
-    {
-      "label": "Nested Subitems",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.825,
-      "id": "validation_errors.err_nested_subitems"
-    },
-    {
-      "label": "Common Errors",
-      "kind": "NarrativeDoc",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.819,
-      "id": "qmdc_guide.common_errors"
-    },
-    {
-      "label": "Syntax",
-      "kind": "Syntax",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.817,
-      "id": "qmdc_guide.syntax"
     }
   ],
   "field:syntax@format/comments.qmd.md": [
@@ -4901,18 +4533,18 @@
       "id": "qmdc_guide.syntax"
     },
     {
+      "label": "Block In Inline Field",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.714,
+      "id": "validation_errors.err_block_in_inline_field"
+    },
+    {
       "label": "Multiple Definitions In Heading",
       "kind": "ValidationError",
       "file": "format/validation-errors.qmd.md",
       "score": 0.712,
       "id": "validation_errors.err_multiple_definitions"
-    },
-    {
-      "label": "Structured In TextBlock",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.696,
-      "id": "validation_errors.err_structured_in_textblock"
     }
   ],
   "field:rules@format/dynamic-blocks.qmd.md": [
@@ -4973,7 +4605,7 @@
       "label": "Parsing Algorithm",
       "kind": "Algorithm",
       "file": "architecture/algorithms.qmd.md",
-      "score": 0.761,
+      "score": 0.758,
       "id": "parsing_algorithm"
     },
     {
@@ -4996,31 +4628,8 @@
       "label": "Parsing Algorithm",
       "kind": "Algorithm",
       "file": "architecture/algorithms.qmd.md",
-      "score": 0.72,
+      "score": 0.718,
       "id": "parsing_algorithm"
-    }
-  ],
-  "field:system_types@format/objects.qmd.md": [
-    {
-      "label": "Syntax",
-      "kind": "Syntax",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.856,
-      "id": "qmdc_guide.syntax"
-    },
-    {
-      "label": "Explicit System Type",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.838,
-      "id": "validation_errors.err_explicit_system_type"
-    },
-    {
-      "label": "Structured In TextBlock",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.804,
-      "id": "validation_errors.err_structured_in_textblock"
     }
   ],
   "field:comments_system@format/objects.qmd.md": [
@@ -5042,7 +4651,7 @@
       "label": "Parsing Algorithm",
       "kind": "Algorithm",
       "file": "architecture/algorithms.qmd.md",
-      "score": 0.723,
+      "score": 0.721,
       "id": "parsing_algorithm"
     }
   ],
@@ -5058,7 +4667,7 @@
       "label": "Parse",
       "kind": "Command",
       "file": "parsers/commands.qmd.md",
-      "score": 0.787,
+      "score": 0.793,
       "id": "cmd_parse"
     },
     {
@@ -5085,11 +4694,11 @@
       "id": "ext_cmd_show_refs"
     },
     {
-      "label": "Reference Resolution",
-      "kind": "Algorithm",
-      "file": "architecture/algorithms.qmd.md",
-      "score": 0.754,
-      "id": "reference_resolution"
+      "label": "Code Action",
+      "kind": "LSPFeature",
+      "file": "lsp/refactoring.qmd.md",
+      "score": 0.752,
+      "id": "lsp_refactoring.code_action"
     }
   ],
   "field:description@format/types.qmd.md": [
@@ -5101,18 +4710,18 @@
       "id": "yaml_block"
     },
     {
-      "label": "Parse",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.738,
-      "id": "cmd_parse"
-    },
-    {
       "label": "Syntax",
       "kind": "Syntax",
       "file": "guides/qmdc-guide.qmd.md",
       "score": 0.732,
       "id": "qmdc_guide.syntax"
+    },
+    {
+      "label": "Object",
+      "kind": "SyntaxConcept",
+      "file": "format/objects.qmd.md",
+      "score": 0.725,
+      "id": "object"
     }
   ],
   "field:description@format/workspaces.qmd.md": [
@@ -5150,7 +4759,7 @@
       "label": "Parse",
       "kind": "Command",
       "file": "parsers/commands.qmd.md",
-      "score": 0.758,
+      "score": 0.761,
       "id": "cmd_parse"
     },
     {
@@ -5193,18 +4802,18 @@
       "id": "qmdc_guide.validation"
     },
     {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.813,
-      "id": "cmd_workspace_validate"
-    },
-    {
       "label": "Content Generator",
       "kind": "ContentGenerator",
       "file": "tutorials/first-file.qmd.md",
       "score": 0.798,
       "id": "guide_first_file.guide_first_file_gen"
+    },
+    {
+      "label": "Guides",
+      "kind": "Namespace",
+      "file": "guides/readme.qmd.md",
+      "score": 0.796,
+      "id": "guides"
     }
   ],
   "field:human_machine_gen_prompt@learn/human-machine-readable.qmd.md": [
@@ -5295,7 +4904,7 @@
       "label": "Validate a Document",
       "kind": "HowTo",
       "file": "guides/validate-document.qmd.md",
-      "score": 0.795,
+      "score": 0.776,
       "id": "guide_validate"
     }
   ],
@@ -5329,20 +4938,6 @@
       "file": "format/validation-errors.qmd.md",
       "score": 0.741,
       "id": "validation_errors.err_ambiguous_ref"
-    },
-    {
-      "label": "Invalid ID Character",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.721,
-      "id": "validation_errors.err_invalid_id_character"
-    },
-    {
-      "label": "Multiple Definitions In Heading",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.719,
-      "id": "validation_errors.err_multiple_definitions"
     }
   ],
   "docs:lsp:lsp_diagnostics.rule_unknown_kind": [
@@ -5416,6 +5011,13 @@
   ],
   "docs:lsp:lsp_diagnostics.rule_invalid_field_type": [
     {
+      "label": "Wrapped Field Value",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.795,
+      "id": "validation_errors.err_wrapped_field_value"
+    },
+    {
       "label": "Dangling Field",
       "kind": "ValidationError",
       "file": "format/validation-errors.qmd.md",
@@ -5428,13 +5030,6 @@
       "file": "format/validation-errors.qmd.md",
       "score": 0.772,
       "id": "validation_errors.err_mixed_field_keys"
-    },
-    {
-      "label": "Explicit System Type",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.753,
-      "id": "validation_errors.err_explicit_system_type"
     }
   ],
   "docs:lsp:lsp_diagnostics.rule_workspace_wrong_file": [
@@ -5584,18 +5179,18 @@
       "id": "ext_cmd_validate"
     },
     {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.777,
+      "id": "qmdc_guide.validation"
+    },
+    {
       "label": "Workspace Validate",
       "kind": "Command",
       "file": "parsers/commands.qmd.md",
-      "score": 0.807,
+      "score": 0.773,
       "id": "cmd_workspace_validate"
-    },
-    {
-      "label": "CLI",
-      "kind": "CLI",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.778,
-      "id": "qmdc_guide.cli"
     }
   ],
   "docs:parsers:cmd_parse": [
@@ -5782,15 +5377,6 @@
       "id": "quickstart"
     }
   ],
-  "docs:parsers:rust_parser": [
-    {
-      "label": "CLI",
-      "kind": "CLI",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.655,
-      "id": "qmdc_guide.cli"
-    }
-  ],
   "field:description@parsers/typescript-parser.qmd.md": [
     {
       "label": "Python Parser",
@@ -5876,8 +5462,15 @@
       "label": "Object",
       "kind": "SyntaxConcept",
       "file": "format/objects.qmd.md",
-      "score": 0.781,
+      "score": 0.757,
       "id": "object"
+    },
+    {
+      "label": "Parsing Algorithm",
+      "kind": "Algorithm",
+      "file": "architecture/algorithms.qmd.md",
+      "score": 0.744,
+      "id": "parsing_algorithm"
     },
     {
       "label": "Semantic Layer",
@@ -5885,13 +5478,6 @@
       "file": "semantic/readme.qmd.md",
       "score": 0.741,
       "id": "semantic"
-    },
-    {
-      "label": "Parsing Algorithm",
-      "kind": "Algorithm",
-      "file": "architecture/algorithms.qmd.md",
-      "score": 0.74,
-      "id": "parsing_algorithm"
     }
   ],
   "docs:semantic:semantic_algorithms.algo_inferred_edges": [
@@ -5979,11 +5565,11 @@
       "id": "workspace_indexing"
     },
     {
-      "label": "CLI",
-      "kind": "CLI",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.752,
-      "id": "qmdc_guide.cli"
+      "label": "Workspace Parse",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.748,
+      "id": "cmd_workspace_parse"
     }
   ],
   "field:examples@semantic/commands.qmd.md": [
@@ -6133,29 +5719,6 @@
       "id": "qmdc_guide.good_qmdc"
     }
   ],
-  "field:description@testing/lsp-microtests.qmd.md": [
-    {
-      "label": "Parser Microtests",
-      "kind": "TestSuite",
-      "file": "testing/parser-microtests.qmd.md",
-      "score": 0.725,
-      "id": "suite_parser_microtests"
-    },
-    {
-      "label": "LSP SQL Integration Tests",
-      "kind": "TestSuite",
-      "file": "testing/lsp-sql-tests.qmd.md",
-      "score": 0.722,
-      "id": "suite_lsp_sql_tests"
-    },
-    {
-      "label": "Workspace Tests",
-      "kind": "TestSuite",
-      "file": "testing/workspace-tests.qmd.md",
-      "score": 0.721,
-      "id": "suite_workspace_tests"
-    }
-  ],
   "field:description@testing/lsp-sql-tests.qmd.md": [
     {
       "label": "SQL Rewrite Tests",
@@ -6175,7 +5738,7 @@
       "label": "LSP Microtests",
       "kind": "TestSuite",
       "file": "testing/lsp-microtests.qmd.md",
-      "score": 0.722,
+      "score": 0.723,
       "id": "suite_lsp_microtests"
     }
   ],
@@ -6184,7 +5747,7 @@
       "label": "LSP Microtests",
       "kind": "TestSuite",
       "file": "testing/lsp-microtests.qmd.md",
-      "score": 0.725,
+      "score": 0.726,
       "id": "suite_lsp_microtests"
     },
     {
@@ -6253,7 +5816,7 @@
       "label": "SQLite Mapping",
       "kind": "Algorithm",
       "file": "architecture/algorithms.qmd.md",
-      "score": 0.748,
+      "score": 0.749,
       "id": "sqlite_mapping"
     },
     {
@@ -6361,7 +5924,7 @@
       "label": "Query",
       "kind": "Command",
       "file": "parsers/commands.qmd.md",
-      "score": 0.847,
+      "score": 0.796,
       "id": "cmd_query"
     },
     {
@@ -6464,57 +6027,11 @@
       "id": "why_qmdc"
     },
     {
-      "label": "Validate a Document",
-      "kind": "HowTo",
-      "file": "guides/validate-document.qmd.md",
-      "score": 0.768,
-      "id": "guide_validate"
-    }
-  ],
-  "field:expected_output@guides/small-workspace.qmd.md": [
-    {
-      "label": "Why QMDC",
-      "kind": "Explanation",
-      "file": "learn/why-qmdc.qmd.md",
-      "score": 0.799,
-      "id": "why_qmdc"
-    },
-    {
-      "label": "Markdown to Graph",
-      "kind": "Explanation",
-      "file": "learn/markdown-to-graph.qmd.md",
-      "score": 0.783,
-      "id": "markdown_to_graph"
-    },
-    {
-      "label": "Quickstart",
-      "kind": "Tutorial",
-      "file": "tutorials/quickstart.qmd.md",
-      "score": 0.753,
-      "id": "quickstart"
-    }
-  ],
-  "field:the_workspace_layer@guides/small-workspace.qmd.md": [
-    {
-      "label": "Markdown to Graph",
-      "kind": "Explanation",
-      "file": "learn/markdown-to-graph.qmd.md",
-      "score": 0.877,
-      "id": "markdown_to_graph"
-    },
-    {
-      "label": "Why QMDC",
-      "kind": "Explanation",
-      "file": "learn/why-qmdc.qmd.md",
-      "score": 0.812,
-      "id": "why_qmdc"
-    },
-    {
-      "label": "Workspace Indexing",
-      "kind": "Algorithm",
-      "file": "architecture/algorithms.qmd.md",
-      "score": 0.796,
-      "id": "workspace_indexing"
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.758,
+      "id": "qmdc_guide.validation"
     }
   ],
   "field:outcome@guides/validate-document.qmd.md": [
@@ -6522,14 +6039,14 @@
       "label": "Workspace Validate",
       "kind": "Command",
       "file": "parsers/commands.qmd.md",
-      "score": 0.842,
+      "score": 0.848,
       "id": "cmd_workspace_validate"
     },
     {
       "label": "CLI",
       "kind": "CLI",
       "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.832,
+      "score": 0.842,
       "id": "qmdc_guide.cli"
     },
     {
@@ -6538,121 +6055,6 @@
       "file": "extension/commands.qmd.md",
       "score": 0.818,
       "id": "ext_cmd_validate"
-    }
-  ],
-  "field:preamble@guides/validate-document.qmd.md": [
-    {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.88,
-      "id": "qmdc_guide.validation"
-    },
-    {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.845,
-      "id": "cmd_workspace_validate"
-    },
-    {
-      "label": "CLI",
-      "kind": "CLI",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.814,
-      "id": "qmdc_guide.cli"
-    }
-  ],
-  "field:example_output_when_errors_are_found@guides/validate-document.qmd.md": [
-    {
-      "label": "Broken Link",
-      "kind": "DiagnosticRule",
-      "file": "lsp/diagnostics.qmd.md",
-      "score": 0.838,
-      "id": "lsp_diagnostics.rule_broken_link"
-    },
-    {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.82,
-      "id": "qmdc_guide.validation"
-    },
-    {
-      "label": "Diagnostics",
-      "kind": "LSPFeature",
-      "file": "lsp/diagnostics.qmd.md",
-      "score": 0.79,
-      "id": "lsp_diagnostics.diagnostics"
-    }
-  ],
-  "field:fix@guides/validate-document.qmd.md": [
-    {
-      "label": "Ambiguous Reference",
-      "kind": "DiagnosticRule",
-      "file": "lsp/diagnostics.qmd.md",
-      "score": 0.815,
-      "id": "lsp_diagnostics.rule_ambiguous_ref"
-    },
-    {
-      "label": "Code Action",
-      "kind": "LSPFeature",
-      "file": "lsp/refactoring.qmd.md",
-      "score": 0.762,
-      "id": "lsp_refactoring.code_action"
-    },
-    {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.761,
-      "id": "qmdc_guide.validation"
-    }
-  ],
-  "field:documentation_section_docs_section@guides/validate-document.qmd.md": [
-    {
-      "label": "Field",
-      "kind": "SyntaxConcept",
-      "file": "format/fields.qmd.md",
-      "score": 0.823,
-      "id": "field"
-    },
-    {
-      "label": "Dangling Field",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.806,
-      "id": "validation_errors.err_dangling_field"
-    },
-    {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.788,
-      "id": "qmdc_guide.validation"
-    }
-  ],
-  "field:tips@guides/validate-document.qmd.md": [
-    {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.824,
-      "id": "cmd_workspace_validate"
-    },
-    {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.811,
-      "id": "qmdc_guide.validation"
-    },
-    {
-      "label": "CLI",
-      "kind": "CLI",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.786,
-      "id": "qmdc_guide.cli"
     }
   ],
   "field:goal@guides/vscode.qmd.md": [
@@ -6809,11 +6211,11 @@
       "id": "quickstart"
     },
     {
-      "label": "Parsing Algorithm",
-      "kind": "Algorithm",
-      "file": "architecture/algorithms.qmd.md",
-      "score": 0.71,
-      "id": "parsing_algorithm"
+      "label": "Write Your First QMD.md File",
+      "kind": "Tutorial",
+      "file": "tutorials/first-file.qmd.md",
+      "score": 0.717,
+      "id": "guide_first_file"
     }
   ],
   "field:the_resulting_graph@learn/markdown-to-graph.qmd.md": [
@@ -6858,7 +6260,7 @@
       "label": "Parsing Algorithm",
       "kind": "Algorithm",
       "file": "architecture/algorithms.qmd.md",
-      "score": 0.736,
+      "score": 0.737,
       "id": "parsing_algorithm"
     }
   ],
@@ -6867,7 +6269,7 @@
       "label": "Build a Small Workspace",
       "kind": "HowTo",
       "file": "guides/small-workspace.qmd.md",
-      "score": 0.877,
+      "score": 0.875,
       "id": "guide_workspace"
     },
     {
@@ -7175,7 +6577,7 @@
       "label": "Build a Small Workspace",
       "kind": "HowTo",
       "file": "guides/small-workspace.qmd.md",
-      "score": 0.812,
+      "score": 0.804,
       "id": "guide_workspace"
     },
     {
@@ -7404,11 +6806,11 @@
       "id": "validation_errors.err_nested_subitems"
     },
     {
-      "label": "Common Errors",
-      "kind": "NarrativeDoc",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.733,
-      "id": "qmdc_guide.common_errors"
+      "label": "Table In Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.744,
+      "id": "validation_errors.err_table_in_array"
     }
   ],
   "field:when_to_use_which@tutorials/first-file.qmd.md": [
@@ -7457,29 +6859,6 @@
       "id": "markdown_to_graph"
     }
   ],
-  "field:reference_formats@tutorials/first-file.qmd.md": [
-    {
-      "label": "Syntax",
-      "kind": "Syntax",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.773,
-      "id": "qmdc_guide.syntax"
-    },
-    {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.769,
-      "id": "qmdc_guide.validation"
-    },
-    {
-      "label": "Reference",
-      "kind": "Reference",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.755,
-      "id": "qmdc_guide.reference"
-    }
-  ],
   "field:key_system_fields_explained@tutorials/first-file.qmd.md": [
     {
       "label": "Syntax",
@@ -7505,18 +6884,18 @@
   ],
   "field:8_validate_find_and_fix_errors@tutorials/first-file.qmd.md": [
     {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.765,
-      "id": "cmd_workspace_validate"
-    },
-    {
       "label": "Content Generator",
       "kind": "ContentGenerator",
       "file": "guides/validate-document.qmd.md",
       "score": 0.764,
       "id": "guide_validate.guide_validate_gen"
+    },
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.755,
+      "id": "cmd_workspace_validate"
     },
     {
       "label": "Reference",
@@ -7745,7 +7124,7 @@
       "label": "SQLite Mapping",
       "kind": "Algorithm",
       "file": "architecture/algorithms.qmd.md",
-      "score": 0.76,
+      "score": 0.759,
       "id": "sqlite_mapping"
     },
     {
@@ -7765,18 +7144,18 @@
       "id": "qmdc_guide.cli"
     },
     {
-      "label": "Query",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.825,
-      "id": "cmd_query"
-    },
-    {
       "label": "Guides",
       "kind": "Namespace",
       "file": "guides/readme.qmd.md",
       "score": 0.82,
       "id": "guides"
+    },
+    {
+      "label": "Query",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.819,
+      "id": "cmd_query"
     }
   ],
   "docs:guides:guide_query.guide_query_gen": [
@@ -7830,7 +7209,7 @@
       "label": "Workspace",
       "kind": "Workspace",
       "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.748,
+      "score": 0.77,
       "id": "qmdc_guide.workspace"
     },
     {
@@ -7961,29 +7340,6 @@
       "file": "extension/readme.qmd.md",
       "score": 0.746,
       "id": "build_publish"
-    }
-  ],
-  "field:key_features@guides/vscode.qmd.md": [
-    {
-      "label": "Capabilities",
-      "kind": "NarrativeDoc",
-      "file": "extension/readme.qmd.md",
-      "score": 0.822,
-      "id": "capabilities"
-    },
-    {
-      "label": "Code Action",
-      "kind": "LSPFeature",
-      "file": "lsp/refactoring.qmd.md",
-      "score": 0.783,
-      "id": "lsp_refactoring.code_action"
-    },
-    {
-      "label": "Go to Definition",
-      "kind": "LSPFeature",
-      "file": "lsp/navigation.qmd.md",
-      "score": 0.78,
-      "id": "lsp_navigation.definition"
     }
   ],
   "field:workspace_navigation@guides/vscode.qmd.md": [
@@ -8409,18 +7765,18 @@
       "id": "markdown_to_graph"
     },
     {
-      "label": "Object",
-      "kind": "SyntaxConcept",
-      "file": "format/objects.qmd.md",
-      "score": 0.789,
-      "id": "object"
-    },
-    {
       "label": "Quickstart",
       "kind": "Tutorial",
       "file": "tutorials/quickstart.qmd.md",
       "score": 0.789,
       "id": "quickstart"
+    },
+    {
+      "label": "Metamodel",
+      "kind": "Metamodel",
+      "file": "readme.qmd.md",
+      "score": 0.783,
+      "id": "metamodel"
     }
   ],
   "field:link_roles@guides/qmdc-guide.qmd.md": [
@@ -8503,6 +7859,13 @@
   ],
   "field:creating_objects@guides/qmdc-guide.qmd.md": [
     {
+      "label": "Write Your First QMD.md File",
+      "kind": "Tutorial",
+      "file": "tutorials/first-file.qmd.md",
+      "score": 0.817,
+      "id": "guide_first_file"
+    },
+    {
       "label": "Field Key",
       "kind": "CompletionContext",
       "file": "lsp/completion.qmd.md",
@@ -8510,18 +7873,11 @@
       "id": "lsp_completion.ctx_field_key"
     },
     {
-      "label": "Heading",
+      "label": "Field",
       "kind": "SyntaxConcept",
-      "file": "format/headings.qmd.md",
-      "score": 0.733,
-      "id": "heading"
-    },
-    {
-      "label": "Write Your First QMD.md File",
-      "kind": "Tutorial",
-      "file": "tutorials/first-file.qmd.md",
+      "file": "format/fields.qmd.md",
       "score": 0.726,
-      "id": "guide_first_file"
+      "id": "field"
     }
   ],
   "field:data_types@guides/qmdc-guide.qmd.md": [
@@ -8529,7 +7885,7 @@
       "label": "Data Type",
       "kind": "SyntaxConcept",
       "file": "format/types.qmd.md",
-      "score": 0.735,
+      "score": 0.723,
       "id": "data_type"
     },
     {
@@ -8552,7 +7908,7 @@
       "label": "Field",
       "kind": "SyntaxConcept",
       "file": "format/fields.qmd.md",
-      "score": 0.74,
+      "score": 0.747,
       "id": "field"
     },
     {
@@ -8563,11 +7919,11 @@
       "id": "object"
     },
     {
-      "label": "Comment",
-      "kind": "SyntaxConcept",
-      "file": "format/comments.qmd.md",
-      "score": 0.685,
-      "id": "comment"
+      "label": "Block In Inline Field",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.701,
+      "id": "validation_errors.err_block_in_inline_field"
     }
   ],
   "field:heading_syntax_rule@guides/qmdc-guide.qmd.md": [
@@ -8586,11 +7942,11 @@
       "id": "validation_errors.err_dangling_field"
     },
     {
-      "label": "Object",
-      "kind": "SyntaxConcept",
-      "file": "format/objects.qmd.md",
-      "score": 0.723,
-      "id": "object"
+      "label": "Block In Inline Field",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.726,
+      "id": "validation_errors.err_block_in_inline_field"
     }
   ],
   "field:yaml_multiline@guides/qmdc-guide.qmd.md": [
@@ -8602,18 +7958,18 @@
       "id": "field"
     },
     {
+      "label": "Wrapped Field Value",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.764,
+      "id": "validation_errors.err_wrapped_field_value"
+    },
+    {
       "label": "YAML Block",
       "kind": "SyntaxConcept",
       "file": "format/yaml-blocks.qmd.md",
       "score": 0.719,
       "id": "yaml_block"
-    },
-    {
-      "label": "Array",
-      "kind": "SyntaxConcept",
-      "file": "format/arrays.qmd.md",
-      "score": 0.698,
-      "id": "array"
     }
   ],
   "field:arrays@guides/qmdc-guide.qmd.md": [
@@ -8678,11 +8034,11 @@
       "id": "validation_errors.err_multiple_definitions"
     },
     {
-      "label": "Array",
+      "label": "Heading",
       "kind": "SyntaxConcept",
-      "file": "format/arrays.qmd.md",
-      "score": 0.74,
-      "id": "array"
+      "file": "format/headings.qmd.md",
+      "score": 0.789,
+      "id": "heading"
     }
   ],
   "field:system_types@guides/qmdc-guide.qmd.md": [
@@ -8690,7 +8046,7 @@
       "label": "Object",
       "kind": "SyntaxConcept",
       "file": "format/objects.qmd.md",
-      "score": 0.856,
+      "score": 0.835,
       "id": "object"
     },
     {
@@ -8720,14 +8076,14 @@
       "label": "Parse",
       "kind": "Command",
       "file": "parsers/commands.qmd.md",
-      "score": 0.813,
+      "score": 0.822,
       "id": "cmd_parse"
     },
     {
       "label": "Parsing Algorithm",
       "kind": "Algorithm",
       "file": "architecture/algorithms.qmd.md",
-      "score": 0.786,
+      "score": 0.782,
       "id": "parsing_algorithm"
     }
   ],
@@ -8786,6 +8142,13 @@
       "id": "reference"
     },
     {
+      "label": "Write Your First QMD.md File",
+      "kind": "Tutorial",
+      "file": "tutorials/first-file.qmd.md",
+      "score": 0.653,
+      "id": "guide_first_file"
+    },
+    {
       "label": "Validation Errors",
       "kind": "SyntaxConcept",
       "file": "format/validation-errors.qmd.md",
@@ -8798,8 +8161,15 @@
       "label": "Array",
       "kind": "SyntaxConcept",
       "file": "format/arrays.qmd.md",
-      "score": 0.76,
+      "score": 0.746,
       "id": "array"
+    },
+    {
+      "label": "Mixed Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.71,
+      "id": "validation_errors.err_mixed_array"
     },
     {
       "label": "Reference",
@@ -8807,13 +8177,6 @@
       "file": "format/references.qmd.md",
       "score": 0.702,
       "id": "reference"
-    },
-    {
-      "label": "Write Your First QMD.md File",
-      "kind": "Tutorial",
-      "file": "tutorials/first-file.qmd.md",
-      "score": 0.69,
-      "id": "guide_first_file"
     }
   ],
   "field:kind_refs@guides/qmdc-guide.qmd.md": [
@@ -8821,45 +8184,22 @@
       "label": "Ambiguous Reference",
       "kind": "DiagnosticRule",
       "file": "lsp/diagnostics.qmd.md",
-      "score": 0.827,
+      "score": 0.806,
       "id": "lsp_diagnostics.rule_ambiguous_ref"
     },
     {
       "label": "Hover",
       "kind": "LSPFeature",
       "file": "lsp/information.qmd.md",
-      "score": 0.745,
+      "score": 0.744,
       "id": "lsp_information.hover"
     },
     {
-      "label": "Reference",
-      "kind": "SyntaxConcept",
-      "file": "format/references.qmd.md",
-      "score": 0.744,
-      "id": "reference"
-    }
-  ],
-  "field:namespace_refs@guides/qmdc-guide.qmd.md": [
-    {
-      "label": "Reference",
-      "kind": "SyntaxConcept",
-      "file": "format/references.qmd.md",
-      "score": 0.846,
-      "id": "reference"
-    },
-    {
-      "label": "Reference Resolution",
-      "kind": "Algorithm",
-      "file": "architecture/algorithms.qmd.md",
-      "score": 0.776,
-      "id": "reference_resolution"
-    },
-    {
-      "label": "Ambiguous Reference",
-      "kind": "ValidationError",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.771,
-      "id": "validation_errors.err_ambiguous_ref"
+      "label": "Kind in Reference",
+      "kind": "CompletionContext",
+      "file": "lsp/completion.qmd.md",
+      "score": 0.734,
+      "id": "lsp_completion.ctx_kind_ref"
     }
   ],
   "field:refs_not_parsed@guides/qmdc-guide.qmd.md": [
@@ -8867,14 +8207,14 @@
       "label": "Reference",
       "kind": "SyntaxConcept",
       "file": "format/references.qmd.md",
-      "score": 0.812,
+      "score": 0.826,
       "id": "reference"
     },
     {
       "label": "Field",
       "kind": "SyntaxConcept",
       "file": "format/fields.qmd.md",
-      "score": 0.785,
+      "score": 0.748,
       "id": "field"
     },
     {
@@ -9000,52 +8340,6 @@
       "id": "semantic_storage"
     }
   ],
-  "field:cross_file_refs@guides/qmdc-guide.qmd.md": [
-    {
-      "label": "Workspace",
-      "kind": "SyntaxConcept",
-      "file": "format/workspaces.qmd.md",
-      "score": 0.8,
-      "id": "workspace"
-    },
-    {
-      "label": "Markdown to Graph",
-      "kind": "Explanation",
-      "file": "learn/markdown-to-graph.qmd.md",
-      "score": 0.749,
-      "id": "markdown_to_graph"
-    },
-    {
-      "label": "Build a Small Workspace",
-      "kind": "HowTo",
-      "file": "guides/small-workspace.qmd.md",
-      "score": 0.748,
-      "id": "guide_workspace"
-    }
-  ],
-  "field:object_metadata@guides/qmdc-guide.qmd.md": [
-    {
-      "label": "Workspace",
-      "kind": "SyntaxConcept",
-      "file": "format/workspaces.qmd.md",
-      "score": 0.9,
-      "id": "workspace"
-    },
-    {
-      "label": "Build a Small Workspace",
-      "kind": "HowTo",
-      "file": "guides/small-workspace.qmd.md",
-      "score": 0.791,
-      "id": "guide_workspace"
-    },
-    {
-      "label": "Dump Index",
-      "kind": "Command",
-      "file": "lsp/commands.qmd.md",
-      "score": 0.781,
-      "id": "lsp_commands.cmd_dump_index"
-    }
-  ],
   "field:dynamic_blocks@guides/qmdc-guide.qmd.md": [
     {
       "label": "Dynamic Block",
@@ -9094,17 +8388,10 @@
   ],
   "field:validation_commands@guides/qmdc-guide.qmd.md": [
     {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.885,
-      "id": "cmd_workspace_validate"
-    },
-    {
       "label": "Validate a Document",
       "kind": "HowTo",
       "file": "guides/validate-document.qmd.md",
-      "score": 0.88,
+      "score": 0.871,
       "id": "guide_validate"
     },
     {
@@ -9113,6 +8400,13 @@
       "file": "guides/validate-document.qmd.md",
       "score": 0.87,
       "id": "guide_validate.guide_validate_gen"
+    },
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.861,
+      "id": "cmd_workspace_validate"
     }
   ],
   "field:validation_error_format@guides/qmdc-guide.qmd.md": [
@@ -9120,7 +8414,7 @@
       "label": "Workspace Validate",
       "kind": "Command",
       "file": "parsers/commands.qmd.md",
-      "score": 0.921,
+      "score": 0.873,
       "id": "cmd_workspace_validate"
     },
     {
@@ -9147,18 +8441,18 @@
       "id": "guide_first_file.guide_first_file_gen"
     },
     {
-      "label": "Object",
-      "kind": "SyntaxConcept",
-      "file": "format/objects.qmd.md",
-      "score": 0.783,
-      "id": "object"
-    },
-    {
       "label": "Write Your First QMD.md File",
       "kind": "Tutorial",
       "file": "tutorials/first-file.qmd.md",
-      "score": 0.769,
+      "score": 0.783,
       "id": "guide_first_file"
+    },
+    {
+      "label": "Build a Small Workspace",
+      "kind": "HowTo",
+      "file": "guides/small-workspace.qmd.md",
+      "score": 0.758,
+      "id": "guide_workspace"
     }
   ],
   "field:validation_normals@guides/qmdc-guide.qmd.md": [
@@ -9166,15 +8460,8 @@
       "label": "Write Your First QMD.md File",
       "kind": "Tutorial",
       "file": "tutorials/first-file.qmd.md",
-      "score": 0.71,
+      "score": 0.705,
       "id": "guide_first_file"
-    },
-    {
-      "label": "Validate a Document",
-      "kind": "HowTo",
-      "file": "guides/validate-document.qmd.md",
-      "score": 0.696,
-      "id": "guide_validate"
     },
     {
       "label": "Content Generator",
@@ -9182,6 +8469,13 @@
       "file": "tutorials/first-file.qmd.md",
       "score": 0.683,
       "id": "guide_first_file.guide_first_file_gen"
+    },
+    {
+      "label": "Diagnostics",
+      "kind": "McpResource",
+      "file": "mcp/resources.qmd.md",
+      "score": 0.683,
+      "id": "mcp_resources.res_diagnostics"
     }
   ],
   "docs:guides:qmdc_guide.validation": [
@@ -9200,11 +8494,11 @@
       "id": "ext_cmd_validate"
     },
     {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.743,
-      "id": "cmd_workspace_validate"
+      "label": "Validate a Document",
+      "kind": "HowTo",
+      "file": "guides/validate-document.qmd.md",
+      "score": 0.739,
+      "id": "guide_validate"
     }
   ],
   "field:cmd_parse@guides/qmdc-guide.qmd.md": [
@@ -9219,7 +8513,7 @@
       "label": "Rebuild",
       "kind": "Command",
       "file": "parsers/commands.qmd.md",
-      "score": 0.832,
+      "score": 0.82,
       "id": "cmd_rebuild"
     },
     {
@@ -9274,52 +8568,6 @@
       "file": "parsers/commands.qmd.md",
       "score": 0.739,
       "id": "cmd_parse"
-    }
-  ],
-  "field:cmd_workspace_parse@guides/qmdc-guide.qmd.md": [
-    {
-      "label": "Workspace Parse",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.894,
-      "id": "cmd_workspace_parse"
-    },
-    {
-      "label": "Parse Workspace",
-      "kind": "ExtCommand",
-      "file": "extension/commands.qmd.md",
-      "score": 0.847,
-      "id": "ext_cmd_parse"
-    },
-    {
-      "label": "Get Tree",
-      "kind": "McpTool",
-      "file": "mcp/discovery.qmd.md",
-      "score": 0.801,
-      "id": "mcp_discovery.tool_get_tree"
-    }
-  ],
-  "field:cmd_workspace_validate@guides/qmdc-guide.qmd.md": [
-    {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.956,
-      "id": "cmd_workspace_validate"
-    },
-    {
-      "label": "Validate Workspace",
-      "kind": "ExtCommand",
-      "file": "extension/commands.qmd.md",
-      "score": 0.899,
-      "id": "ext_cmd_validate"
-    },
-    {
-      "label": "Diagnostics",
-      "kind": "McpResource",
-      "file": "mcp/resources.qmd.md",
-      "score": 0.841,
-      "id": "mcp_resources.res_diagnostics"
     }
   ],
   "field:cmd_query@guides/qmdc-guide.qmd.md": [
@@ -9393,11 +8641,11 @@
   ],
   "field:err_missing_id@guides/qmdc-guide.qmd.md": [
     {
-      "label": "Heading",
-      "kind": "SyntaxConcept",
-      "file": "format/headings.qmd.md",
-      "score": 0.765,
-      "id": "heading"
+      "label": "Write Your First QMD.md File",
+      "kind": "Tutorial",
+      "file": "tutorials/first-file.qmd.md",
+      "score": 0.83,
+      "id": "guide_first_file"
     },
     {
       "label": "Invalid ID Character",
@@ -9465,7 +8713,7 @@
       "label": "Validate a Document",
       "kind": "HowTo",
       "file": "guides/validate-document.qmd.md",
-      "score": 0.775,
+      "score": 0.761,
       "id": "guide_validate"
     },
     {
@@ -9481,21 +8729,21 @@
       "label": "Ambiguous Reference",
       "kind": "DiagnosticRule",
       "file": "lsp/diagnostics.qmd.md",
-      "score": 0.781,
+      "score": 0.769,
       "id": "lsp_diagnostics.rule_ambiguous_ref"
     },
     {
-      "label": "Validate a Document",
-      "kind": "HowTo",
-      "file": "guides/validate-document.qmd.md",
-      "score": 0.709,
-      "id": "guide_validate"
+      "label": "Ambiguous Field Reference",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.7,
+      "id": "lsp_diagnostics.rule_ambiguous_field_ref"
     },
     {
       "label": "Hover",
       "kind": "LSPFeature",
       "file": "lsp/information.qmd.md",
-      "score": 0.702,
+      "score": 0.697,
       "id": "lsp_information.hover"
     }
   ],
@@ -9508,18 +8756,18 @@
       "id": "validation_errors.err_nested_subitems"
     },
     {
-      "label": "Array",
-      "kind": "SyntaxConcept",
-      "file": "format/arrays.qmd.md",
-      "score": 0.819,
-      "id": "array"
-    },
-    {
       "label": "Write Your First QMD.md File",
       "kind": "Tutorial",
       "file": "tutorials/first-file.qmd.md",
       "score": 0.779,
       "id": "guide_first_file"
+    },
+    {
+      "label": "Array",
+      "kind": "SyntaxConcept",
+      "file": "format/arrays.qmd.md",
+      "score": 0.774,
+      "id": "array"
     }
   ],
   "field:err_numbered_lists@guides/qmdc-guide.qmd.md": [
@@ -9538,11 +8786,11 @@
       "id": "validation_errors.err_nested_subitems"
     },
     {
-      "label": "Array",
-      "kind": "SyntaxConcept",
-      "file": "format/arrays.qmd.md",
-      "score": 0.666,
-      "id": "array"
+      "label": "Validate a Document",
+      "kind": "HowTo",
+      "file": "guides/validate-document.qmd.md",
+      "score": 0.719,
+      "id": "guide_validate"
     }
   ],
   "docs:guides:qmdc_guide.common_errors": [
@@ -9554,18 +8802,18 @@
       "id": "mcp_server.mcp_error_envelope"
     },
     {
-      "label": "Validate a Document",
-      "kind": "HowTo",
-      "file": "guides/validate-document.qmd.md",
-      "score": 0.673,
-      "id": "guide_validate"
-    },
-    {
       "label": "Content Generator",
       "kind": "ContentGenerator",
       "file": "guides/validate-document.qmd.md",
       "score": 0.662,
       "id": "guide_validate.guide_validate_gen"
+    },
+    {
+      "label": "Guide",
+      "kind": "McpResource",
+      "file": "mcp/resources.qmd.md",
+      "score": 0.654,
+      "id": "mcp_resources.res_guide"
     }
   ],
   "docs:guides:qmdc_guide.examples": [
@@ -9909,18 +9157,18 @@
   ],
   "docs:format:validation_errors.err_nested_subitems": [
     {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.712,
+      "id": "qmdc_guide.validation"
+    },
+    {
       "label": "Field",
       "kind": "SyntaxConcept",
       "file": "format/fields.qmd.md",
       "score": 0.705,
       "id": "field"
-    },
-    {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.686,
-      "id": "qmdc_guide.validation"
     }
   ],
   "docs:format:validation_errors.err_mixed_field_keys": [
@@ -9932,18 +9180,18 @@
       "id": "lsp_diagnostics.rule_invalid_field_type"
     },
     {
+      "label": "Ambiguous Field Reference",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.745,
+      "id": "lsp_diagnostics.rule_ambiguous_field_ref"
+    },
+    {
       "label": "Missing Required Field",
       "kind": "DiagnosticRule",
       "file": "lsp/diagnostics.qmd.md",
       "score": 0.718,
       "id": "lsp_diagnostics.rule_missing_field"
-    },
-    {
-      "label": "Field",
-      "kind": "SyntaxConcept",
-      "file": "format/fields.qmd.md",
-      "score": 0.717,
-      "id": "field"
     }
   ],
   "docs:format:validation_errors.err_invalid_id_character": [
@@ -9955,18 +9203,18 @@
       "id": "qmdc_guide.common_errors"
     },
     {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.747,
-      "id": "qmdc_guide.validation"
-    },
-    {
       "label": "Duplicate ID",
       "kind": "DiagnosticRule",
       "file": "lsp/diagnostics.qmd.md",
-      "score": 0.744,
+      "score": 0.747,
       "id": "lsp_diagnostics.rule_duplicate_id"
+    },
+    {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.735,
+      "id": "qmdc_guide.validation"
     }
   ],
   "field:dot_id_declarations@guides/qmdc-guide.qmd.md": [
@@ -9997,14 +9245,14 @@
       "label": "Reference Resolution",
       "kind": "Algorithm",
       "file": "architecture/algorithms.qmd.md",
-      "score": 0.867,
+      "score": 0.874,
       "id": "reference_resolution"
     },
     {
       "label": "Ambiguous Reference",
       "kind": "DiagnosticRule",
       "file": "lsp/diagnostics.qmd.md",
-      "score": 0.829,
+      "score": 0.831,
       "id": "lsp_diagnostics.rule_ambiguous_ref"
     },
     {
@@ -10038,29 +9286,6 @@
       "id": "reference"
     }
   ],
-  "field:resolve_process@format/references.qmd.md": [
-    {
-      "label": "Reference Resolution",
-      "kind": "Algorithm",
-      "file": "architecture/algorithms.qmd.md",
-      "score": 0.779,
-      "id": "reference_resolution"
-    },
-    {
-      "label": "Reference",
-      "kind": "Reference",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.774,
-      "id": "qmdc_guide.reference"
-    },
-    {
-      "label": "Validate a Document",
-      "kind": "HowTo",
-      "file": "guides/validate-document.qmd.md",
-      "score": 0.721,
-      "id": "guide_validate"
-    }
-  ],
   "field:examples@format/references.qmd.md": [
     {
       "label": "Reference",
@@ -10084,43 +9309,20 @@
       "id": "array"
     }
   ],
-  "docs:format:validation_errors": [
-    {
-      "label": "Validation",
-      "kind": "Validation",
-      "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.871,
-      "id": "qmdc_guide.validation"
-    },
-    {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.819,
-      "id": "cmd_workspace_validate"
-    },
-    {
-      "label": "Field",
-      "kind": "SyntaxConcept",
-      "file": "format/fields.qmd.md",
-      "score": 0.754,
-      "id": "field"
-    }
-  ],
   "field:principles@guides/qmdc-guide.qmd.md": [
-    {
-      "label": "Object",
-      "kind": "SyntaxConcept",
-      "file": "format/objects.qmd.md",
-      "score": 0.745,
-      "id": "object"
-    },
     {
       "label": "Human Text, Machine Structure",
       "kind": "Explanation",
       "file": "learn/human-machine-readable.qmd.md",
       "score": 0.739,
       "id": "human_machine_readable"
+    },
+    {
+      "label": "Object",
+      "kind": "SyntaxConcept",
+      "file": "format/objects.qmd.md",
+      "score": 0.724,
+      "id": "object"
     },
     {
       "label": "Content Generator",
@@ -10169,11 +9371,11 @@
       "id": "reference"
     },
     {
-      "label": "Array",
-      "kind": "SyntaxConcept",
-      "file": "format/arrays.qmd.md",
-      "score": 0.77,
-      "id": "array"
+      "label": "Mixed Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.774,
+      "id": "validation_errors.err_mixed_array"
     }
   ],
   "field:object_arrays_tables@guides/qmdc-guide.qmd.md": [
@@ -10181,22 +9383,22 @@
       "label": "Array",
       "kind": "SyntaxConcept",
       "file": "format/arrays.qmd.md",
-      "score": 0.765,
+      "score": 0.777,
       "id": "array"
     },
     {
-      "label": "Broken Parent",
+      "label": "Mixed Array",
       "kind": "ValidationError",
       "file": "format/validation-errors.qmd.md",
-      "score": 0.712,
-      "id": "validation_errors.err_broken_parent"
+      "score": 0.742,
+      "id": "validation_errors.err_mixed_array"
     },
     {
-      "label": "Write Your First QMD.md File",
-      "kind": "Tutorial",
-      "file": "tutorials/first-file.qmd.md",
-      "score": 0.689,
-      "id": "guide_first_file"
+      "label": "Extra Table In Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.741,
+      "id": "validation_errors.err_extra_table_in_array"
     }
   ],
   "field:field_refs@guides/qmdc-guide.qmd.md": [
@@ -10215,14 +9417,21 @@
       "id": "validation_errors.err_broken_parent"
     },
     {
-      "label": "Object",
-      "kind": "SyntaxConcept",
-      "file": "format/objects.qmd.md",
-      "score": 0.771,
-      "id": "object"
+      "label": "Ambiguous Field Reference",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.794,
+      "id": "lsp_diagnostics.rule_ambiguous_field_ref"
     }
   ],
   "field:ref_philosophy@guides/qmdc-guide.qmd.md": [
+    {
+      "label": "Reference",
+      "kind": "SyntaxConcept",
+      "file": "format/references.qmd.md",
+      "score": 0.803,
+      "id": "reference"
+    },
     {
       "label": "Write Your First QMD.md File",
       "kind": "Tutorial",
@@ -10236,36 +9445,6 @@
       "file": "format/validation-errors.qmd.md",
       "score": 0.786,
       "id": "validation_errors.err_broken_link"
-    },
-    {
-      "label": "Reference",
-      "kind": "SyntaxConcept",
-      "file": "format/references.qmd.md",
-      "score": 0.774,
-      "id": "reference"
-    }
-  ],
-  "field:validation_error_types@guides/qmdc-guide.qmd.md": [
-    {
-      "label": "Validation Errors",
-      "kind": "SyntaxConcept",
-      "file": "format/validation-errors.qmd.md",
-      "score": 0.871,
-      "id": "validation_errors"
-    },
-    {
-      "label": "Workspace Validate",
-      "kind": "Command",
-      "file": "parsers/commands.qmd.md",
-      "score": 0.842,
-      "id": "cmd_workspace_validate"
-    },
-    {
-      "label": "Validate a Document",
-      "kind": "HowTo",
-      "file": "guides/validate-document.qmd.md",
-      "score": 0.82,
-      "id": "guide_validate"
     }
   ],
   "field:uc_database@guides/qmdc-guide.qmd.md": [
@@ -10273,7 +9452,7 @@
       "label": "Hover",
       "kind": "LSPFeature",
       "file": "lsp/information.qmd.md",
-      "score": 0.685,
+      "score": 0.677,
       "id": "lsp_information.hover"
     },
     {
@@ -10291,27 +9470,1162 @@
       "id": "dynamic_block"
     }
   ],
-  "field:alice_alice@tutorials/first-file.qmd.md": [
+  "field:preamble@architecture/algorithms.qmd.md": [
+    {
+      "label": "index",
+      "kind": "Command",
+      "file": "semantic/commands.qmd.md",
+      "score": 0.719,
+      "id": "semantic_commands.cmd_sem_index"
+    },
+    {
+      "label": "Workspace",
+      "kind": "SyntaxConcept",
+      "file": "format/workspaces.qmd.md",
+      "score": 0.664,
+      "id": "workspace"
+    },
+    {
+      "label": "MCP Server",
+      "kind": "Namespace",
+      "file": "mcp/readme.qmd.md",
+      "score": 0.664,
+      "id": "mcp"
+    }
+  ],
+  "field:algorithm@architecture/algorithms.qmd.md": [
+    {
+      "label": "Build a Small Workspace",
+      "kind": "HowTo",
+      "file": "guides/small-workspace.qmd.md",
+      "score": 0.683,
+      "id": "guide_workspace"
+    },
+    {
+      "label": "Workspace",
+      "kind": "SyntaxConcept",
+      "file": "format/workspaces.qmd.md",
+      "score": 0.678,
+      "id": "workspace"
+    }
+  ],
+  "field:preamble@format/arrays.qmd.md": [
     {
       "label": "Syntax",
       "kind": "Syntax",
       "file": "guides/qmdc-guide.qmd.md",
-      "score": 0.782,
+      "score": 0.817,
       "id": "qmdc_guide.syntax"
     },
     {
-      "label": "Human Text, Machine Structure",
-      "kind": "Explanation",
-      "file": "learn/human-machine-readable.qmd.md",
-      "score": 0.748,
-      "id": "human_machine_readable"
+      "label": "Data Type",
+      "kind": "SyntaxConcept",
+      "file": "format/types.qmd.md",
+      "score": 0.712,
+      "id": "data_type"
+    },
+    {
+      "label": "Common Errors",
+      "kind": "NarrativeDoc",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.703,
+      "id": "qmdc_guide.common_errors"
+    }
+  ],
+  "field:markdown_lists_via_subheading@format/arrays.qmd.md": [
+    {
+      "label": "Mixed Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.784,
+      "id": "validation_errors.err_mixed_array"
+    },
+    {
+      "label": "Common Errors",
+      "kind": "NarrativeDoc",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.755,
+      "id": "qmdc_guide.common_errors"
+    },
+    {
+      "label": "Nested Subitems",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.737,
+      "id": "validation_errors.err_nested_subitems"
+    }
+  ],
+  "field:sketch_sketch@format/arrays.qmd.md": [
+    {
+      "label": "Table In Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.796,
+      "id": "validation_errors.err_table_in_array"
+    },
+    {
+      "label": "Mixed Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.792,
+      "id": "validation_errors.err_mixed_array"
+    },
+    {
+      "label": "Syntax",
+      "kind": "Syntax",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.777,
+      "id": "qmdc_guide.syntax"
+    }
+  ],
+  "field:members_members_user@format/arrays.qmd.md": [
+    {
+      "label": "Mixed Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.852,
+      "id": "validation_errors.err_mixed_array"
+    },
+    {
+      "label": "Extra Table In Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.819,
+      "id": "validation_errors.err_extra_table_in_array"
+    },
+    {
+      "label": "Table In Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.744,
+      "id": "validation_errors.err_table_in_array"
+    }
+  ],
+  "field:preamble@format/objects.qmd.md": [
+    {
+      "label": "Syntax",
+      "kind": "Syntax",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.835,
+      "id": "qmdc_guide.syntax"
+    },
+    {
+      "label": "Explicit System Type",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.82,
+      "id": "validation_errors.err_explicit_system_type"
+    },
+    {
+      "label": "Structured In TextBlock",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.8,
+      "id": "validation_errors.err_structured_in_textblock"
+    }
+  ],
+  "field:heading_type_determination@format/objects.qmd.md": [
+    {
+      "label": "Syntax",
+      "kind": "Syntax",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.731,
+      "id": "qmdc_guide.syntax"
+    },
+    {
+      "label": "Structured In TextBlock",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.716,
+      "id": "validation_errors.err_structured_in_textblock"
+    },
+    {
+      "label": "Multiple Definitions In Heading",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.688,
+      "id": "validation_errors.err_multiple_definitions"
+    }
+  ],
+  "field:preamble@format/references.qmd.md": [
+    {
+      "label": "Reference Resolution",
+      "kind": "Algorithm",
+      "file": "architecture/algorithms.qmd.md",
+      "score": 0.786,
+      "id": "reference_resolution"
+    },
+    {
+      "label": "Reference",
+      "kind": "Reference",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.766,
+      "id": "qmdc_guide.reference"
+    },
+    {
+      "label": "Validate a Document",
+      "kind": "HowTo",
+      "file": "guides/validate-document.qmd.md",
+      "score": 0.726,
+      "id": "guide_validate"
+    }
+  ],
+  "field:how_references_are_used_for_graph_naviga@format/references.qmd.md": [
+    {
+      "label": "Reference",
+      "kind": "Reference",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.803,
+      "id": "qmdc_guide.reference"
+    },
+    {
+      "label": "Reference Resolution",
+      "kind": "Algorithm",
+      "file": "architecture/algorithms.qmd.md",
+      "score": 0.771,
+      "id": "reference_resolution"
+    }
+  ],
+  "field:err_unsupported_number_format@format/validation-errors.qmd.md": [
+    {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.673,
+      "id": "qmdc_guide.validation"
+    }
+  ],
+  "docs:format:validation_errors.err_table_in_array": [
+    {
+      "label": "Array",
+      "kind": "SyntaxConcept",
+      "file": "format/arrays.qmd.md",
+      "score": 0.735,
+      "id": "array"
+    }
+  ],
+  "docs:format:validation_errors.err_mixed_array": [
+    {
+      "label": "Array",
+      "kind": "SyntaxConcept",
+      "file": "format/arrays.qmd.md",
+      "score": 0.717,
+      "id": "array"
+    },
+    {
+      "label": "Invalid Field Type",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.684,
+      "id": "lsp_diagnostics.rule_invalid_field_type"
+    }
+  ],
+  "docs:format:validation_errors.err_block_in_inline_field": [
+    {
+      "label": "Syntax",
+      "kind": "Syntax",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.701,
+      "id": "qmdc_guide.syntax"
+    },
+    {
+      "label": "YAML Block",
+      "kind": "SyntaxConcept",
+      "file": "format/yaml-blocks.qmd.md",
+      "score": 0.694,
+      "id": "yaml_block"
+    },
+    {
+      "label": "Validate a Document",
+      "kind": "HowTo",
+      "file": "guides/validate-document.qmd.md",
+      "score": 0.675,
+      "id": "guide_validate"
+    }
+  ],
+  "docs:format:validation_errors.err_unsupported_number_format": [
+    {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.69,
+      "id": "qmdc_guide.validation"
+    }
+  ],
+  "docs:format:validation_errors.err_wrapped_field_value": [
+    {
+      "label": "Invalid Field Type",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.795,
+      "id": "lsp_diagnostics.rule_invalid_field_type"
+    },
+    {
+      "label": "Ambiguous Field Reference",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.726,
+      "id": "lsp_diagnostics.rule_ambiguous_field_ref"
+    },
+    {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.721,
+      "id": "qmdc_guide.validation"
+    }
+  ],
+  "field:this_command@guides/validate-document.qmd.md": [
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.804,
+      "id": "cmd_workspace_validate"
+    },
+    {
+      "label": "Broken Link",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.776,
+      "id": "lsp_diagnostics.rule_broken_link"
+    },
+    {
+      "label": "Diagnostics",
+      "kind": "LSPFeature",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.769,
+      "id": "lsp_diagnostics.diagnostics"
+    }
+  ],
+  "field:structured_in_textblock@guides/validate-document.qmd.md": [
+    {
+      "label": "Structured In TextBlock",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.838,
+      "id": "validation_errors.err_structured_in_textblock"
+    },
+    {
+      "label": "Field",
+      "kind": "SyntaxConcept",
+      "file": "format/fields.qmd.md",
+      "score": 0.801,
+      "id": "field"
+    },
+    {
+      "label": "Dangling Field",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.793,
+      "id": "validation_errors.err_dangling_field"
+    }
+  ],
+  "field:ordered_list_in_array@guides/validate-document.qmd.md": [
+    {
+      "label": "Ordered List In Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.803,
+      "id": "validation_errors.err_ordered_list_in_array"
+    },
+    {
+      "label": "Common Errors",
+      "kind": "NarrativeDoc",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.719,
+      "id": "qmdc_guide.common_errors"
+    },
+    {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.684,
+      "id": "qmdc_guide.validation"
+    }
+  ],
+  "field:validates@lsp/diagnostics.qmd.md": [
+    {
+      "label": "Validation Errors",
+      "kind": "SyntaxConcept",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.94,
+      "id": "validation_errors"
+    },
+    {
+      "label": "Ambiguous Reference",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.903,
+      "id": "validation_errors.err_ambiguous_ref"
+    },
+    {
+      "label": "Dangling Field",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.79,
+      "id": "validation_errors.err_dangling_field"
+    }
+  ],
+  "docs:lsp:lsp_diagnostics.rule_ambiguous_field_ref": [
+    {
+      "label": "Ambiguous Reference",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.901,
+      "id": "validation_errors.err_ambiguous_ref"
+    },
+    {
+      "label": "Validation Errors",
+      "kind": "SyntaxConcept",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.863,
+      "id": "validation_errors"
+    },
+    {
+      "label": "Dangling Field",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.804,
+      "id": "validation_errors.err_dangling_field"
+    }
+  ],
+  "field:surface_matrix@lsp/diagnostics.qmd.md": [
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.78,
+      "id": "cmd_workspace_validate"
+    },
+    {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.77,
+      "id": "qmdc_guide.validation"
+    },
+    {
+      "label": "Validate References",
+      "kind": "McpTool",
+      "file": "mcp/graph.qmd.md",
+      "score": 0.764,
+      "id": "mcp_graph.tool_validate_references"
+    }
+  ],
+  "field:surface_notes@lsp/diagnostics.qmd.md": [
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.717,
+      "id": "cmd_workspace_validate"
+    }
+  ],
+  "field:output@parsers/commands.qmd.md": [
+    {
+      "label": "CLI",
+      "kind": "CLI",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.759,
+      "id": "qmdc_guide.cli"
+    },
+    {
+      "label": "Workspace",
+      "kind": "SyntaxConcept",
+      "file": "format/workspaces.qmd.md",
+      "score": 0.759,
+      "id": "workspace"
+    },
+    {
+      "label": "Workspace In Wrong File",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.727,
+      "id": "validation_errors.err_workspace_in_wrong_file"
+    }
+  ],
+  "field:rules@format/arrays.qmd.md": [
+    {
+      "label": "Table In Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.797,
+      "id": "validation_errors.err_table_in_array"
+    },
+    {
+      "label": "Mixed Array",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.786,
+      "id": "validation_errors.err_mixed_array"
+    },
+    {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.769,
+      "id": "qmdc_guide.validation"
+    }
+  ],
+  "field:extraction_rules@format/fields.qmd.md": [
+    {
+      "label": "Syntax",
+      "kind": "Syntax",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.764,
+      "id": "qmdc_guide.syntax"
+    },
+    {
+      "label": "Invalid Map Content",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.753,
+      "id": "validation_errors.err_invalid_map_content"
+    },
+    {
+      "label": "Invalid Map Entry",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.745,
+      "id": "validation_errors.err_invalid_map_entry"
+    }
+  ],
+  "field:rules@format/fields.qmd.md": [
+    {
+      "label": "Invalid Map Content",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.802,
+      "id": "validation_errors.err_invalid_map_content"
+    },
+    {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.793,
+      "id": "qmdc_guide.validation"
+    },
+    {
+      "label": "Validation Errors",
+      "kind": "SyntaxConcept",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.764,
+      "id": "validation_errors"
+    }
+  ],
+  "field:rules@format/headings.qmd.md": [
+    {
+      "label": "Multiple Definitions In Heading",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.797,
+      "id": "validation_errors.err_multiple_definitions"
+    },
+    {
+      "label": "Syntax",
+      "kind": "Syntax",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.789,
+      "id": "qmdc_guide.syntax"
+    },
+    {
+      "label": "Structured In TextBlock",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.766,
+      "id": "validation_errors.err_structured_in_textblock"
+    }
+  ],
+  "field:system_fields@format/objects.qmd.md": [
+    {
+      "label": "Syntax",
+      "kind": "Syntax",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.754,
+      "id": "qmdc_guide.syntax"
+    },
+    {
+      "label": "Workspace",
+      "kind": "Workspace",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.745,
+      "id": "qmdc_guide.workspace"
+    },
+    {
+      "label": "Reference",
+      "kind": "Reference",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.738,
+      "id": "qmdc_guide.reference"
+    }
+  ],
+  "field:syntax@format/references.qmd.md": [
+    {
+      "label": "Reference",
+      "kind": "Reference",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.932,
+      "id": "qmdc_guide.reference"
+    },
+    {
+      "label": "Reference Resolution",
+      "kind": "Algorithm",
+      "file": "architecture/algorithms.qmd.md",
+      "score": 0.84,
+      "id": "reference_resolution"
+    },
+    {
+      "label": "Ambiguous Reference",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.769,
+      "id": "lsp_diagnostics.rule_ambiguous_ref"
+    }
+  ],
+  "field:rules@format/references.qmd.md": [
+    {
+      "label": "Reference",
+      "kind": "Reference",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.826,
+      "id": "qmdc_guide.reference"
+    },
+    {
+      "label": "Reference Resolution",
+      "kind": "Algorithm",
+      "file": "architecture/algorithms.qmd.md",
+      "score": 0.823,
+      "id": "reference_resolution"
+    },
+    {
+      "label": "Go to Definition",
+      "kind": "LSPFeature",
+      "file": "lsp/navigation.qmd.md",
+      "score": 0.767,
+      "id": "lsp_navigation.definition"
+    }
+  ],
+  "field:syntax@format/types.qmd.md": [
+    {
+      "label": "Common Errors",
+      "kind": "NarrativeDoc",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.703,
+      "id": "qmdc_guide.common_errors"
+    },
+    {
+      "label": "Syntax",
+      "kind": "Syntax",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.675,
+      "id": "qmdc_guide.syntax"
+    }
+  ],
+  "field:primitives@format/types.qmd.md": [
+    {
+      "label": "Array",
+      "kind": "SyntaxConcept",
+      "file": "format/arrays.qmd.md",
+      "score": 0.712,
+      "id": "array"
+    },
+    {
+      "label": "Parser Microtests",
+      "kind": "TestSuite",
+      "file": "testing/parser-microtests.qmd.md",
+      "score": 0.679,
+      "id": "suite_parser_microtests"
+    },
+    {
+      "label": "Unsupported Number Format",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.679,
+      "id": "validation_errors.err_unsupported_number_format"
+    }
+  ],
+  "docs:format:validation_errors": [
+    {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.895,
+      "id": "qmdc_guide.validation"
+    },
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.81,
+      "id": "cmd_workspace_validate"
+    },
+    {
+      "label": "Field",
+      "kind": "SyntaxConcept",
+      "file": "format/fields.qmd.md",
+      "score": 0.764,
+      "id": "field"
+    }
+  ],
+  "field:cross_file_refs@format/workspaces.qmd.md": [
+    {
+      "label": "Reference Resolution",
+      "kind": "Algorithm",
+      "file": "architecture/algorithms.qmd.md",
+      "score": 0.834,
+      "id": "reference_resolution"
+    },
+    {
+      "label": "Workspace",
+      "kind": "Workspace",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.789,
+      "id": "qmdc_guide.workspace"
+    },
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.751,
+      "id": "cmd_workspace_validate"
+    }
+  ],
+  "field:object_metadata@format/workspaces.qmd.md": [
+    {
+      "label": "Workspace",
+      "kind": "Workspace",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.893,
+      "id": "qmdc_guide.workspace"
+    },
+    {
+      "label": "Workspace Parse",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.759,
+      "id": "cmd_workspace_parse"
+    },
+    {
+      "label": "Workspace In Wrong File",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.706,
+      "id": "validation_errors.err_workspace_in_wrong_file"
+    }
+  ],
+  "field:rules@format/workspaces.qmd.md": [
+    {
+      "label": "Workspace",
+      "kind": "Workspace",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.819,
+      "id": "qmdc_guide.workspace"
+    },
+    {
+      "label": "Workspace In Wrong File",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.805,
+      "id": "validation_errors.err_workspace_in_wrong_file"
+    },
+    {
+      "label": "Workspace Parse",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.763,
+      "id": "cmd_workspace_parse"
+    }
+  ],
+  "field:namespace_refs@guides/qmdc-guide.qmd.md": [
+    {
+      "label": "Reference",
+      "kind": "SyntaxConcept",
+      "file": "format/references.qmd.md",
+      "score": 0.932,
+      "id": "reference"
+    },
+    {
+      "label": "Reference Resolution",
+      "kind": "Algorithm",
+      "file": "architecture/algorithms.qmd.md",
+      "score": 0.853,
+      "id": "reference_resolution"
+    },
+    {
+      "label": "Ambiguous Reference",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.792,
+      "id": "lsp_diagnostics.rule_ambiguous_ref"
+    }
+  ],
+  "field:cross_file_refs@guides/qmdc-guide.qmd.md": [
+    {
+      "label": "Workspace",
+      "kind": "SyntaxConcept",
+      "file": "format/workspaces.qmd.md",
+      "score": 0.789,
+      "id": "workspace"
     },
     {
       "label": "Markdown to Graph",
       "kind": "Explanation",
       "file": "learn/markdown-to-graph.qmd.md",
-      "score": 0.747,
+      "score": 0.77,
       "id": "markdown_to_graph"
+    },
+    {
+      "label": "Build a Small Workspace",
+      "kind": "HowTo",
+      "file": "guides/small-workspace.qmd.md",
+      "score": 0.77,
+      "id": "guide_workspace"
+    }
+  ],
+  "field:object_metadata@guides/qmdc-guide.qmd.md": [
+    {
+      "label": "Workspace",
+      "kind": "SyntaxConcept",
+      "file": "format/workspaces.qmd.md",
+      "score": 0.893,
+      "id": "workspace"
+    },
+    {
+      "label": "Dump Index",
+      "kind": "Command",
+      "file": "lsp/commands.qmd.md",
+      "score": 0.779,
+      "id": "lsp_commands.cmd_dump_index"
+    },
+    {
+      "label": "Build a Small Workspace",
+      "kind": "HowTo",
+      "file": "guides/small-workspace.qmd.md",
+      "score": 0.771,
+      "id": "guide_workspace"
+    }
+  ],
+  "field:validation_error_types@guides/qmdc-guide.qmd.md": [
+    {
+      "label": "Validation Errors",
+      "kind": "SyntaxConcept",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.895,
+      "id": "validation_errors"
+    },
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.84,
+      "id": "cmd_workspace_validate"
+    },
+    {
+      "label": "Field",
+      "kind": "SyntaxConcept",
+      "file": "format/fields.qmd.md",
+      "score": 0.793,
+      "id": "field"
+    }
+  ],
+  "field:cmd_workspace_parse@guides/qmdc-guide.qmd.md": [
+    {
+      "label": "Workspace Parse",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.929,
+      "id": "cmd_workspace_parse"
+    },
+    {
+      "label": "Parse Workspace",
+      "kind": "ExtCommand",
+      "file": "extension/commands.qmd.md",
+      "score": 0.823,
+      "id": "ext_cmd_parse"
+    },
+    {
+      "label": "Get Tree",
+      "kind": "McpTool",
+      "file": "mcp/discovery.qmd.md",
+      "score": 0.767,
+      "id": "mcp_discovery.tool_get_tree"
+    }
+  ],
+  "field:cmd_workspace_validate@guides/qmdc-guide.qmd.md": [
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.954,
+      "id": "cmd_workspace_validate"
+    },
+    {
+      "label": "Validate Workspace",
+      "kind": "ExtCommand",
+      "file": "extension/commands.qmd.md",
+      "score": 0.893,
+      "id": "ext_cmd_validate"
+    },
+    {
+      "label": "Validate a Document",
+      "kind": "HowTo",
+      "file": "guides/validate-document.qmd.md",
+      "score": 0.842,
+      "id": "guide_validate"
+    }
+  ],
+  "field:expected_output@guides/small-workspace.qmd.md": [
+    {
+      "label": "Why QMDC",
+      "kind": "Explanation",
+      "file": "learn/why-qmdc.qmd.md",
+      "score": 0.804,
+      "id": "why_qmdc"
+    },
+    {
+      "label": "Markdown to Graph",
+      "kind": "Explanation",
+      "file": "learn/markdown-to-graph.qmd.md",
+      "score": 0.791,
+      "id": "markdown_to_graph"
+    },
+    {
+      "label": "Quickstart",
+      "kind": "Tutorial",
+      "file": "tutorials/quickstart.qmd.md",
+      "score": 0.759,
+      "id": "quickstart"
+    }
+  ],
+  "field:the_workspace_layer@guides/small-workspace.qmd.md": [
+    {
+      "label": "Markdown to Graph",
+      "kind": "Explanation",
+      "file": "learn/markdown-to-graph.qmd.md",
+      "score": 0.875,
+      "id": "markdown_to_graph"
+    },
+    {
+      "label": "Why QMDC",
+      "kind": "Explanation",
+      "file": "learn/why-qmdc.qmd.md",
+      "score": 0.801,
+      "id": "why_qmdc"
+    },
+    {
+      "label": "Workspace Parse",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.784,
+      "id": "cmd_workspace_parse"
+    }
+  ],
+  "field:preamble@guides/validate-document.qmd.md": [
+    {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.871,
+      "id": "qmdc_guide.validation"
+    },
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.816,
+      "id": "cmd_workspace_validate"
+    },
+    {
+      "label": "CLI",
+      "kind": "CLI",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.789,
+      "id": "qmdc_guide.cli"
+    }
+  ],
+  "field:fix@guides/validate-document.qmd.md": [
+    {
+      "label": "Ambiguous Reference",
+      "kind": "DiagnosticRule",
+      "file": "lsp/diagnostics.qmd.md",
+      "score": 0.827,
+      "id": "lsp_diagnostics.rule_ambiguous_ref"
+    },
+    {
+      "label": "Broken Link",
+      "kind": "ValidationError",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.79,
+      "id": "validation_errors.err_broken_link"
+    },
+    {
+      "label": "Code Action",
+      "kind": "LSPFeature",
+      "file": "lsp/refactoring.qmd.md",
+      "score": 0.779,
+      "id": "lsp_refactoring.code_action"
+    }
+  ],
+  "field:key_features@guides/vscode.qmd.md": [
+    {
+      "label": "Capabilities",
+      "kind": "NarrativeDoc",
+      "file": "extension/readme.qmd.md",
+      "score": 0.82,
+      "id": "capabilities"
+    },
+    {
+      "label": "Code Action",
+      "kind": "LSPFeature",
+      "file": "lsp/refactoring.qmd.md",
+      "score": 0.78,
+      "id": "lsp_refactoring.code_action"
+    },
+    {
+      "label": "Go to Definition",
+      "kind": "LSPFeature",
+      "file": "lsp/navigation.qmd.md",
+      "score": 0.78,
+      "id": "lsp_navigation.definition"
+    }
+  ],
+  "docs:lsp:lsp_diagnostics": [
+    {
+      "label": "Diagnostics",
+      "kind": "McpResource",
+      "file": "mcp/resources.qmd.md",
+      "score": 0.878,
+      "id": "mcp_resources.res_diagnostics"
+    },
+    {
+      "label": "Validate References",
+      "kind": "McpTool",
+      "file": "mcp/graph.qmd.md",
+      "score": 0.841,
+      "id": "mcp_graph.tool_validate_references"
+    },
+    {
+      "label": "Workspace Validate",
+      "kind": "Command",
+      "file": "parsers/commands.qmd.md",
+      "score": 0.81,
+      "id": "cmd_workspace_validate"
+    }
+  ],
+  "field:description@lsp/information.qmd.md": [
+    {
+      "label": "Get Workspace Tree",
+      "kind": "Command",
+      "file": "lsp/commands.qmd.md",
+      "score": 0.798,
+      "id": "lsp_commands.cmd_get_workspace_tree"
+    },
+    {
+      "label": "Document Symbol",
+      "kind": "LSPFeature",
+      "file": "lsp/navigation.qmd.md",
+      "score": 0.759,
+      "id": "lsp_navigation.document_symbol"
+    },
+    {
+      "label": "Kind in Reference",
+      "kind": "CompletionContext",
+      "file": "lsp/completion.qmd.md",
+      "score": 0.752,
+      "id": "lsp_completion.ctx_kind_ref"
+    }
+  ],
+  "docs:parsers:cmd_workspace_validate": [
+    {
+      "label": "Validate Workspace",
+      "kind": "ExtCommand",
+      "file": "extension/commands.qmd.md",
+      "score": 0.881,
+      "id": "ext_cmd_validate"
+    },
+    {
+      "label": "Validation Errors",
+      "kind": "SyntaxConcept",
+      "file": "format/validation-errors.qmd.md",
+      "score": 0.866,
+      "id": "validation_errors"
+    },
+    {
+      "label": "CLI",
+      "kind": "CLI",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.858,
+      "id": "qmdc_guide.cli"
+    }
+  ],
+  "field:description@testing/lsp-microtests.qmd.md": [
+    {
+      "label": "Parser Microtests",
+      "kind": "TestSuite",
+      "file": "testing/parser-microtests.qmd.md",
+      "score": 0.726,
+      "id": "suite_parser_microtests"
+    },
+    {
+      "label": "LSP SQL Integration Tests",
+      "kind": "TestSuite",
+      "file": "testing/lsp-sql-tests.qmd.md",
+      "score": 0.723,
+      "id": "suite_lsp_sql_tests"
+    },
+    {
+      "label": "Workspace Tests",
+      "kind": "TestSuite",
+      "file": "testing/workspace-tests.qmd.md",
+      "score": 0.722,
+      "id": "suite_workspace_tests"
+    }
+  ],
+  "field:alice_alice@tutorials/first-file.qmd.md": [
+    {
+      "label": "Common Errors",
+      "kind": "NarrativeDoc",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.83,
+      "id": "qmdc_guide.common_errors"
+    },
+    {
+      "label": "Syntax",
+      "kind": "Syntax",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.817,
+      "id": "qmdc_guide.syntax"
+    },
+    {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.739,
+      "id": "qmdc_guide.validation"
+    }
+  ],
+  "field:reference_formats@tutorials/first-file.qmd.md": [
+    {
+      "label": "Validation",
+      "kind": "Validation",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.783,
+      "id": "qmdc_guide.validation"
+    },
+    {
+      "label": "Syntax",
+      "kind": "Syntax",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.775,
+      "id": "qmdc_guide.syntax"
+    },
+    {
+      "label": "Reference",
+      "kind": "Reference",
+      "file": "guides/qmdc-guide.qmd.md",
+      "score": 0.769,
+      "id": "qmdc_guide.reference"
     }
   ]
 }
