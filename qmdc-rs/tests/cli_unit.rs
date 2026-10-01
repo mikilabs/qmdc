@@ -370,10 +370,16 @@ fn test_cli_workspace_parse_spaced_kind() {
         serde_json::from_slice(&output.stdout).expect("Failed to parse JSON output");
 
     // QMD-72: one envelope shape. A single workspace is one entry sitting AT the base.
-    let canonical = std::fs::canonicalize(tmpdir.path())
+    // Windows `canonicalize` returns a verbatim `\\?\C:\...` path; the CLI reports the form
+    // a user would type, so the expectation drops that prefix the same way.
+    let slashed = std::fs::canonicalize(tmpdir.path())
         .expect("canonicalize tmpdir")
         .to_string_lossy()
         .replace('\\', "/");
+    let canonical = match slashed.strip_prefix("//?/") {
+        Some(rest) => rest.to_string(),
+        None => slashed,
+    };
     assert_eq!(
         result["workspaces"],
         serde_json::json!([{"id": "spaced_proj", "root": canonical, "path": ""}])
