@@ -145,28 +145,24 @@ Available tables:
 ### Workspace API
 
 ```typescript
-import {
-  scanWorkspace,
-  parseWorkspace,
-  queryWorkspace,
-  getRefsTo,
-} from '@qmdc/qmdc/workspace';
+import { executeQuery, parseWorkspace, scanWorkspace } from '@qmdc/qmdc';
 
 // Scan files
-const files = scanWorkspace('/path/to/workspace');
-// ['readme.qmd.md', 'users.qmd.md', 'database/tables.qmd.md']
+const files = scanWorkspace('my-project');
+// ['readme.qmd.md', 'api.qmd.md', 'tables.qmd.md']
 
-// Parse the whole workspace
-const result = parseWorkspace('/path/to/workspace');
-// WorkspaceResult with objects, index, errors
+// Parse the whole workspace; validation errors come with it
+const result = parseWorkspace('my-project');
+for (const error of result.errors) {
+  console.log(error.type, error.file, error.line, error.message);
+}
+// broken_link api.qmd.md 4 Object 'no_such_object' not found
 
-// Query objects
-const tables = queryWorkspace(result, { kind: 'Table' });
-const users = queryWorkspace(result, { id: 'users' });
-
-// Find references to an object
-const refs = getRefsTo(result, 'database/tables.qmd.md#users');
-// [{ file: 'api.qmd.md', object: 'get_users', field: 'returns' }, ...]
+// SQL over the objects and the reference graph
+const tables = await executeQuery(result, "SELECT __id FROM objects WHERE __kind = 'Table'");
+// tables.rows == [['users']]
+const refs = await executeQuery(result, 'SELECT source_id, edge_type FROM edges');
+// refs.rows == [['my_project::get_users', 'returns']]
 ```
 
 See the [format specification](https://qmdc.mikilabs.io/) for the full spec.

@@ -8,7 +8,7 @@
 .PHONY: semantic-index semantic-audit semantic-test semantic-hints semantic-refresh
 .PHONY: bump bump-major bump-minor bump-patch
 .PHONY: binary-bump binary-bump-major binary-bump-minor binary-bump-patch
-.PHONY: semantic-bump semantic-bump-major semantic-bump-minor semantic-bump-patch semantic-release publish publish-check dist
+.PHONY: semantic-bump semantic-bump-major semantic-bump-minor semantic-bump-patch semantic-release publish publish-check dist package-e2e
 .PHONY: md-lint test-report reports-clean
 
 # ============================================================================
@@ -561,6 +561,15 @@ semantic-release:
 dist:
 	@echo "=== Building full release matrix ==="
 	bash scripts/release-build.sh
+
+# Release preparation: run the shared conformance harnesses (parser, workspace,
+# sql) against each library PACKED and installed into a clean directory, through
+# its public entry point only. Catches what `make test` cannot see, since that
+# runs the in-tree sources: an unimportable package, a missing `exports` entry,
+# a file left out of the tarball. Needs network for dependencies. Not part of
+# `make test`. PKG="ts py rs" (default: all three) narrows it.
+package-e2e:
+	bash scripts/package-e2e.sh $(PKG)
 
 # ============================================================================
 # VS CODE EXTENSION

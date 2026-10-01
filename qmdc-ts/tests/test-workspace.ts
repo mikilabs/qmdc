@@ -20,7 +20,8 @@
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { parseWorkspace, scanWorkspace } from '../src/workspace.js';
+import { lib } from './_lib.js';
+const { parseWorkspace, scanWorkspace } = lib;
 import { CaseReport } from './_report.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

@@ -13,7 +13,11 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-const REPORT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../test-reports');
+// The installed-package run (scripts/package-e2e.sh) writes elsewhere, so it can
+// never overwrite the source run's reports that `make test-report` aggregates.
+const REPORT_DIR =
+  process.env.QMDC_TEST_REPORT_DIR ??
+  resolve(dirname(fileURLToPath(import.meta.url)), '../../test-reports');
 
 function xmlEscape(s: string): string {
   return s

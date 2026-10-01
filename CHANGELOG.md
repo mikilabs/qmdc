@@ -259,6 +259,17 @@ ships as 2.0.0: `qmdc` (crates, PyPI, npm), `qmdc-vscode`, `qmdc-mkdocs` and
 
 ### Fixed
 
+- The npm package `@qmdc/qmdc` can be imported as a library. Up to 1.0.6 it shipped only the
+  TypeScript sources, with no `main` or `exports`, so `import { parse } from '@qmdc/qmdc'` from the
+  README failed with `ERR_MODULE_NOT_FOUND`; only the `qmdc` command worked. The package now builds
+  `dist/` with type declarations on pack, and `exports` exposes one entry, `src/index.ts`, which
+  mirrors Python's `__all__` plus the query API (`QmdcDatabase`, `executeQuery`). Python's root
+  now exports the query API too (`QmdcDatabase`, `execute_query`). New `make package-e2e` builds
+  each library the way it is published (npm tarball, wheel, `.crate`), installs it into a clean
+  directory and runs the parser, workspace and SQL conformance harnesses against it through the
+  package root only, plus every code block of its README. The Python and TypeScript READMEs
+  showed a workspace API that does not exist (`query_workspace`, `get_refs_to`, a
+  `@qmdc/qmdc/workspace` subpath); they now show the real one.
 - All three parsers read a workspace's files in one order: directory, then `readme.qmd.md`, then
   file name, each compared by UTF-8 bytes. TypeScript compared names with locale collation, which
   ignores case and punctuation, so when two files declaring the same id were named `B.qmd.md` and

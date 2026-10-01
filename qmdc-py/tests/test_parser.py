@@ -7,7 +7,7 @@ from typing import Literal
 
 import pytest
 
-from qmdc.parser import parse
+from qmdc import parse, rebuild
 
 MICROTESTS_DIR = Path(__file__).parent.parent.parent / "tests/parser"
 
@@ -81,7 +81,6 @@ def normalize_for_rebuild_comparison(data: list) -> list:
 @pytest.mark.parametrize("test_name,qmdc_file,expected_file,fmt", get_standard_tests())
 def test_microtest_rebuild(test_name, qmdc_file, expected_file, fmt):
     """Test round-trip: parse -> rebuild -> parse should preserve all data."""
-    from qmdc.parser import rebuild
 
     # Original markdown
     original_markdown = qmdc_file.read_text()
@@ -303,7 +302,6 @@ def test_microtest_rebuild_text(test_name, qmdc_file):
     - Content lines reordering
     - Heading level changes (### -> ####)
     """
-    from qmdc.parser import rebuild
 
     markdown = qmdc_file.read_text()
     parsed = parse(markdown)

@@ -2,8 +2,7 @@
 //!
 //! Automatically discovers all directories with tests/ subdirectory containing .sql files.
 
-use qmdc::db::QmdcDatabase;
-use qmdc::{parse_all_workspaces, OutputFormat};
+use qmdc::{parse_all_workspaces, OutputFormat, QmdcDatabase};
 use std::fs;
 use std::path::{Path, PathBuf};
 

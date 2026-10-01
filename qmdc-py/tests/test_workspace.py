@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from qmdc.workspace import parse_workspace, scan_workspace
+from qmdc import parse_workspace, scan_workspace
 
 # Root directory for workspace microtests
 WORKSPACE_TESTS_ROOT = Path(__file__).parent.parent.parent / "tests/workspace"

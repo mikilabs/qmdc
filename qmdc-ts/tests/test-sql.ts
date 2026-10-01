@@ -7,8 +7,8 @@
 import { readFileSync, readdirSync, existsSync, statSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { QmdcDatabase } from '../src/db.js';
-import { parseAllWorkspaces } from '../src/workspace.js';
+import { lib } from './_lib.js';
+const { QmdcDatabase, parseAllWorkspaces } = lib;
 import { CaseReport } from './_report.js';
 
 const __filename = fileURLToPath(import.meta.url);
