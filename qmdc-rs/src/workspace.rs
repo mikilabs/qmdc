@@ -3,7 +3,7 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -30,6 +30,20 @@ pub(crate) fn path_to_slash(rel: &Path) -> String {
 /// branch on any host (a no-op-on-Unix helper is otherwise untestable on macOS).
 fn sep_to_slash(s: &str, sep: char) -> String {
     s.replace(sep, "/")
+}
+
+/// The order every scan reads a workspace's files in: directory, then `readme.qmd.md`
+/// first, then file name, each compared by UTF-8 bytes. Python's `_workspace_file_sort_key`
+/// and TypeScript's `compareWorkspaceFiles` mirror it. The orphan walk uses it too, since a
+/// directory listing's order is the filesystem's and the later of two duplicate ids is the
+/// one the query layer keeps (QMD-77). Takes `/`-separated relative paths.
+pub(crate) fn compare_workspace_files(a: &str, b: &str) -> std::cmp::Ordering {
+    let (a_dir, a_file) = a.rsplit_once('/').unwrap_or(("", a));
+    let (b_dir, b_file) = b.rsplit_once('/').unwrap_or(("", b));
+    a_dir
+        .cmp(b_dir)
+        .then_with(|| (a_file != "readme.qmd.md").cmp(&(b_file != "readme.qmd.md")))
+        .then_with(|| a_file.cmp(b_file))
 }
 
 /// Shared `__Workspace` marker check. Detects `[[id: __Workspace]]` in readme
@@ -264,38 +278,7 @@ pub fn scan_workspace(root_path: &Path, exclude_nested: bool) -> Vec<String> {
         }
     }
 
-    // Sort: readme.qmd.md first in each directory
-    files.sort_by(|a, b| {
-        let a_parts: Vec<&str> = a.split('/').collect();
-        let b_parts: Vec<&str> = b.split('/').collect();
-
-        let a_dir = if a_parts.len() > 1 {
-            a_parts[..a_parts.len() - 1].join("/")
-        } else {
-            String::new()
-        };
-        let b_dir = if b_parts.len() > 1 {
-            b_parts[..b_parts.len() - 1].join("/")
-        } else {
-            String::new()
-        };
-
-        if a_dir != b_dir {
-            return a_dir.cmp(&b_dir);
-        }
-
-        let a_file = a_parts.last().unwrap_or(&"");
-        let b_file = b_parts.last().unwrap_or(&"");
-
-        let a_priority = if *a_file == "readme.qmd.md" { 0 } else { 1 };
-        let b_priority = if *b_file == "readme.qmd.md" { 0 } else { 1 };
-
-        if a_priority != b_priority {
-            return a_priority.cmp(&b_priority);
-        }
-
-        a_file.cmp(b_file)
-    });
+    files.sort_by(|a, b| compare_workspace_files(a, b));
 
     files
 }
@@ -307,9 +290,10 @@ fn find_workspace_object(objects: &[Value]) -> Option<&Value> {
         .find(|obj| obj.get("__kind").and_then(|v| v.as_str()) == Some("__Workspace"))
 }
 
-/// The readable, collision-free stem a file's synthesised ids are built from: its path relative to
-/// the directory that declared its namespace (relative to the workspace root when it has none),
-/// lowercased with every run of other characters folded to `_`.
+/// The readable stem a file's synthesised ids are built from: its path relative to the directory
+/// that declared its namespace (relative to the workspace root when it has none), lowercased with
+/// every run of other characters folded to `_`. Two files can fold to one stem;
+/// [`assign_synthetic_ids`] is what makes the ids unique.
 ///
 /// A single-file `parse` has no workspace and no namespace, so it keeps the counter form it has
 /// always had — one document cannot collide with itself. Only the workspace layer, which is where
@@ -340,33 +324,102 @@ pub fn synthetic_id_stem(file_path: &str, namespace_dir: Option<&str>) -> String
     out
 }
 
-/// Map each synthesised `doc_*` / `text_*` id in one file to its path-derived replacement.
-/// Empty when the stem is unusable, which leaves the ids exactly as the parser produced them.
-fn synthetic_id_renames(
-    objects: &[Value],
-    file_path: &str,
-    namespace_dir: Option<&str>,
-) -> HashMap<String, String> {
-    let stem = synthetic_id_stem(file_path, namespace_dir);
-    let mut renames = HashMap::new();
-    if stem.is_empty() {
-        return renames;
-    }
-    for obj in objects {
-        let id = obj.get("__id").and_then(|v| v.as_str()).unwrap_or("");
-        match obj.get("__kind").and_then(|v| v.as_str()) {
-            Some("__Document") => {
-                renames.insert(id.to_string(), format!("doc_{}", stem));
+/// One file's input to [`assign_synthetic_ids`].
+struct SyntheticIdInput<'a> {
+    file_path: &'a str,
+    namespace: Option<&'a str>,
+    namespace_dir: Option<&'a str>,
+    objects: &'a [Value],
+}
+
+/// The final id of every synthesised `__Document` / `__TextBlock` in a workspace, per file:
+/// `file path -> (parser id -> workspace id)`.
+///
+/// The stem alone is not unique — folding to `[a-z0-9_]` maps `a-b`, `a_b` and `a/b` to one stem,
+/// and a name with no ASCII letter or digit folds to nothing. So uniqueness is assigned, not
+/// derived: the files of one namespace are taken in path byte order, the first keeps the plain
+/// stem, and a file whose ids are already taken — by an earlier file, or by an id an author wrote
+/// anywhere in that namespace — takes the smallest free `_<k>` suffix (k = 1, 2, …), the scheme
+/// GitHub's heading-anchor slugger uses. A stem that folds to nothing is `file`.
+fn assign_synthetic_ids(inputs: &[SyntheticIdInput]) -> HashMap<String, HashMap<String, String>> {
+    let is_synthesised = |obj: &Value| {
+        matches!(
+            obj.get("__kind").and_then(|v| v.as_str()),
+            Some("__Document") | Some("__TextBlock")
+        )
+    };
+    let mut taken: HashMap<String, HashSet<String>> = HashMap::new();
+    for input in inputs {
+        let ids = taken
+            .entry(input.namespace.unwrap_or("").to_string())
+            .or_default();
+        for obj in input.objects {
+            let kind = obj.get("__kind").and_then(|v| v.as_str());
+            if is_synthesised(obj) || kind == Some("__ParsingError") {
+                continue;
             }
-            Some("__TextBlock") => {
-                // `text_<n>` keeps its ordinal: a file can hold several text blocks.
-                let ordinal = id.strip_prefix("text_").unwrap_or(id);
-                renames.insert(id.to_string(), format!("text_{}_{}", stem, ordinal));
+            if let Some(id) = obj.get("__id").and_then(|v| v.as_str()) {
+                ids.insert(id.to_string());
             }
-            _ => {}
         }
     }
-    renames
+
+    let mut order: Vec<&SyntheticIdInput> = inputs.iter().collect();
+    order.sort_by(|a, b| a.file_path.as_bytes().cmp(b.file_path.as_bytes()));
+
+    let mut assigned = HashMap::new();
+    for input in order {
+        let synthesised: Vec<(bool, &str)> = input
+            .objects
+            .iter()
+            .filter(|obj| is_synthesised(obj))
+            .map(|obj| {
+                let is_doc = obj.get("__kind").and_then(|v| v.as_str()) == Some("__Document");
+                (
+                    is_doc,
+                    obj.get("__id").and_then(|v| v.as_str()).unwrap_or(""),
+                )
+            })
+            .collect();
+        if synthesised.is_empty() {
+            continue;
+        }
+        let mut base = synthetic_id_stem(input.file_path, input.namespace_dir);
+        if base.is_empty() {
+            base = "file".to_string();
+        }
+        let ids = taken
+            .entry(input.namespace.unwrap_or("").to_string())
+            .or_default();
+        let mut k = 0usize;
+        let renames: HashMap<String, String> = loop {
+            let stem = if k == 0 {
+                base.clone()
+            } else {
+                format!("{}_{}", base, k)
+            };
+            let candidate: HashMap<String, String> = synthesised
+                .iter()
+                .map(|(is_doc, id)| {
+                    let new_id = if *is_doc {
+                        format!("doc_{}", stem)
+                    } else {
+                        // `text_<n>` keeps its ordinal: a file can hold several text blocks.
+                        let ordinal = id.strip_prefix("text_").unwrap_or(id);
+                        format!("text_{}_{}", stem, ordinal)
+                    };
+                    (id.to_string(), new_id)
+                })
+                .collect();
+            if candidate.values().all(|new_id| !ids.contains(new_id)) {
+                break candidate;
+            }
+            k += 1;
+        };
+        ids.extend(renames.values().cloned());
+        assigned.insert(input.file_path.to_string(), renames);
+    }
+    assigned
 }
 
 /// Apply the file's synthesised-id renames to one object: its own id, the `content` array a
@@ -625,17 +678,28 @@ pub fn parse_workspace(root_path: &Path, format: OutputFormat) -> WorkspaceResul
     };
 
     // Build final object list with metadata, without re-parsing files
+    let ns_by_file: Vec<Option<(String, String)>> = parsed_files
+        .iter()
+        .map(|pf| resolve_namespace_for_dir(&pf.file_dir))
+        .collect();
+    let synthetic_inputs: Vec<SyntheticIdInput> = parsed_files
+        .iter()
+        .zip(&ns_by_file)
+        .map(|(pf, ns)| SyntheticIdInput {
+            file_path: &pf.file_path,
+            namespace: ns.as_ref().map(|(id, _)| id.as_str()),
+            namespace_dir: ns.as_ref().map(|(_, dir)| dir.as_str()),
+            objects: &pf.objects,
+        })
+        .collect();
+    let synthetic_ids = assign_synthetic_ids(&synthetic_inputs);
+    let no_renames: HashMap<String, String> = HashMap::new();
     let mut all_objects: Vec<Value> = Vec::new();
-    for pf in &parsed_files {
-        let ns_resolved = resolve_namespace_for_dir(&pf.file_dir);
+    for (pf, ns_resolved) in parsed_files.iter().zip(&ns_by_file) {
         let namespace_id = ns_resolved.as_ref().map(|(ns, _)| ns.clone());
-        let synthetic_renames = synthetic_id_renames(
-            &pf.objects,
-            &pf.file_path,
-            ns_resolved.as_ref().map(|(_, dir)| dir.as_str()),
-        );
+        let synthetic_renames = synthetic_ids.get(&pf.file_path).unwrap_or(&no_renames);
         for mut obj in pf.objects.clone() {
-            rename_synthetic_ids(&mut obj, &synthetic_renames);
+            rename_synthetic_ids(&mut obj, synthetic_renames);
             let kind = obj
                 .get("__kind")
                 .and_then(|v| v.as_str())
@@ -1262,6 +1326,13 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
             }
         }
     }
+    // The same order as a workspace's own files (see `compare_workspace_files`).
+    let orphan_rel = |p: &PathBuf| {
+        p.strip_prefix(root_path)
+            .map(path_to_slash)
+            .unwrap_or_else(|_| path_to_slash(p))
+    };
+    orphan_files.sort_by(|a, b| compare_workspace_files(&orphan_rel(a), &orphan_rel(b)));
 
     if !orphan_files.is_empty() {
         // First pass: check for workspace_in_wrong_file errors in orphan files
@@ -1316,6 +1387,8 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
             all_objects.insert(0, serde_json::Value::Object(ws_obj));
         }
 
+        // Parse every orphan first: a synthesised id is only unique against all of them (QMD-77).
+        let mut orphan_parsed: Vec<(PathBuf, String, String, Vec<Value>)> = Vec::new();
         for file_path in orphan_files {
             if let Ok(content) = fs::read_to_string(&file_path) {
                 let options = ParseOptions {
@@ -1323,29 +1396,47 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
                     format,
                 };
                 let objects = parse(&content, options);
-
                 let rel_file = file_path
                     .strip_prefix(root_path)
                     .map(path_to_slash)
                     .unwrap_or_else(|_| path_to_slash(&file_path));
+                orphan_parsed.push((file_path, rel_file, content, objects));
+            }
+        }
+        let orphan_inputs: Vec<SyntheticIdInput> = orphan_parsed
+            .iter()
+            .map(|(_, rel_file, _, objects)| SyntheticIdInput {
+                file_path: rel_file,
+                namespace: None,
+                namespace_dir: None,
+                objects,
+            })
+            .collect();
+        let orphan_ids = assign_synthetic_ids(&orphan_inputs);
+        drop(orphan_inputs);
+        let no_renames: HashMap<String, String> = HashMap::new();
 
-                // Check if this is a readme file
-                let is_readme = file_path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .map(|n| n == "readme.qmd.md")
-                    .unwrap_or(false);
+        for (file_path, rel_file, content, objects) in orphan_parsed {
+            let renames = orphan_ids.get(&rel_file).unwrap_or(&no_renames);
 
-                // Add __file metadata to each object
-                for mut obj in objects {
-                    // Skip __Workspace objects from non-readme files
-                    if !is_readme {
-                        if let Some(kind) = obj.get("__kind").and_then(|v| v.as_str()) {
-                            if kind == "__Workspace" {
-                                // Add error for this invalid workspace (but skip if file is ignored)
-                                if !is_ignored(&file_path, root_path, &ignore_set, false) {
-                                    if let Some(ws_id) = obj.get("__id").and_then(|v| v.as_str()) {
-                                        all_errors.push(WorkspaceError {
+            // Check if this is a readme file
+            let is_readme = file_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(|n| n == "readme.qmd.md")
+                .unwrap_or(false);
+
+            // Add __file metadata to each object
+            for mut obj in objects {
+                rename_synthetic_ids(&mut obj, renames);
+                // Skip __Workspace objects from non-readme files
+                if !is_readme {
+                    if let Some(kind) = obj.get("__kind").and_then(|v| v.as_str()) {
+                        if kind == "__Workspace" {
+                            // Add error for this invalid workspace (but skip if file is ignored)
+                            if !is_ignored(&file_path, root_path, &ignore_set, false) {
+                                if let Some(ws_id) = obj.get("__id").and_then(|v| v.as_str()) {
+                                    all_errors.push(WorkspaceError {
                                             error_type: "workspace_in_wrong_file".to_string(),
                                             message: format!("Workspace '{}' must be defined in readme.qmd.md, not in '{}'.", ws_id, rel_file),
                                             file: Some(rel_file.clone()),
@@ -1356,33 +1447,32 @@ pub fn parse_all_workspaces(root_path: &Path, format: OutputFormat) -> Workspace
                                             candidates: None,
                                             severity: "error".to_string(),
                                         });
-                                    }
                                 }
-                                continue; // Skip this object
                             }
+                            continue; // Skip this object
                         }
                     }
-
-                    // Skip __ParsingError objects - they are handled separately
-                    let kind = obj.get("__kind").and_then(|v| v.as_str()).unwrap_or("");
-                    if kind == "__ParsingError" {
-                        continue;
-                    }
-
-                    if let Some(obj_map) = obj.as_object_mut() {
-                        obj_map.insert("__file".to_string(), json!(rel_file.clone()));
-                        // Only add __workspace if we created virtual workspace
-                        if should_create_virtual_workspace {
-                            obj_map.insert("__workspace".to_string(), json!(virtual_ws_id.clone()));
-                            // Store plain ID
-                        }
-                    }
-                    all_objects.push(obj);
                 }
 
-                all_file_paths.push(file_path.clone());
-                all_files.push(rel_file);
+                // Skip __ParsingError objects - they are handled separately
+                let kind = obj.get("__kind").and_then(|v| v.as_str()).unwrap_or("");
+                if kind == "__ParsingError" {
+                    continue;
+                }
+
+                if let Some(obj_map) = obj.as_object_mut() {
+                    obj_map.insert("__file".to_string(), json!(rel_file.clone()));
+                    // Only add __workspace if we created virtual workspace
+                    if should_create_virtual_workspace {
+                        obj_map.insert("__workspace".to_string(), json!(virtual_ws_id.clone()));
+                        // Store plain ID
+                    }
+                }
+                all_objects.push(obj);
             }
+
+            all_file_paths.push(file_path.clone());
+            all_files.push(rel_file);
         }
     }
 

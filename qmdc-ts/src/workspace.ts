@@ -96,6 +96,36 @@ function canonicalSlash(p: string): string {
   return sep === '/' ? abs : abs.split(sep).join('/');
 }
 
+/** Order two strings by their UTF-8 bytes: Rust's and Python's order, not UTF-16 code units. */
+function compareUtf8(a: string, b: string): number {
+  return Buffer.compare(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
+}
+
+/**
+ * The order every scan reads a workspace's files in, mirrored from Rust's `compare_workspace_files`
+ * and Python's `_workspace_file_sort_key`: directory, then `readme.qmd.md` first, then file name,
+ * each by UTF-8 bytes. Locale collation is not used: it ignores case and punctuation, so which of
+ * two duplicate ids is reported, and which one the query layer keeps, differed from Rust and
+ * Python whenever the file names differed only in those (QMD-77).
+ */
+function compareWorkspaceFiles(a: string, b: string): number {
+  const aParts = a.split('/');
+  const bParts = b.split('/');
+  const aDir = aParts.slice(0, -1).join('/');
+  const bDir = bParts.slice(0, -1).join('/');
+  if (aDir !== bDir) {
+    return compareUtf8(aDir, bDir);
+  }
+  const aFile = aParts[aParts.length - 1] || '';
+  const bFile = bParts[bParts.length - 1] || '';
+  const aPriority = aFile === 'readme.qmd.md' ? 0 : 1;
+  const bPriority = bFile === 'readme.qmd.md' ? 0 : 1;
+  if (aPriority !== bPriority) {
+    return aPriority - bPriority;
+  }
+  return compareUtf8(aFile, bFile);
+}
+
 /** The entry for a single-workspace result: the workspace IS the base (`path` `''`). */
 function singleEntry(workspaceId: string | null, root: string): WorkspaceEntry[] {
   return workspaceId ? [{ id: workspaceId, root: canonicalSlash(root), path: '' }] : [];
@@ -109,9 +139,10 @@ function extractNamespaceId(namespaceRef: string): string {
 }
 
 /**
- * The readable, collision-free stem a file's synthesised ids are built from: its path relative
- * to the directory that declared its namespace (relative to the workspace root when it has
- * none), lowercased with every run of other characters folded to `_`.
+ * The readable stem a file's synthesised ids are built from: its path relative to the directory
+ * that declared its namespace (relative to the workspace root when it has none), lowercased with
+ * every run of other characters folded to `_`. Two files can fold to one stem;
+ * `assignSyntheticIds` is what makes the ids unique.
  *
  * A single-file `parse` has no workspace and no namespace, so it keeps the counter form it has
  * always had — one document cannot collide with itself. Only the workspace layer, which is where
@@ -143,28 +174,69 @@ export function syntheticIdStem(filePath: string, namespaceDir: string | null): 
 }
 
 /**
- * Map each synthesised `doc_*` / `text_*` id in one file to its path-derived replacement.
- * Empty when the stem is unusable, which leaves the ids exactly as the parser produced them.
+ * The final id of every synthesised `__Document` / `__TextBlock` in a workspace, per file:
+ * `file path -> {parser id: workspace id}`.
+ *
+ * The stem alone is not unique — folding to `[a-z0-9_]` maps `a-b`, `a_b` and `a/b` to one stem,
+ * and a name with no ASCII letter or digit folds to nothing. So uniqueness is assigned, not
+ * derived: the files of one namespace are taken in path byte order, the first keeps the plain
+ * stem, and a file whose ids are already taken — by an earlier file, or by an id an author wrote
+ * anywhere in that namespace — takes the smallest free `_<k>` suffix (k = 1, 2, …), the scheme
+ * GitHub's heading-anchor slugger uses. A stem that folds to nothing is `file`.
  */
-function syntheticIdRenames(
-  objects: Record<string, unknown>[],
-  filePath: string,
-  namespaceDir: string | null
-): Record<string, string> {
-  const stem = syntheticIdStem(filePath, namespaceDir);
-  const renames: Record<string, string> = {};
-  if (!stem) return renames;
-  for (const obj of objects) {
-    const objId = (obj.__id as string) || '';
-    if (obj.__kind === '__Document') {
-      renames[objId] = `doc_${stem}`;
-    } else if (obj.__kind === '__TextBlock') {
-      // `text_<n>` keeps its ordinal: a file can hold several text blocks.
-      const ordinal = objId.startsWith('text_') ? objId.slice('text_'.length) : objId;
-      renames[objId] = `text_${stem}_${ordinal}`;
+function assignSyntheticIds(
+  inputs: {
+    filePath: string;
+    namespaceId: string | null;
+    namespaceDir: string | null;
+    objects: Record<string, unknown>[];
+  }[]
+): Map<string, Record<string, string>> {
+  const isSynthesised = (obj: Record<string, unknown>) =>
+    obj.__kind === '__Document' || obj.__kind === '__TextBlock';
+  const taken = new Map<string, Set<string>>();
+  const takenIn = (namespaceId: string | null): Set<string> => {
+    const key = namespaceId ?? '';
+    let ids = taken.get(key);
+    if (!ids) {
+      ids = new Set<string>();
+      taken.set(key, ids);
+    }
+    return ids;
+  };
+  for (const input of inputs) {
+    const ids = takenIn(input.namespaceId);
+    for (const obj of input.objects) {
+      if (isSynthesised(obj) || obj.__kind === '__ParsingError') continue;
+      if (typeof obj.__id === 'string') ids.add(obj.__id);
     }
   }
-  return renames;
+
+  // Path byte order, the same order Rust and Python use (not UTF-16 code-unit order).
+  const order = [...inputs].sort((a, b) => compareUtf8(a.filePath, b.filePath));
+  const assigned = new Map<string, Record<string, string>>();
+  for (const input of order) {
+    const synthesised = input.objects
+      .filter(isSynthesised)
+      .map((obj) => ({ isDoc: obj.__kind === '__Document', id: (obj.__id as string) || '' }));
+    if (synthesised.length === 0) continue;
+    const base = syntheticIdStem(input.filePath, input.namespaceDir) || 'file';
+    const ids = takenIn(input.namespaceId);
+    let candidate: Record<string, string> = {};
+    for (let k = 0; ; k++) {
+      const stem = k === 0 ? base : `${base}_${k}`;
+      candidate = {};
+      for (const { isDoc, id } of synthesised) {
+        // `text_<n>` keeps its ordinal: a file can hold several text blocks.
+        const ordinal = id.startsWith('text_') ? id.slice('text_'.length) : id;
+        candidate[id] = isDoc ? `doc_${stem}` : `text_${stem}_${ordinal}`;
+      }
+      if (!Object.values(candidate).some((newId) => ids.has(newId))) break;
+    }
+    for (const newId of Object.values(candidate)) ids.add(newId);
+    assigned.set(input.filePath, candidate);
+  }
+  return assigned;
 }
 
 /** Rewrite a `[[#id]]` reference when its target was renamed. */
@@ -359,29 +431,7 @@ export function scanWorkspace(rootPath: string, excludeNested = true): string[] 
 
   scan(rootPath);
 
-  // Sort: readme.qmd.md first in each directory
-  files.sort((a, b) => {
-    const aDirParts = a.split('/');
-    const bDirParts = b.split('/');
-    const aDir = aDirParts.slice(0, -1).join('/');
-    const bDir = bDirParts.slice(0, -1).join('/');
-    const aFile = aDirParts[aDirParts.length - 1] || '';
-    const bFile = bDirParts[bDirParts.length - 1] || '';
-
-    if (aDir !== bDir) {
-      return aDir.localeCompare(bDir);
-    }
-
-    // readme.qmd.md comes first
-    const aPriority = aFile === 'readme.qmd.md' ? 0 : 1;
-    const bPriority = bFile === 'readme.qmd.md' ? 0 : 1;
-
-    if (aPriority !== bPriority) {
-      return aPriority - bPriority;
-    }
-
-    return aFile.localeCompare(bFile);
-  });
+  files.sort(compareWorkspaceFiles);
 
   return files;
 }
@@ -551,6 +601,14 @@ export function parseWorkspace(rootPath: string): WorkspaceResult {
   }
 
   // Second pass: parse all files with full metadata
+  // Parse every file first: a synthesised id is only unique against the whole namespace.
+  const parsedFiles: {
+    filePath: string;
+    content: string;
+    objects: QmdcObject[];
+    namespaceId: string | null;
+    namespaceDir: string | null;
+  }[] = [];
   for (const filePath of files) {
     const fullPath = join(rootPath, filePath);
     const content = readFileSync(fullPath, 'utf-8');
@@ -591,7 +649,13 @@ export function parseWorkspace(rootPath: string): WorkspaceResult {
       }
     }
 
-    const syntheticRenames = syntheticIdRenames(objects, filePath, namespaceDir);
+    parsedFiles.push({ filePath, content, objects, namespaceId, namespaceDir });
+  }
+
+  const syntheticIds = assignSyntheticIds(parsedFiles);
+
+  for (const { filePath, content, objects, namespaceId } of parsedFiles) {
+    const syntheticRenames = syntheticIds.get(filePath) ?? {};
 
     // Add metadata to each object
     for (const obj of objects) {
@@ -1690,6 +1754,14 @@ export function parseAllWorkspaces(rootPath: string): WorkspaceResult {
     // Apply .qmdcignore filtering
     return !isInsideWorkspace && !isIgnored(file, root, ignorePatterns);
   });
+  // The same order as a workspace's own files: a directory listing's order is the filesystem's,
+  // and the later of two duplicate ids is the one the query layer keeps (QMD-77).
+  orphanFiles.sort((a, b) =>
+    compareWorkspaceFiles(
+      relative(root, a).split(sep).join('/'),
+      relative(root, b).split(sep).join('/')
+    )
+  );
 
   if (orphanFiles.length > 0) {
     // First pass: check for workspace_in_wrong_file errors in orphan files
@@ -1742,35 +1814,49 @@ export function parseAllWorkspaces(rootPath: string): WorkspaceResult {
       allObjects.unshift(wsObj);
     }
 
-    // Second pass: parse orphan files
+    // Second pass: parse orphan files. Every orphan is parsed first: a synthesised id is only
+    // unique against all of them (QMD-77).
+    const orphanParsed: { filePath: string; relFile: string; objects: QmdcObject[] }[] = [];
     for (const filePath of orphanFiles) {
       try {
         const content = readFileSync(filePath, 'utf-8');
         const objects = parse(content, { randomSeed: 666 });
-
-        const relFile = relative(root, filePath);
-        const fileName = filePath.split(/[/\\]/).pop() || '';
-        const isReadme = fileName === 'readme.qmd.md';
-
-        // Add __file and __workspace metadata to each object
-        for (const obj of objects) {
-          // Skip __Workspace objects from non-readme files
-          if (!isReadme && obj.__kind === '__Workspace') {
-            continue; // Already handled in first pass
-          }
-
-          obj.__file = relFile;
-          if (shouldCreateVirtualWorkspace) {
-            obj.__workspace = virtualWsId; // Store plain ID
-          }
-          allObjects.push(obj);
-        }
-
-        allFiles.push(relFile);
-        allFilePaths.set(relFile, filePath);
+        orphanParsed.push({ filePath, relFile: relative(root, filePath), objects });
       } catch {
         // Skip files that can't be read
       }
+    }
+    const orphanIds = assignSyntheticIds(
+      orphanParsed.map(({ relFile, objects }) => ({
+        filePath: relFile,
+        namespaceId: null,
+        namespaceDir: null,
+        objects,
+      }))
+    );
+
+    for (const { filePath, relFile, objects } of orphanParsed) {
+      const renames = orphanIds.get(relFile) ?? {};
+      const fileName = filePath.split(/[/\\]/).pop() || '';
+      const isReadme = fileName === 'readme.qmd.md';
+
+      // Add __file and __workspace metadata to each object
+      for (const obj of objects) {
+        renameSyntheticIds(obj, renames);
+        // Skip __Workspace objects from non-readme files
+        if (!isReadme && obj.__kind === '__Workspace') {
+          continue; // Already handled in first pass
+        }
+
+        obj.__file = relFile;
+        if (shouldCreateVirtualWorkspace) {
+          obj.__workspace = virtualWsId; // Store plain ID
+        }
+        allObjects.push(obj);
+      }
+
+      allFiles.push(relFile);
+      allFilePaths.set(relFile, filePath);
     }
   }
 

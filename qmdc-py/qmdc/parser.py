@@ -199,6 +199,52 @@ def extract_references_from_text(
     return refs
 
 
+_HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+
+
+def _text_block_source(lines: list[str], start: int, end: int) -> str:
+    """QMD-77: the ``content`` of a ``__TextBlock`` is the verbatim source of its region.
+
+    Lines ``start..end`` (1-based, ``end`` exclusive), each without a trailing ``\\r``, with
+    leading and trailing blank lines dropped. Rebuilding the text from tokens lost constructs one
+    by one (a blockquote, an HTML block, the second line of a setext heading, the markup inside a
+    heading); a slice cannot lose any of them. Rust and TypeScript implement the same function.
+    """
+    end = min(end, len(lines) + 1)
+    if start < 1 or start >= end:
+        return ""
+    region = [line[:-1] if line.endswith("\r") else line for line in lines[start - 1 : end - 1]]
+    nonblank = [n for n, line in enumerate(region) if line.strip()]
+    if not nonblank:
+        return ""
+    return "\n".join(region[nonblank[0] : nonblank[-1] + 1])
+
+
+def _leading_text_start(lines: list[str], first_heading_line: int) -> int | None:
+    """QMD-77: the 1-based line the text above the first heading starts on, if there is any.
+
+    ``None`` when that text holds nothing but blank lines and HTML comments - an HTML comment is
+    ignored and opens no block. Any other content opens the leading ``__TextBlock``, whatever
+    Markdown construct it is.
+    """
+    above = lines[: max(0, min(first_heading_line - 1, len(lines)))]
+    if not _HTML_COMMENT_RE.sub("", "\n".join(above)).strip():
+        return None
+    return next(n + 1 for n, line in enumerate(above) if line.strip())
+
+
+def _rebased_fences(fences: list[dict[str, Any]], block_line: int) -> list[CodeFenceInfo]:
+    """Turn the fences' absolute source lines into offsets within the block's content."""
+    return [
+        {
+            "lang": f["lang"],
+            "offset_line": f["start_line"] - block_line,
+            "length_lines": f["length_lines"],
+        }
+        for f in fences
+    ]
+
+
 def parse(
     markdown: str,
     random_seed: int = 666,
@@ -303,12 +349,18 @@ def parse(
     # Track content order for __Document
     content_order: list[str] = []  # List of object IDs and text block IDs in order
 
-    # Track pending text block content
+    # Fragments of the pending text block. Only the structured_in_textblock gate reads
+    # them, and only their count: the block's content is the verbatim source slice from
+    # _text_block_source (QMD-77).
     pending_text_block_content: list[str] = []
     pending_text_block_started: bool = False
     pending_text_block_line: int = 0
     pending_text_block_level: int = 0  # Level of the TextBlock heading
-    pending_code_fences: list[CodeFenceInfo] = []
+    # Fences keep their absolute start_line until the block is emitted.
+    pending_code_fences: list[dict[str, Any]] = []
+    # QMD-77: the text above the first heading is decided once, when that heading (or EOF) arrives.
+    leading_text_done: bool = False
+    source_lines: list[str] = markdown.split("\n")
 
     # Track parsing errors (structured_in_textblock, etc.)
     parsing_errors: list[dict[str, Any]] = []
@@ -425,6 +477,16 @@ def parse(
         if token.type == "heading_open":
             level = get_heading_level(token.tag)
             header: HeaderResult | None = parse_header(tokens, i)
+            if not leading_text_done:
+                leading_text_done = True
+                leading_start = _leading_text_start(
+                    source_lines, (token.map[0] + 1) if token.map else 1
+                )
+                if leading_start is not None:
+                    if not pending_text_block_started:
+                        pending_text_block_started = True
+                        pending_text_block_level = 0
+                    pending_text_block_line = leading_start
 
             # QMD-77 A3: a heading deeper than a field declared `array` does NOT create an object —
             # the DECLARED KIND decides what the section is, the same rule QMD-75 settled for
@@ -1154,17 +1216,23 @@ def parse(
                             continue
 
                         # Save any pending text block first
-                        if pending_text_block_started and pending_text_block_content:
+                        if pending_text_block_started:
                             text_block_id = f"text_{text_block_counter}"
                             text_block_counter += 1
                             tb: dict[str, Any] = {
                                 "__id": text_block_id,
                                 "__kind": "__TextBlock",
-                                "content": "\n\n".join(pending_text_block_content),
+                                "content": _text_block_source(
+                                    source_lines,
+                                    pending_text_block_line,
+                                    line_num or len(source_lines) + 1,
+                                ),
                                 "__line": pending_text_block_line,
                             }
                             if pending_code_fences:
-                                tb["__code_fences"] = list(pending_code_fences)
+                                tb["__code_fences"] = _rebased_fences(
+                                    pending_code_fences, pending_text_block_line
+                                )
                             text_blocks.append(tb)
                             content_order.append(text_block_id)
                             pending_text_block_content = []
@@ -1354,17 +1422,23 @@ def parse(
                     else:
                         # TextBlock - each heading without [[id]] starts a NEW text block
                         # First, save any pending text block
-                        if pending_text_block_started and pending_text_block_content:
+                        if pending_text_block_started:
                             text_block_id = f"text_{text_block_counter}"
                             text_block_counter += 1
                             tb: dict[str, Any] = {
                                 "__id": text_block_id,
                                 "__kind": "__TextBlock",
-                                "content": "\n\n".join(pending_text_block_content),
+                                "content": _text_block_source(
+                                    source_lines,
+                                    pending_text_block_line,
+                                    line_num or len(source_lines) + 1,
+                                ),
                                 "__line": pending_text_block_line,
                             }
                             if pending_code_fences:
-                                tb["__code_fences"] = list(pending_code_fences)
+                                tb["__code_fences"] = _rebased_fences(
+                                    pending_code_fences, pending_text_block_line
+                                )
                             text_blocks.append(tb)
                             content_order.append(text_block_id)
                             pending_text_block_content = []
@@ -2357,11 +2431,8 @@ def parse(
                 )
                 fence_lines = fence_text.count("\n") + 1
 
-                # Calculate offset within content (0-based line number)
-                existing_content = "\n\n".join(pending_text_block_content)
-                offset_line = (
-                    0 if not existing_content else existing_content.count("\n") + 2
-                )  # +2 for blank line separator
+                # The offset is taken when the block is emitted, against its first line (QMD-77).
+                fence_line = (token.map[0] + 1) if token.map else 1
 
                 # Initialize text block if needed
                 if not pending_text_block_started:
@@ -2371,7 +2442,7 @@ def parse(
 
                 # Add code fence metadata
                 pending_code_fences.append(
-                    {"lang": lang, "offset_line": offset_line, "length_lines": fence_lines}
+                    {"lang": lang, "start_line": fence_line, "length_lines": fence_lines}
                 )
 
                 # Add code fence text to pending text block
@@ -2382,17 +2453,26 @@ def parse(
         else:
             i += 1
 
+    # A document with no heading: all of it is the text above the first heading.
+    if not leading_text_done:
+        leading_start = _leading_text_start(source_lines, len(source_lines) + 1)
+        if leading_start is not None:
+            pending_text_block_started = True
+            pending_text_block_line = leading_start
+
     # Handle any remaining pending text block at end of file
-    if pending_text_block_started and pending_text_block_content:
+    if pending_text_block_started:
         text_block_id = f"text_{text_block_counter}"
         tb: dict[str, Any] = {
             "__id": text_block_id,
             "__kind": "__TextBlock",
-            "content": "\n\n".join(pending_text_block_content),
+            "content": _text_block_source(
+                source_lines, pending_text_block_line, len(source_lines) + 1
+            ),
             "__line": pending_text_block_line,
         }
         if pending_code_fences:
-            tb["__code_fences"] = list(pending_code_fences)
+            tb["__code_fences"] = _rebased_fences(pending_code_fences, pending_text_block_line)
         text_blocks.append(tb)
         content_order.append(text_block_id)
 

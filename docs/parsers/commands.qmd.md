@@ -268,7 +268,7 @@ Available in all three parsers (Python, TypeScript, Rust).
 - `nested_workspace` — workspace inside another workspace (forbidden)
 - `workspace_in_wrong_file` — workspace declaration in wrong file
 
-Parse-stage errors (`invalid_id_character`, `mixed_field_keys`, `nested_subitems`, ...) surface as `__ParsingError` objects — the full catalog is in the validation-errors reference.
+Parse-stage errors (`invalid_id_character`, `mixed_field_keys`, `nested_subitems`, ...) surface as `__ParsingError` objects — the full catalog is in the validation-errors reference. In one parse result their ids are `error_0`, `error_1`, … in the order the errors are raised, unique within the result; they carry no `__global_id` and cannot be referenced.
 
 **Resolution order:** for each reference, the validator tries: (1) exact `__id` match, (2) `__local_id` fallback. A `broken_link` is only produced when both fail. An `ambiguous_reference` is produced when multiple candidates match at any step.
 

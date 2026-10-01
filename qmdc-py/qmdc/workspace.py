@@ -123,11 +123,11 @@ def _extract_namespace_id(namespace_ref: str) -> str:
 
 
 def synthetic_id_stem(file_path: str, namespace_dir: str | None) -> str:
-    """The readable, collision-free stem a file's synthesised ids are built from.
+    """The readable stem a file's synthesised ids are built from.
 
     The file's path relative to the directory that declared its namespace (relative to the
     workspace root when it has none), lowercased with every run of other characters folded
-    to ``_``.
+    to ``_``. Two files can fold to one stem; ``_assign_synthetic_ids`` makes the ids unique.
 
     A single-file ``parse`` has no workspace and no namespace, so it keeps the counter form it
     has always had - one document cannot collide with itself. Only the workspace layer, which
@@ -153,27 +153,61 @@ def synthetic_id_stem(file_path: str, namespace_dir: str | None) -> str:
     return "".join(out)
 
 
-def _synthetic_id_renames(
-    objects: list[dict[str, Any]], file_path: str, namespace_dir: str | None
-) -> dict[str, str]:
-    """Map each synthesised ``doc_*`` / ``text_*`` id in one file to its path-derived replacement.
+def _assign_synthetic_ids(
+    inputs: list[tuple[str, str | None, str | None, list[dict[str, Any]]]],
+) -> dict[str, dict[str, str]]:
+    """The final id of every synthesised ``__Document`` / ``__TextBlock`` in a workspace.
 
-    Empty when the stem is unusable, which leaves the ids exactly as the parser produced them.
+    ``inputs`` holds ``(file_path, namespace_id, namespace_dir, objects)`` per file; the result is
+    ``file_path -> {parser id: workspace id}``.
+
+    The stem alone is not unique - folding to ``[a-z0-9_]`` maps ``a-b``, ``a_b`` and ``a/b`` to one
+    stem, and a name with no ASCII letter or digit folds to nothing. So uniqueness is assigned, not
+    derived: the files of one namespace are taken in path byte order, the first keeps the plain
+    stem, and a file whose ids are already taken - by an earlier file, or by an id an author wrote
+    anywhere in that namespace - takes the smallest free ``_<k>`` suffix (k = 1, 2, ...), the scheme
+    GitHub's heading-anchor slugger uses. A stem that folds to nothing is ``file``.
     """
-    stem = synthetic_id_stem(file_path, namespace_dir)
-    if not stem:
-        return {}
-    renames: dict[str, str] = {}
-    for obj in objects:
-        obj_id = obj.get("__id", "")
-        kind = obj.get("__kind")
-        if kind == "__Document":
-            renames[obj_id] = f"doc_{stem}"
-        elif kind == "__TextBlock":
-            # `text_<n>` keeps its ordinal: a file can hold several text blocks.
-            ordinal = obj_id[len("text_") :] if obj_id.startswith("text_") else obj_id
-            renames[obj_id] = f"text_{stem}_{ordinal}"
-    return renames
+    synthesised_kinds = ("__Document", "__TextBlock")
+    taken: dict[str, set[str]] = {}
+    for _file_path, namespace_id, _namespace_dir, objects in inputs:
+        ids = taken.setdefault(namespace_id or "", set())
+        for obj in objects:
+            if obj.get("__kind") in synthesised_kinds or obj.get("__kind") == "__ParsingError":
+                continue
+            if isinstance(obj.get("__id"), str):
+                ids.add(obj["__id"])
+
+    assigned: dict[str, dict[str, str]] = {}
+    for file_path, namespace_id, namespace_dir, objects in sorted(
+        inputs, key=lambda entry: entry[0].encode("utf-8")
+    ):
+        synthesised = [
+            (obj.get("__kind") == "__Document", obj.get("__id", ""))
+            for obj in objects
+            if obj.get("__kind") in synthesised_kinds
+        ]
+        if not synthesised:
+            continue
+        base = synthetic_id_stem(file_path, namespace_dir) or "file"
+        ids = taken.setdefault(namespace_id or "", set())
+        k = 0
+        while True:
+            stem = base if k == 0 else f"{base}_{k}"
+            candidate: dict[str, str] = {}
+            for is_doc, obj_id in synthesised:
+                if is_doc:
+                    candidate[obj_id] = f"doc_{stem}"
+                else:
+                    # `text_<n>` keeps its ordinal: a file can hold several text blocks.
+                    ordinal = obj_id[len("text_") :] if obj_id.startswith("text_") else obj_id
+                    candidate[obj_id] = f"text_{stem}_{ordinal}"
+            if not any(new_id in ids for new_id in candidate.values()):
+                break
+            k += 1
+        ids.update(candidate.values())
+        assigned[file_path] = candidate
+    return assigned
 
 
 def _rename_reference(raw: str, renames: dict[str, str]) -> str | None:
@@ -309,6 +343,19 @@ def scan_workspace(root_path: str, exclude_nested: bool = True) -> list[str]:
     return files
 
 
+def _workspace_file_sort_key(rel: str) -> tuple[str, int, str]:
+    """The order every scan reads a workspace's files in: directory, then readme.qmd.md first,
+    then file name. Mirrors Rust's ``compare_workspace_files`` and TypeScript's
+    ``compareWorkspaceFiles``; str order is code-point order, which is UTF-8 byte order. The orphan
+    walk uses it too, since a directory listing's order is the filesystem's and the later of two
+    duplicate ids is the one the query layer keeps (QMD-77).
+    """
+    parts = Path(rel).parts
+    dir_path = "/".join(parts[:-1]) if len(parts) > 1 else ""
+    filename = parts[-1]
+    return (dir_path, 0 if filename == "readme.qmd.md" else 1, filename)
+
+
 def _scan_workspace_files_and_nested_roots(
     root: Path,
     ignore_patterns: list[IgnoreRule],
@@ -365,16 +412,7 @@ def _scan_workspace_files_and_nested_roots(
             rel_path = path.relative_to(root)
             files.append(str(rel_path))
 
-    # Sort for deterministic order (readme.qmd.md first in each directory)
-    def sort_key(f: str) -> tuple[str, int, str]:
-        parts = Path(f).parts
-        dir_path = "/".join(parts[:-1]) if len(parts) > 1 else ""
-        filename = parts[-1]
-        # readme.qmd.md comes first (priority 0), others alphabetically (priority 1)
-        priority = 0 if filename == "readme.qmd.md" else 1
-        return (dir_path, priority, filename)
-
-    return (sorted(files, key=sort_key), sorted(nested_roots))
+    return (sorted(files, key=_workspace_file_sort_key), sorted(nested_roots))
 
 
 def _nested_workspace_message(nested_id: str, nested_rel_dir: str) -> str:
@@ -533,6 +571,8 @@ def parse_workspace(root_path: str) -> WorkspaceResult:
 
     # Second pass: parse all files with full metadata (including __references)
     namespace_for_dir: dict[str, tuple[str | None, str | None]] = {}
+    # Parse every file first: a synthesised id is only unique against the whole namespace.
+    parsed_files: list[tuple[str, dict, dict, list[dict[str, Any]], str | None, str | None]] = []
     for file_path in files:
         full_path = root / file_path
         content = full_path.read_text(encoding="utf-8")
@@ -568,7 +608,14 @@ def parse_workspace(root_path: str) -> WorkspaceResult:
                 namespace_dir = file_dir
             namespace_for_dir[file_dir] = (namespace_id, namespace_dir)
 
-        synthetic_renames = _synthetic_id_renames(objects, file_path, namespace_dir)
+        parsed_files.append((file_path, by_id_kind, by_id, objects, namespace_id, namespace_dir))
+
+    synthetic_ids = _assign_synthetic_ids(
+        [(fp, ns_id, ns_dir, objs) for fp, _bik, _bi, objs, ns_id, ns_dir in parsed_files]
+    )
+
+    for file_path, by_id_kind, by_id, objects, namespace_id, _namespace_dir in parsed_files:
+        synthetic_renames = synthetic_ids.get(file_path, {})
 
         # Add metadata to each object
         for obj in objects:
@@ -1916,21 +1963,35 @@ def parse_all_workspaces(root_path: str) -> WorkspaceResult:
         # Apply .qmdcignore filtering
         if not is_inside_workspace and not is_ignored(qmdc_file, root, ignore_patterns):
             orphan_files.append(qmdc_file)
+    # The same order as a workspace's own files (see _workspace_file_sort_key).
+    orphan_files.sort(key=lambda p: _workspace_file_sort_key(p.relative_to(root).as_posix()))
 
     if orphan_files:
         # Parse orphan files as if they belong to a virtual workspace
         virtual_ws_id = root.name or "workspace"
 
+        # Parse every orphan first: a synthesised id is only unique against all of them (QMD-77).
+        orphan_parsed: list[tuple[Path, str, str, list[dict[str, Any]]]] = []
         for file_path in orphan_files:
             try:
                 content = file_path.read_text(encoding="utf-8")
                 objects = parse(content, random_seed=666)
+            except Exception:
+                # Skip files that can't be read
+                continue
+            orphan_parsed.append((file_path, str(file_path.relative_to(root)), content, objects))
+        orphan_ids = _assign_synthetic_ids(
+            [(rel_file, None, None, objects) for _fp, rel_file, _c, objects in orphan_parsed]
+        )
 
-                rel_file = str(file_path.relative_to(root))
+        for file_path, rel_file, content, objects in orphan_parsed:
+            try:
+                renames = orphan_ids.get(rel_file, {})
                 is_readme = file_path.name == "readme.qmd.md"
 
                 # Add __file and __workspace metadata to each object
                 for obj in objects:
+                    _rename_synthetic_ids(obj, renames)
                     # Skip __Workspace objects from non-readme files
                     if not is_readme and obj.get("__kind") == "__Workspace":
                         ws_id = obj.get("__id", "")

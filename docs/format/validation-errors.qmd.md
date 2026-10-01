@@ -30,7 +30,9 @@ Note: before producing a `broken_link` error, the validator attempts `__local_id
 
 ## Duplicate ID [[err_duplicate_id: ValidationError]]
 
-Two objects with the same `Kind:Id` in one namespace.
+Two objects with the same `Kind:Id` in one namespace. Every occurrence after the first is reported,
+and `candidates` lists all of them, in the order the files are read: directory, then
+`readme.qmd.md`, then file name, each compared by UTF-8 bytes.
 
 - code: duplicate_id
 - severity: error

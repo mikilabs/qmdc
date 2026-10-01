@@ -25,7 +25,7 @@ pub type QmdcObject = IndexMap<String, Value>;
 #[derive(Debug, Clone)]
 struct CodeFenceInfo {
     lang: String,
-    offset_line: usize,  // 0-based line offset within content
+    start_line: usize, // 1-based source line of the opening fence; offset_line = start_line - block line
     length_lines: usize, // number of lines including ``` markers
 }
 
@@ -112,6 +112,48 @@ fn resolve_child_id(
 /// indices, and the table range endpoints land on ASCII `|`/`\n`.
 fn raw_table_slice(source: &str, start: usize, end: usize) -> String {
     source.get(start..end).unwrap_or("").trim().to_string()
+}
+
+/// QMD-77: the `content` of a `__TextBlock` is the verbatim source of its region — lines
+/// `start..end` (1-based, `end` exclusive), each without a trailing `\r`, with leading and trailing
+/// blank lines dropped. Rebuilding the text from Markdown events lost constructs one by one (a
+/// blockquote, an HTML block, the second line of a setext heading, the markup inside a heading);
+/// a slice cannot lose any of them. Python and TypeScript implement the same function.
+fn text_block_source(lines: &[&str], start: usize, end: usize) -> String {
+    let end = end.min(lines.len() + 1);
+    if start == 0 || start >= end {
+        return String::new();
+    }
+    let region: Vec<&str> = lines[start - 1..end - 1]
+        .iter()
+        .map(|l| l.strip_suffix('\r').unwrap_or(l))
+        .collect();
+    let first = region.iter().position(|l| !l.trim().is_empty());
+    let last = region.iter().rposition(|l| !l.trim().is_empty());
+    match (first, last) {
+        (Some(first), Some(last)) => region[first..=last].join("\n"),
+        _ => String::new(),
+    }
+}
+
+/// QMD-77: the 1-based line the text above a document's first heading starts on, or `None` when it
+/// holds nothing but blank lines and HTML comments — an HTML comment is ignored and opens no block.
+/// Any other content opens the leading `__TextBlock`, whatever Markdown construct it is.
+fn leading_text_start(lines: &[&str], first_heading_line: usize) -> Option<usize> {
+    static HTML_COMMENT: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    let html_comment = HTML_COMMENT.get_or_init(|| Regex::new(r"(?s)<!--.*?-->").unwrap());
+    let above = &lines[..first_heading_line.saturating_sub(1).min(lines.len())];
+    if html_comment
+        .replace_all(&above.join("\n"), "")
+        .trim()
+        .is_empty()
+    {
+        return None;
+    }
+    above
+        .iter()
+        .position(|l| !l.trim().is_empty())
+        .map(|i| i + 1)
 }
 
 /// QMD-70: raw source of a block with its common leading indentation removed.
@@ -244,14 +286,18 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     // Track text blocks
     let mut text_blocks: Vec<(String, String, usize, Vec<CodeFenceInfo>)> = Vec::new(); // (id, content, line, code_fences)
     let mut text_block_counter = 0;
+    // `Some` while a text block is open. Only the structured_in_textblock gate reads the fragments
+    // (their count, and whether the first spans lines): the block's content is the verbatim source
+    // slice from `text_block_source` (QMD-77).
     let mut pending_text_block: Option<Vec<String>> = None;
     let mut pending_text_block_line: usize = 0;
     let mut pending_text_block_level: u8 = 0; // Track level of pending TextBlock for structured_in_textblock check
+                                              // QMD-77: the text above the first heading is decided once, when that heading (or EOF) arrives.
+    let mut leading_text_done = false;
     let mut pending_code_fences: Vec<CodeFenceInfo> = Vec::new();
 
     // Track parsing errors (structured_in_textblock, etc.)
     let mut parsing_errors: Vec<IndexMap<String, Value>> = Vec::new();
-    let mut parsing_error_counter = 0;
 
     // Track content order for __Document
     let mut content_order: Vec<String> = Vec::new();
@@ -341,6 +387,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     let mut code_block_content = String::new(); // Content of current code block
     let mut code_block_lang = String::new(); // Language of current code block
     let mut code_block_start_line: usize = 0; // Line where code block starts (for __code_fences)
+    let mut code_block_is_fenced = false; // an indented code block is not a code fence
     let mut code_block_start_offset: usize = 0; // Byte offset where fenced code block starts
 
     // Track blockquote state
@@ -632,6 +679,16 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 heading_start_offset = range.start;
                 heading_level = heading_level_to_u8(level);
                 heading_line = get_line(range.start);
+                if !leading_text_done {
+                    leading_text_done = true;
+                    if let Some(start) = leading_text_start(&lines, heading_line as usize) {
+                        if pending_text_block.is_none() {
+                            pending_text_block = Some(Vec::new());
+                            pending_text_block_level = 0;
+                        }
+                        pending_text_block_line = start;
+                    }
+                }
             }
 
             Event::End(TagEnd::Heading(_)) => {
@@ -1258,8 +1315,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                         if !ref_pattern.is_empty() {
                                             let nested_heading_line = get_line(evt_range.start);
                                             let error_id =
-                                                format!("parsing_error_{}", parsing_error_counter);
-                                            parsing_error_counter += 1;
+                                                format!("error_{}", parsing_errors.len());
 
                                             let mut error = IndexMap::new();
                                             error.insert("__id".to_string(), json!(error_id));
@@ -1823,8 +1879,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     && textblock_is_level2_or_deeper
                 {
                     // Generate error
-                    let error_id = format!("parsing_error_{}", parsing_error_counter);
-                    parsing_error_counter += 1;
+                    let error_id = format!("error_{}", parsing_errors.len());
 
                     // Build reference pattern (e.g., "[[invalid_field: text]]" or "[[another_invalid]]")
                     let ref_pattern = if let Some(ref ft) = header.field_type {
@@ -1867,13 +1922,17 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
 
                 if is_text_block {
                     // Save any pending text block first
-                    if let Some(content_parts) = pending_text_block.take() {
+                    if pending_text_block.take().is_some() {
                         let tb_id = format!("text_{}", text_block_counter);
                         text_block_counter += 1;
                         let fences = std::mem::take(&mut pending_code_fences);
                         text_blocks.push((
                             tb_id.clone(),
-                            content_parts.join("\n\n"),
+                            text_block_source(
+                                &lines,
+                                pending_text_block_line,
+                                heading_line as usize,
+                            ),
                             pending_text_block_line,
                             fences,
                         ));
@@ -1899,13 +1958,17 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     }
                 } else {
                     // Save any pending text block
-                    if let Some(content_parts) = pending_text_block.take() {
+                    if pending_text_block.take().is_some() {
                         let tb_id = format!("text_{}", text_block_counter);
                         text_block_counter += 1;
                         let fences = std::mem::take(&mut pending_code_fences);
                         text_blocks.push((
                             tb_id.clone(),
-                            content_parts.join("\n\n"),
+                            text_block_source(
+                                &lines,
+                                pending_text_block_line,
+                                heading_line as usize,
+                            ),
                             pending_text_block_line,
                             fences,
                         ));
@@ -2586,8 +2649,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             obj.positions.shift_remove(field_name);
 
                             // Generate nested_subitems parsing error
-                            let error_id = format!("error_{}", parsing_error_counter);
-                            parsing_error_counter += 1;
+                            let error_id = format!("error_{}", parsing_errors.len());
                             let mut error = IndexMap::new();
                             error.insert("__id".to_string(), json!(error_id));
                             error.insert("__kind".to_string(), json!("__ParsingError"));
@@ -2686,8 +2748,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // Only emit error if this was a real error (not trailing comment after populated array)
                     if let Some(err_line) = ordered_list_error_line {
                         if let Some((ref parent_id, ref field_name, _, _)) = pending_text_field {
-                            let error_id = format!("error_{}", parsing_error_counter);
-                            parsing_error_counter += 1;
+                            let error_id = format!("error_{}", parsing_errors.len());
                             let mut error = IndexMap::new();
                             error.insert("__id".to_string(), json!(error_id));
                             error.insert("__kind".to_string(), json!("__ParsingError"));
@@ -2820,8 +2881,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         // Only emit if THIS list had valid fields (truly mixed list)
                         // or if the object has fields and this list had invalid field-like items
                         if current_list_had_valid_fields || !obj.fields.is_empty() {
-                            let error_id = format!("error_{}", parsing_error_counter);
-                            parsing_error_counter += 1;
+                            let error_id = format!("error_{}", parsing_errors.len());
                             let mut error = IndexMap::new();
                             error.insert("__id".to_string(), json!(error_id));
                             error.insert("__kind".to_string(), json!("__ParsingError"));
@@ -2850,6 +2910,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 code_block_content.clear();
                 code_block_start_line = get_line(range.start) as usize;
                 code_block_start_offset = range.start;
+                code_block_is_fenced = matches!(kind, pulldown_cmark::CodeBlockKind::Fenced(_));
                 code_block_lang = match kind {
                     pulldown_cmark::CodeBlockKind::Fenced(lang) => lang.to_string(),
                     pulldown_cmark::CodeBlockKind::Indented => String::new(),
@@ -3083,26 +3144,15 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         }
                     }
                 } else if pending_text_block.is_some() {
-                    // Add code block to text block (not inside QMD.md object)
-                    // Calculate offset within content (0-based line number)
-                    let offset_line = if let Some(ref parts) = pending_text_block {
-                        // Count lines in existing content + 1 for the blank line separator (\n\n)
-                        let existing_content = parts.join("\n\n");
-                        if existing_content.is_empty() {
-                            0
-                        } else {
-                            existing_content.lines().count() + 1
-                        }
-                    } else {
-                        0
-                    };
-
-                    // Add code fence metadata
-                    pending_code_fences.push(CodeFenceInfo {
-                        lang: code_block_lang.clone(),
-                        offset_line,
-                        length_lines: code_lines,
-                    });
+                    // Add code block to text block (not inside QMD.md object). Its offset is taken
+                    // when the block is emitted, against the block's first line (QMD-77).
+                    if code_block_is_fenced {
+                        pending_code_fences.push(CodeFenceInfo {
+                            lang: code_block_lang.clone(),
+                            start_line: code_block_start_line,
+                            length_lines: code_lines,
+                        });
+                    }
 
                     // Add code block text to pending text block
                     if let Some(ref mut parts) = pending_text_block {
@@ -3115,11 +3165,13 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     pending_text_block_level = 0;
 
                     // Add code fence metadata
-                    pending_code_fences.push(CodeFenceInfo {
-                        lang: code_block_lang.clone(),
-                        offset_line: 0,
-                        length_lines: code_lines,
-                    });
+                    if code_block_is_fenced {
+                        pending_code_fences.push(CodeFenceInfo {
+                            lang: code_block_lang.clone(),
+                            start_line: code_block_start_line,
+                            length_lines: code_lines,
+                        });
+                    }
                 }
                 code_block_content.clear();
                 code_block_lang.clear();
@@ -4129,8 +4181,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                     comment.insert("content".to_string(), raw);
                                     obj.comments.push(comment);
                                 }
-                                let error_id = format!("error_{}", parsing_error_counter);
-                                parsing_error_counter += 1;
+                                let error_id = format!("error_{}", parsing_errors.len());
                                 let mut error = IndexMap::new();
                                 error.insert("__id".to_string(), json!(error_id));
                                 error.insert("__kind".to_string(), json!("__ParsingError"));
@@ -4671,13 +4722,23 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
         }
     }
 
+    // A document with no heading: all of it is the text above the first heading.
+    if !leading_text_done {
+        if let Some(start) = leading_text_start(&lines, lines.len() + 1) {
+            if pending_text_block.is_none() {
+                pending_text_block = Some(Vec::new());
+            }
+            pending_text_block_line = start;
+        }
+    }
+
     // Finalize pending text block
-    if let Some(content_parts) = pending_text_block.take() {
+    if pending_text_block.take().is_some() {
         let tb_id = format!("text_{}", text_block_counter);
         let fences = std::mem::take(&mut pending_code_fences);
         text_blocks.push((
             tb_id.clone(),
-            content_parts.join("\n\n"),
+            text_block_source(&lines, pending_text_block_line, lines.len() + 1),
             pending_text_block_line,
             fences,
         ));
@@ -4747,7 +4808,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     .map(|f| {
                         json!({
                             "lang": f.lang,
-                            "offset_line": f.offset_line,
+                            "offset_line": f.start_line.saturating_sub(*tb_line),
                             "length_lines": f.length_lines
                         })
                     })

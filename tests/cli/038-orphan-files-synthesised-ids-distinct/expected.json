@@ -1,0 +1,24 @@
+{
+  "columns": [
+    "__id",
+    "__file"
+  ],
+  "rows": [
+    [
+      "doc_a",
+      "a.qmd.md"
+    ],
+    [
+      "doc_b",
+      "b.qmd.md"
+    ],
+    [
+      "text_a_0",
+      "a.qmd.md"
+    ],
+    [
+      "text_b_0",
+      "b.qmd.md"
+    ]
+  ]
+}

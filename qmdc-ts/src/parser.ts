@@ -245,6 +245,55 @@ export interface ParseOptions {
 /**
  * Parse QMD.md to JSON
  */
+const HTML_COMMENT_RE = /<!--[\s\S]*?-->/g;
+
+/**
+ * QMD-77: the `content` of a `__TextBlock` is the verbatim source of its region — lines
+ * `start..end` (1-based, `end` exclusive), each without a trailing `\r`, with leading and trailing
+ * blank lines dropped. Rebuilding the text from tokens lost constructs one by one (a blockquote,
+ * an HTML block, the second line of a setext heading, the markup inside a heading); a slice cannot
+ * lose any of them. Rust and Python implement the same function.
+ */
+function textBlockSource(lines: string[], start: number, end: number): string {
+  const stop = Math.min(end, lines.length + 1);
+  if (start < 1 || start >= stop) return '';
+  const region = lines
+    .slice(start - 1, stop - 1)
+    .map((l) => (l.endsWith('\r') ? l.slice(0, -1) : l));
+  const first = region.findIndex((l) => l.trim() !== '');
+  if (first < 0) return '';
+  let last = region.length - 1;
+  while (region[last]!.trim() === '') last--;
+  return region.slice(first, last + 1).join('\n');
+}
+
+/**
+ * QMD-77: the 1-based line the text above the first heading starts on, or `null` when it holds
+ * nothing but blank lines and HTML comments — an HTML comment is ignored and opens no block. Any
+ * other content opens the leading `__TextBlock`, whatever Markdown construct it is.
+ */
+function leadingTextStart(lines: string[], firstHeadingLine: number): number | null {
+  const above = lines.slice(0, Math.max(0, Math.min(firstHeadingLine - 1, lines.length)));
+  if (above.join('\n').replace(HTML_COMMENT_RE, '').trim() === '') return null;
+  return above.findIndex((l) => l.trim() !== '') + 1;
+}
+
+/** A fence recorded while its block is open: its absolute source line, not yet an offset. */
+interface PendingCodeFence {
+  lang: string;
+  start_line: number;
+  length_lines: number;
+}
+
+/** Turn the fences' absolute source lines into offsets within the block's content. */
+function rebasedFences(fences: PendingCodeFence[], blockLine: number): CodeFenceInfo[] {
+  return fences.map((f) => ({
+    lang: f.lang,
+    offset_line: f.start_line - blockLine,
+    length_lines: f.length_lines,
+  }));
+}
+
 export function parse(markdown: string, options: ParseOptions | number = {}): ParseResult {
   // Support legacy signature: parse(markdown, randomSeed)
   const opts: ParseOptions = typeof options === 'number' ? { randomSeed: options } : options;
@@ -311,11 +360,16 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
   }> = [];
   let textBlockCounter = 0;
   const contentOrder: string[] = []; // Order of top-level elements (text blocks and objects)
+  // Fragments of the pending text block. Only the structured_in_textblock gate reads them, and only
+  // their count: the block's content is the verbatim source slice from textBlockSource (QMD-77).
   let pendingTextBlockContent: string[] = [];
   let pendingTextBlockStarted = false;
   let pendingTextBlockLine = 0;
   let pendingTextBlockLevel = 0; // Level of the TextBlock heading
-  let pendingCodeFences: CodeFenceInfo[] = [];
+  let pendingCodeFences: PendingCodeFence[] = [];
+  // QMD-77: the text above the first heading is decided once, when that heading (or EOF) arrives.
+  let leadingTextDone = false;
+  const sourceLines = markdown.split('\n');
 
   // Track parsing errors (structured_in_textblock, invalid_field_key, etc.)
   interface ParsingError {
@@ -575,6 +629,17 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
     if (token.type === 'heading_open') {
       const level = getHeadingLevel(token.tag);
       const header: HeaderData | null = parseHeader(tokens, i);
+      if (!leadingTextDone) {
+        leadingTextDone = true;
+        const leadingStart = leadingTextStart(sourceLines, token.map ? token.map[0] + 1 : 1);
+        if (leadingStart !== null) {
+          if (!pendingTextBlockStarted) {
+            pendingTextBlockStarted = true;
+            pendingTextBlockLevel = 0;
+          }
+          pendingTextBlockLine = leadingStart;
+        }
+      }
 
       // QMD-77 A3: a heading deeper than a field declared `array` does NOT create an object — the
       // DECLARED KIND decides what the section is, the same rule QMD-75 settled for `text`. A
@@ -1331,7 +1396,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
             }
 
             // Save any pending text block first
-            if (pendingTextBlockStarted && pendingTextBlockContent.length > 0) {
+            if (pendingTextBlockStarted) {
               const textBlockId = `text_${textBlockCounter}`;
               textBlockCounter++;
               const tb: {
@@ -1343,12 +1408,16 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
               } = {
                 __id: textBlockId,
                 __kind: '__TextBlock',
-                content: pendingTextBlockContent.join('\n\n'),
+                content: textBlockSource(
+                  sourceLines,
+                  pendingTextBlockLine,
+                  lineNum ?? sourceLines.length + 1
+                ),
               };
               if (format === 'full') {
                 tb.__line = pendingTextBlockLine;
                 if (pendingCodeFences.length > 0) {
-                  tb.__code_fences = [...pendingCodeFences];
+                  tb.__code_fences = rebasedFences(pendingCodeFences, pendingTextBlockLine);
                 }
               }
               textBlocks.push(tb);
@@ -1543,7 +1612,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           } else {
             // TextBlock - each heading without [[id]] starts a NEW text block
             // First, save any pending text block
-            if (pendingTextBlockStarted && pendingTextBlockContent.length > 0) {
+            if (pendingTextBlockStarted) {
               const textBlockId = `text_${textBlockCounter}`;
               textBlockCounter++;
               const tb: {
@@ -1555,12 +1624,16 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
               } = {
                 __id: textBlockId,
                 __kind: '__TextBlock',
-                content: pendingTextBlockContent.join('\n\n'),
+                content: textBlockSource(
+                  sourceLines,
+                  pendingTextBlockLine,
+                  lineNum ?? sourceLines.length + 1
+                ),
               };
               if (format === 'full') {
                 tb.__line = pendingTextBlockLine;
                 if (pendingCodeFences.length > 0) {
-                  tb.__code_fences = [...pendingCodeFences];
+                  tb.__code_fences = rebasedFences(pendingCodeFences, pendingTextBlockLine);
                 }
               }
               textBlocks.push(tb);
@@ -2992,9 +3065,8 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
         : `\`\`\`\n${fenceContent}\n\`\`\``;
       const fenceLines = fenceText.split('\n').length;
 
-      // Calculate offset within content (0-based line number)
-      const existingContent = pendingTextBlockContent.join('\n\n');
-      const offsetLine = existingContent.length === 0 ? 0 : existingContent.split('\n').length + 1; // +1 for blank line separator
+      // The offset is taken when the block is emitted, against its first line (QMD-77).
+      const fenceLine = token.map ? token.map[0] + 1 : 1;
 
       // Initialize text block if needed
       if (!pendingTextBlockStarted) {
@@ -3005,7 +3077,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
       // Add code fence metadata
       pendingCodeFences.push({
         lang,
-        offset_line: offsetLine,
+        start_line: fenceLine,
         length_lines: fenceLines,
       });
 
@@ -3110,8 +3182,17 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
     pendingTextFieldStartLine = null;
   }
 
+  // A document with no heading: all of it is the text above the first heading.
+  if (!leadingTextDone) {
+    const leadingStart = leadingTextStart(sourceLines, sourceLines.length + 1);
+    if (leadingStart !== null) {
+      pendingTextBlockStarted = true;
+      pendingTextBlockLine = leadingStart;
+    }
+  }
+
   // Handle any remaining pending text block at end of file
-  if (pendingTextBlockStarted && pendingTextBlockContent.length > 0) {
+  if (pendingTextBlockStarted) {
     const textBlockId = `text_${textBlockCounter}`;
     const tb: {
       __id: string;
@@ -3122,12 +3203,12 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
     } = {
       __id: textBlockId,
       __kind: '__TextBlock',
-      content: pendingTextBlockContent.join('\n\n'),
+      content: textBlockSource(sourceLines, pendingTextBlockLine, sourceLines.length + 1),
     };
     if (format === 'full') {
       tb.__line = pendingTextBlockLine;
       if (pendingCodeFences.length > 0) {
-        tb.__code_fences = [...pendingCodeFences];
+        tb.__code_fences = rebasedFences(pendingCodeFences, pendingTextBlockLine);
       }
     }
     textBlocks.push(tb);

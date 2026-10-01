@@ -1,0 +1,6 @@
+{
+  "columns": ["__file", "status"],
+  "rows": [
+    ["a/x.qmd.md", "nested"]
+  ]
+}

@@ -85,11 +85,15 @@ file is maintained by hand.
   LCG reseeded per parse) and every file's first text block `text_0`, and the graph keys on
   `<workspace>:<namespace>:<id>` — so files sharing a namespace collided on that key and the last one
   read won. In our own `docs/` the query layer returned 14 of the 125 synthesised objects; it now
-  returns all 125, and the sample workspace's edge count rose from 74 to 79 as the containment edges
+  returns every one, and the sample workspace's edge count rose from 74 to 79 as the containment edges
   came back with them. The id is `doc_<stem>` / `text_<stem>_<n>`, where the stem is the path relative
   to the directory that declared the namespace (`format/deep/commands.qmd.md` under namespace `format`
-  becomes `doc_deep_commands`). A single-file `parse` cannot collide with itself and keeps the counter
-  form. Anything storing these ids — the semantic index does — must be rebuilt (QMD-77 C2).
+  becomes `doc_deep_commands`). The stem folds case and punctuation, so `a-b`, `a_b` and `a/b` share
+  one, and a name without an ASCII letter or digit folds to nothing (`file`): the files of a namespace
+  are taken in path byte order and a later file whose ids are already taken — by another file or by
+  an id an author wrote in that namespace — gets the next free `_1`, `_2`, … suffix. A single-file
+  `parse` cannot collide with itself and keeps the counter form. Anything storing these ids — the
+  semantic index does — must be rebuilt (QMD-77 C2, review round 1).
 - **Breaking:** `workspace parse` names an error's owning object `objectId` and adds `fieldName` —
   the same keys `workspace validate` already used. The envelope's own spellings `object` and `field`
   are gone, so one error reads the same whichever command produced it. A consumer reading `object`
@@ -105,11 +109,23 @@ file is maintained by hand.
   including the first item of the list. An indented sub-item under an entry is `nested_subitems` when
   the entry has no value and `block_in_inline_field` when it has one, instead of becoming an entry the
   author never wrote (QMD-77 A3).
-- Content above a document's first heading is preserved whole: prose and tables now reach the
-  `__TextBlock` in Rust too, and a thematic break (`---`) inside a text block is kept by all three.
-  Rust also no longer treats a `---` or `+++` fence at the top of a file as front matter — QMD.md
+- **Breaking:** a `__TextBlock`'s `content` is now the verbatim source of its region — from its
+  first line to the line before the heading that ends it, blank lines at either end dropped — instead
+  of text each parser rebuilt from Markdown tokens. The rebuild lost constructs, differently in each
+  parser: Rust dropped a blockquote, joined the two lines of a setext heading (`## alphabeta`) and
+  stripped the markup from an unnamed heading; Python and TypeScript dropped the `>` of a quote, the
+  bullets of a list and the closing `#`s of a heading, and turned a setext heading into `## alpha` +
+  `beta`, which re-parses as a heading and a paragraph; all three dropped an HTML block and an HTML
+  comment inside a block, and rewrote a `~~~` fence with backticks. Any content above the first
+  heading now opens the leading block, except HTML comments alone, which are still ignored: a table,
+  a `---` or an HTML block opened none in any parser, a list or a blockquote none in Rust, and an
+  indented code block none in Python and TypeScript. `__code_fences` offsets are counted against the
+  new content, and only fenced code is a code fence (Rust reported an indented code block as one).
+  No pinned output changed: every text block in `docs/` and in the parser fixtures already equalled
+  its source region (QMD-77 B1, review round 1).
+- Rust no longer treats a `---` or `+++` fence at the top of a file as front matter — QMD.md
   defines none, so it is ordinary Markdown, and a file holding nothing else now yields a `__Document`
-  and a `__TextBlock` instead of nothing (QMD-77 B1, C1).
+  and `__TextBlock`s instead of nothing (QMD-77 C1).
 - A duplicate id keeps both objects in document order with one error each, in all three. TypeScript
   used to drop the first colliding NESTED object and report nothing; Rust ordered the duplicated
   subtrees by an (id, label) look-up that collides when both match (QMD-77 A1).
@@ -227,6 +243,14 @@ file is maintained by hand.
 
 ### Fixed
 
+- All three parsers read a workspace's files in one order: directory, then `readme.qmd.md`, then
+  file name, each compared by UTF-8 bytes. TypeScript compared names with locale collation, which
+  ignores case and punctuation, so when two files declaring the same id were named `B.qmd.md` and
+  `a_b.qmd.md`, or `a-b.qmd.md` and `a_b.qmd.md`, it reported a different occurrence as the
+  `duplicate_id` and its query layer kept a different object than Rust and Python did. Files outside
+  every workspace, which `query` also loads, were read in directory-listing order, so the object
+  kept there could differ between parsers and between machines; they are now read in the same order
+  as a workspace's files (QMD-77).
 - A field value is now the source text as written, in Rust as it already was in Python and
   TypeScript. Rust rebuilt a list-item value from its Markdown events, so it returned whatever form
   the renderer prefers rather than the author's: `__main__` came back as `**main**`, `_x_` as `*x*`,
@@ -254,6 +278,10 @@ file is maintained by hand.
   TypeScript as in Rust, Python and `git`. An uncaught `EACCES` from `readdirSync` cost the WHOLE
   result — not one readable file came back — for three of the four scanners in `workspace.ts`
   (QMD-77 D1).
+- Every `__ParsingError` in one parse result has its own `__id`, numbered in the order the errors
+  were raised — `error_0`, `error_1`, … — in all three parsers. Rust minted ids from two counters, so
+  two errors on one object could both be `error_0`, and a `structured_in_textblock` error was named
+  `parsing_error_<n>` where Python and TypeScript said `error_<n>` (QMD-77, review round 1).
 - **The three parsers now produce identical `parse` output for every document in the repository** —
   0 divergent of 111, measured by `make validate-compare`, which had reported 32 when the check was
   first added. `scripts/parse-parity-baseline.json` is deleted rather than set to 0, so any new

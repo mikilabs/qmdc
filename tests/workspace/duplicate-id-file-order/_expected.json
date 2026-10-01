@@ -1,0 +1,33 @@
+{
+  "workspace_id": "dup_file_order",
+  "files": [
+    "readme.qmd.md",
+    "B.qmd.md",
+    "a-b.qmd.md",
+    "a_b.qmd.md",
+    "c.qmd.md",
+    "a/x.qmd.md"
+  ],
+  "objects": {
+    "Session": ["dup", "dup", "dup", "dup", "dup"],
+    "__Workspace": ["dup_file_order"]
+  },
+  "errors": [
+    {
+      "type": "duplicate_id", "object": "dup", "file": "a-b.qmd.md", "line": 1,
+      "candidates": ["B.qmd.md:1", "a-b.qmd.md:1", "a_b.qmd.md:1", "c.qmd.md:1", "a/x.qmd.md:1"]
+    },
+    {
+      "type": "duplicate_id", "object": "dup", "file": "a_b.qmd.md", "line": 1,
+      "candidates": ["B.qmd.md:1", "a-b.qmd.md:1", "a_b.qmd.md:1", "c.qmd.md:1", "a/x.qmd.md:1"]
+    },
+    {
+      "type": "duplicate_id", "object": "dup", "file": "c.qmd.md", "line": 1,
+      "candidates": ["B.qmd.md:1", "a-b.qmd.md:1", "a_b.qmd.md:1", "c.qmd.md:1", "a/x.qmd.md:1"]
+    },
+    {
+      "type": "duplicate_id", "object": "dup", "file": "a/x.qmd.md", "line": 1,
+      "candidates": ["B.qmd.md:1", "a-b.qmd.md:1", "a_b.qmd.md:1", "c.qmd.md:1", "a/x.qmd.md:1"]
+    }
+  ]
+}

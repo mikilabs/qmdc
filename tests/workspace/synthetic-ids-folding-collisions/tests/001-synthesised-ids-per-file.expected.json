@@ -1,0 +1,22 @@
+{
+  "columns": ["__id", "__file"],
+  "rows": [
+    ["doc_a_b", "a-b.qmd.md"],
+    ["doc_a_b_1", "a_b.qmd.md"],
+    ["doc_a_b_1_1", "a_b_1.qmd.md"],
+    ["doc_deep_commands", "deep/commands.qmd.md"],
+    ["doc_deep_commands_1", "deep_commands.qmd.md"],
+    ["doc_file", "заметки.qmd.md"],
+    ["doc_file_1", "планы.qmd.md"],
+    ["doc_notes", "authored.qmd.md"],
+    ["doc_notes_1", "notes.qmd.md"],
+    ["text_a_b_0", "a-b.qmd.md"],
+    ["text_a_b_1_0", "a_b.qmd.md"],
+    ["text_a_b_1_1_0", "a_b_1.qmd.md"],
+    ["text_deep_commands_0", "deep/commands.qmd.md"],
+    ["text_deep_commands_1_0", "deep_commands.qmd.md"],
+    ["text_file_0", "заметки.qmd.md"],
+    ["text_file_1_0", "планы.qmd.md"],
+    ["text_notes_1_0", "notes.qmd.md"]
+  ]
+}
