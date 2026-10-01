@@ -80,6 +80,15 @@ file is maintained by hand.
 
 ### Changed
 
+- **Breaking:** the Kind segment is gone from the reference grammar. A reference is
+  `[[#workspace:namespace:id.field]]` — the same segments as `__global_id` — and a segment before the
+  id is always a qualifier, never a Kind. `[[#Table:users]]` used to resolve to `users` by Kind; it now
+  reads `Table` as a namespace and reports `broken_link` in all three parsers, and the mkdocs plugin
+  renders it as a broken link. `[[#namespace:Kind:id]]` likewise no longer means what the agent guide
+  described. Kind never took part in identity: the graph ignored it, so `[[#storage:Table:users]]`
+  could get an edge to an `Entity` with the same id, and any Kind segment — even one naming no Kind —
+  switched off the ambiguity check. In `parse --format full` such a reference's `type` in
+  `__references` changes from `"kind"` to `"namespace"`; the value `"kind"` no longer occurs. To migrate, drop the Kind segment: `[[#Table:users]]` → `[[#users]]` (QMD-69).
 - **Breaking:** a synthesised `__Document` / `__TextBlock` id is now derived from the file's path
   instead of being the same literal in every document. Every document used to get `doc_ry4ljv` (an
   LCG reseeded per parse) and every file's first text block `text_0`, and the graph keys on
