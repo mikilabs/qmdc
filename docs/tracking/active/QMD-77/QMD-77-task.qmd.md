@@ -15,7 +15,7 @@ is written down anywhere.
 This task closes the list. It is the last residual-collection task; anything found after it gets its
 own task and is not deferred into a list again.
 
-- status: done_review
+- status: in_progress
 - priority: high
 - category: parser
 - related_task: [[#qmd75_body_identity]]
