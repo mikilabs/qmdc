@@ -106,14 +106,15 @@ Two objects share the same ID in one namespace.
 
 ### `ambiguous_reference`
 
-A reference matches multiple objects and the parser can't pick one (e.g., `Table:users` and `Entity:users` both match `[[#users]]`).
+A reference matches multiple objects and the parser can't pick one (e.g., `storage:users` and `domain:users` both match `[[#users]]`).
 
 **Fix:**
 
-- Add Kind: `[[#Table:users]]`
 - Add namespace: `[[#storage:users]]`
-- Use the full form: `[[#storage:Table:users]]`
+- Use the full form: `[[#workspace:storage:users]]`
 - Use hierarchical ID: `[[#parent.config]]` instead of `[[#config]]`
+
+A reference has no Kind segment: `[[#Table:users]]` reads `Table` as a namespace.
 
 ### `structured_in_textblock`
 

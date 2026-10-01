@@ -121,7 +121,7 @@ Each `- key: value` line becomes a field on the object. QMDC auto-detects the [[
 |-------|--------------|------|
 | `developer` | string | Default — anything that isn't a number, boolean, or null |
 | `true` | boolean | Exactly `true` or `false` (lowercase only!) |
-| `95.5` | number | Integer, float, or scientific notation |
+| `95.5` | number | Integer or decimal (`-?\d+(\.\d+)?`); `1e5` stays a string and is reported |
 | `null` | null | The keyword `null`, or an empty value after the colon |
 
 **Common mistakes:**
@@ -280,7 +280,7 @@ If `alce` doesn't exist, QMDC produces a warning — but the object still loads 
 | Syntax | When to use |
 |--------|-------------|
 | `[[#alice]]` | Short form — most common |
-| `[[#User:alice]]` | With Kind — needed when two objects share an ID but have different types |
+| `[[#people:alice]]` | With namespace — needed when two namespaces hold the same ID |
 | `[[#alice.address]]` | Hierarchical dot-path — target a nested child object |
 | `[[#workspace:namespace:id]]` | Cross-workspace — reference objects in another workspace |
 

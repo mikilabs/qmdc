@@ -11,6 +11,16 @@
 > [!WARNING]
 > **Alpha release.** QMDC is early and moving fast — the format, APIs, and tooling may still change, and some edges will be rough or broken, especially on Windows. If something doesn't work, please [open an issue](https://github.com/mikilabs/qmdc/issues) — bug reports and feedback are hugely welcome.
 
+## What's new in 2.0
+
+- **One document, one answer, in every language.** The Rust, Python and TypeScript parsers now give identical output for every document in this repository (in 1.x, 32 of 108 parsed differently) and agree on 4,500+ shared conformance cases, on Linux, macOS and Windows.
+- **Nothing is lost in silence.** Field values, comments and text blocks are the source text as you wrote it, so parse → rebuild no longer rewrites your document. Constructs that used to be dropped or mangled — a second table, prose under an inline field, `1e5`, a value wrapped onto two lines — are now named errors that say what to write instead.
+- **Many repositories, one graph.** `-w` composes workspaces from anywhere on disk, references can name a workspace (`[[#shop:storage:users]]`), and the MCP server composes a folder of sibling repositories instead of refusing it.
+- **Libraries that work as published.** `import { parse } from '@qmdc/qmdc'` works now. Every package is tested as the installed artifact, README examples included.
+- **`.qmdcignore` is `.gitignore`.** A port of git's own matcher, pinned against git on 79 line forms.
+
+**Upgrading from 1.x** — four breaking changes: drop the Kind segment from references (`[[#Table:users]]` → `[[#users]]`, or `[[#storage:users]]` when the id is in several namespaces); read `workspaces[0].id` instead of `workspace` and `objectId` instead of `object` in `workspace parse` output; and rebuild anything that stored synthesised `doc_…` / `text_…` ids. Details in the [CHANGELOG](CHANGELOG.md).
+
 **Human-readable docs. Machine-queryable graph. Agent-ready context.**
 
 ![QMDC in action — create a .qmd.md file, parse it, validate references, and query the graph with SQL](docs/.assets/quickstart.gif)

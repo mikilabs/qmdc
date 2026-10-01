@@ -59,17 +59,17 @@ A `[[#id]]` reference could point to multiple objects (ID collision or multiple 
 
 ### Cause [[cause: text]]
 
-- Same ID on objects with different Kind: `Table:users` and `Entity:users`
 - Same ID in different namespaces
-- Reference without Kind or namespace qualifier
+- Reference without a namespace qualifier
 - Multiple objects share the same `__local_id` (e.g., several child objects named `[[config]]` under different parents, all with `__local_id: "config"`)
+
+Two objects with the same ID in ONE namespace are a `duplicate_id`, whatever their Kinds.
 
 ### Solution [[solution: text]]
 
-1. Add Kind to the reference: `[[#Table:users]]`
-2. Add namespace to the reference: `[[#storage:users]]`
-3. Use the full form: `[[#storage:Table:users]]`
-4. Use the full hierarchical ID: `[[#parent.config]]` instead of `[[#config]]`
+1. Add namespace to the reference: `[[#storage:users]]`
+2. Use the full form: `[[#workspace:storage:users]]`
+3. Use the full hierarchical ID: `[[#parent.config]]` instead of `[[#config]]`
 
 ## Nested Workspace [[err_nested_workspace: ValidationError]]
 

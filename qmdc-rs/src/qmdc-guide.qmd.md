@@ -459,23 +459,27 @@ References use full hierarchical dot-paths to target child objects and their fie
 
 There is no filter or wildcard syntax — forms like `[[#items[key=value]]]` are not part of the format and will not resolve. To reference a table row, use its auto-generated ID (`parent.field.field_<n>`, e.g. `[[#users.columns.columns_0]]`), or give the row an explicit name if it will be referenced.
 
-### Kind-Qualified References [[kind_refs: text]]
+### Same ID, Different Kind [[kind_refs: text]]
 
-When two objects have the same ID but different Kind, the reference must specify Kind:
+A reference never names a Kind. Two objects with one ID in the same namespace are a
+`duplicate_id`, whatever their Kinds. Put them in different namespaces and qualify the
+reference with the namespace:
 
 ```markdown example
-## Users [[users: Table]]
+## Users [[users: Table]]       <!-- in namespace storage -->
 - name: users
 
-## Users [[users: Entity]]
+## Users [[users: Entity]]      <!-- in namespace domain -->
 - type: domain_model
 ```
 
 ```markdown example
-- table_ref: [[#Table:users]]     # reference to table
-- entity_ref: [[#Entity:users]]   # reference to entity
-- ambiguous: [[#users]]           # ❌ ERROR!
+- table_ref: [[#storage:users]]   # reference to table
+- entity_ref: [[#domain:users]]   # reference to entity
+- ambiguous: [[#users]]           # ❌ ERROR from a third namespace
 ```
+
+`[[#Table:users]]` reads `Table` as a namespace, so it is a `broken_link`.
 
 ### Cross-Namespace References [[namespace_refs: text]]
 
@@ -534,7 +538,7 @@ Renaming an object rewrites references to it AND to all its descendants: renamin
 Reference problems are reported with `severity: error`, but they are **non-fatal**: unlike syntax errors, they never prevent the graph from being built.
 
 - Object not found → the object still loads; the reference remains a plain string; `broken_link` error reported
-- ID collision without Kind → unresolved reference; `ambiguous_reference` error reported
+- ID held in several namespaces, reference without a namespace → unresolved reference; `ambiguous_reference` error reported
 - Broken links don't break the entire graph — validation collects them into a report instead of aborting
 
 ### Where References Are Not Parsed [[refs_not_parsed: text]]
@@ -811,7 +815,7 @@ Before saving a QMD.md file:
 - ✅ Verified via `qmdc parse -i file.qmd.md`
 - ✅ If workspace — verified via `qmdc workspace validate .`
 - ✅ All references exist
-- ✅ No ambiguous references (Kind specified on collision)
+- ✅ No ambiguous references (namespace specified on collision)
 
 ### What Is Normal [[validation_normals: text]]
 
@@ -1065,21 +1069,21 @@ qmdc query . "SELECT __id FROM objects WHERE __id = 'nonexistent'"
 - about: [[#validation]], [[#reference]]
 
 ```markdown example
-## Users [[users: Table]]
+## Users [[users: Table]]       <!-- in namespace storage -->
 ...
 
-## Users [[users: Entity]]
+## Users [[users: Entity]]      <!-- in namespace domain -->
 ...
 
-## Order [[order]]
+## Order [[order]]              <!-- in namespace app -->
 - ref: [[#users]]    # ambiguous!
 ```
 
-Fix by specifying Kind:
+Fix by specifying the namespace:
 
 ```markdown example
-- table_ref: [[#Table:users]]
-- entity_ref: [[#Entity:users]]
+- table_ref: [[#storage:users]]
+- entity_ref: [[#domain:users]]
 ```
 
 ### Nested Lists in Fields [[err_nested_lists: text]]
