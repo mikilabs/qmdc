@@ -1169,7 +1169,7 @@ pub fn compose_workspace_roots(
                 let inner = error
                     .file
                     .as_deref()
-                    .and_then(|f| ws_dir.join(f).parent().map(&canon));
+                    .and_then(|f| ws_dir.join(f).parent().map(canon));
                 if inner.is_some_and(|p| members.contains(&p)) {
                     continue;
                 }
