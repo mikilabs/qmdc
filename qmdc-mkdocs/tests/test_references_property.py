@@ -213,15 +213,23 @@ class TestReferenceResolutionCorrectness:
         source_file=source_file_strategy,
     )
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
-    def test_kind_qualified_ref_resolves_correctly(self, target, source_file, mock_workspace_db):
-        """Kind-qualified refs [[#Kind:id]] resolve correctly.
+    def test_workspace_qualified_ref_resolves_correctly(
+        self, target, source_file, mock_workspace_db
+    ):
+        """Workspace-qualified refs [[#ws:ns:id]] resolve correctly.
+
+        QMD-69 replaced the Kind segment with the workspace one, so the three-segment form
+        is `workspace:namespace:id`.
 
         **Validates: Requirements 8.3**
         """
-        ref_text = f"[[#{target['kind']}:{target['id']}]]"
-        target_str = f"#{target['kind']}:{target['id']}"
+        # Only test objects that have a namespace -- the elided form is covered separately.
+        assume(target["namespace"] is not None)
+
+        ref_text = f"[[#myproject:{target['namespace']}:{target['id']}]]"
+        target_str = f"#myproject:{target['namespace']}:{target['id']}"
         lines, file_objects = _make_file_objects_with_ref(
-            ref_text, target_str, "kind", source_file
+            ref_text, target_str, "namespace", source_file
         )
 
         result = resolve_references(lines, file_objects, source_file, mock_workspace_db)
@@ -229,10 +237,10 @@ class TestReferenceResolutionCorrectness:
 
         # Should resolve to a link (not broken)
         assert "broken-link" not in result_text, (
-            f"Kind-qualified ref {ref_text} rendered as broken: {result_text}"
+            f"Workspace-qualified ref {ref_text} rendered as broken: {result_text}"
         )
         assert "[[#" not in result_text, (
-            f"Kind-qualified ref {ref_text} was not resolved: {result_text}"
+            f"Workspace-qualified ref {ref_text} was not resolved: {result_text}"
         )
 
         # Extract and verify the link

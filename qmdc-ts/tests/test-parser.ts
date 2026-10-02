@@ -5,7 +5,9 @@
 import { readFileSync, existsSync, readdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { parse, rebuild, type ParseResult } from '../src/parser.js';
+import type { ParseResult } from '../src/index.js';
+import { lib } from './_lib.js';
+const { parse, rebuild } = lib;
 import { CaseReport } from './_report.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

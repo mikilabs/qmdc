@@ -1,6 +1,6 @@
 {
   "name": "@qmdc/qmdc",
-  "version": "1.0.6",
+  "version": "2.0.0",
   "description": "QMDC parser — convert QMD.md to a queryable object graph (JSON) and back",
   "license": "AGPL-3.0-or-later",
   "author": "mikilabs",
@@ -17,12 +17,20 @@
     "node": ">=18"
   },
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
     "qmdc": "bin/qmdc.cjs"
   },
   "files": [
     "bin/qmdc.cjs",
-    "src",
     "dist",
     "README.md"
   ],
@@ -37,7 +45,9 @@
   },
   "scripts": {
     "build": "tsc --noEmit",
-    "test": "npm run build && tsx tests/test-parser.ts && tsx tests/test-cli.ts && tsx tests/test-cli-conformance.ts && tsx tests/test-workspace.ts && tsx tests/test-sql.ts",
+    "build:lib": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepack": "npm run build:lib",
+    "test": "npm run build && tsx tests/test-parser.ts && tsx tests/test-cli.ts && tsx tests/test-cli-conformance.ts && tsx tests/test-workspace.ts && tsx tests/test-sql.ts && tsx tests/test-ignore.ts",
     "test:cli": "npm run build && tsx tests/test-cli.ts",
     "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts'",
     "lint": "eslint 'src/**/*.ts' 'tests/**/*.ts'"
@@ -48,13 +58,11 @@
     "commander": "^11.1.0",
     "js-yaml": "^4.1.0",
     "markdown-it": "^14.0.0",
-    "minimatch": "^10.0.0",
     "sql.js": "^1.13.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.0",
     "@types/markdown-it": "^13.0.0",
-    "@types/minimatch": "^5.1.0",
     "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^8.48.1",
     "@typescript-eslint/parser": "^8.48.1",

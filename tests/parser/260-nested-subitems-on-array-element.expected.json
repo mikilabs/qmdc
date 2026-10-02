@@ -1,0 +1,41 @@
+[
+  {
+    "__id": "t",
+    "__label": "Trace",
+    "__kind": "SimTrace",
+    "status": "PASSED",
+    "steps": [
+      "[[#t.steps.s1]]"
+    ],
+    "__types": {
+      "status": "string"
+    },
+    "__syntax": {
+      "steps": "headers"
+    },
+    "__level": 1,
+    "__labels": {
+      "steps": "Steps"
+    }
+  },
+  {
+    "__id": "t.steps.s1",
+    "__local_id": "s1",
+    "__label": "Step 1",
+    "__kind": "StepTrace",
+    "__parent": "[[#t]]",
+    "__parent_field": "steps",
+    "status": "ok",
+    "__types": {
+      "status": "string"
+    }
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "nested_subitems",
+    "field": "issues",
+    "object": "[[#t.steps.s1]]",
+    "line": 10
+  }
+]

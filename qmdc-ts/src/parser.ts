@@ -90,24 +90,15 @@ function classifyReference(inner: string): string {
     return 'crossfile';
   }
 
-  // Check for Kind:id or Kind.id format (first char is uppercase = Kind)
-  // Or namespace:id format (first char is lowercase = namespace)
+  // A reference target is a right-aligned suffix of `workspace:namespace:id` with an
+  // optional `.field` suffix (QMD-69). There is no Kind segment, so any qualified
+  // target classifies as `namespace`; the uppercase-first-segment heuristic that used
+  // to tell `Kind:id` from `namespace:id` is gone.
   if (content.includes(':') || content.includes('.')) {
     const sep = content.includes(':') ? ':' : '.';
     const parts = content.split(sep, 2);
     if (parts.length === 2) {
-      const first = parts[0];
-      // If first char is uppercase, assume Kind
-      if (
-        first &&
-        first[0] &&
-        first[0] === first[0].toUpperCase() &&
-        first[0] !== first[0].toLowerCase()
-      ) {
-        return 'kind';
-      } else {
-        return 'namespace';
-      }
+      return 'namespace';
     }
   }
 
@@ -124,6 +115,59 @@ function classifyReference(inner: string): string {
 /**
  * Check if position is inside backticks (inline code)
  */
+/**
+ * QMD-71: JSON for parse output, with a float's authored precision preserved.
+ *
+ * `JSON.stringify(2.0)` is `"2"` in JavaScript, so `- version: 2.0` came back as `2` where Rust and
+ * Python both emit `2.0`. The value and its `__types` entry (`number`) were already right — only the
+ * rendering lost the trailing zero.
+ *
+ * The raw text is already kept: `parseFieldValue` records it whenever a value contains a `.` and
+ * parses to an integer, and it is stashed on each object as a non-enumerable `__raw_values` for
+ * `rebuild` to use. This re-uses that, so there is one source of truth for the authored form rather
+ * than a second parallel mechanism.
+ *
+ * Implemented as a post-pass over `JSON.stringify`'s output rather than a replacement for it: a
+ * `toJSON` hook or a replacer cannot emit an unquoted `2.0`, because whatever it returns is itself
+ * serialised.
+ */
+export function stringifyParseResult(result: unknown, pretty = true): string {
+  const placeholders = new Map<string, string>();
+  let counter = 0;
+
+  const substitute = (node: unknown): unknown => {
+    if (Array.isArray(node)) {
+      return node.map(substitute);
+    }
+    if (node === null || typeof node !== 'object') {
+      return node;
+    }
+    const raws = Object.getOwnPropertyDescriptor(node, '__raw_values')?.value as
+      | Record<string, string>
+      | undefined;
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      const raw = raws?.[key];
+      if (raw !== undefined && typeof value === 'number' && Number(raw) === value) {
+        const token = `__QMDC_NUM_${counter++}__`;
+        placeholders.set(token, raw);
+        out[key] = token;
+      } else {
+        out[key] = substitute(value);
+      }
+    }
+    return out;
+  };
+
+  let json = pretty
+    ? JSON.stringify(substitute(result), null, 2)
+    : JSON.stringify(substitute(result));
+  for (const [token, raw] of placeholders) {
+    json = json.replace(`"${token}"`, raw);
+  }
+  return json;
+}
+
 export function isInsideBackticks(text: string, pos: number): boolean {
   let inBacktick = false;
   for (let i = 0; i < text.length && i < pos; i++) {
@@ -201,6 +245,55 @@ export interface ParseOptions {
 /**
  * Parse QMD.md to JSON
  */
+const HTML_COMMENT_RE = /<!--[\s\S]*?-->/g;
+
+/**
+ * QMD-77: the `content` of a `__TextBlock` is the verbatim source of its region — lines
+ * `start..end` (1-based, `end` exclusive), each without a trailing `\r`, with leading and trailing
+ * blank lines dropped. Rebuilding the text from tokens lost constructs one by one (a blockquote,
+ * an HTML block, the second line of a setext heading, the markup inside a heading); a slice cannot
+ * lose any of them. Rust and Python implement the same function.
+ */
+function textBlockSource(lines: string[], start: number, end: number): string {
+  const stop = Math.min(end, lines.length + 1);
+  if (start < 1 || start >= stop) return '';
+  const region = lines
+    .slice(start - 1, stop - 1)
+    .map((l) => (l.endsWith('\r') ? l.slice(0, -1) : l));
+  const first = region.findIndex((l) => l.trim() !== '');
+  if (first < 0) return '';
+  let last = region.length - 1;
+  while (region[last]!.trim() === '') last--;
+  return region.slice(first, last + 1).join('\n');
+}
+
+/**
+ * QMD-77: the 1-based line the text above the first heading starts on, or `null` when it holds
+ * nothing but blank lines and HTML comments — an HTML comment is ignored and opens no block. Any
+ * other content opens the leading `__TextBlock`, whatever Markdown construct it is.
+ */
+function leadingTextStart(lines: string[], firstHeadingLine: number): number | null {
+  const above = lines.slice(0, Math.max(0, Math.min(firstHeadingLine - 1, lines.length)));
+  if (above.join('\n').replace(HTML_COMMENT_RE, '').trim() === '') return null;
+  return above.findIndex((l) => l.trim() !== '') + 1;
+}
+
+/** A fence recorded while its block is open: its absolute source line, not yet an offset. */
+interface PendingCodeFence {
+  lang: string;
+  start_line: number;
+  length_lines: number;
+}
+
+/** Turn the fences' absolute source lines into offsets within the block's content. */
+function rebasedFences(fences: PendingCodeFence[], blockLine: number): CodeFenceInfo[] {
+  return fences.map((f) => ({
+    lang: f.lang,
+    offset_line: f.start_line - blockLine,
+    length_lines: f.length_lines,
+  }));
+}
+
 export function parse(markdown: string, options: ParseOptions | number = {}): ParseResult {
   // Support legacy signature: parse(markdown, randomSeed)
   const opts: ParseOptions = typeof options === 'number' ? { randomSeed: options } : options;
@@ -222,6 +315,15 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
 
   // Track pending array field from [[field: array]] heading
   let pendingArrayField: [string, string] | null = null; // [parent_id, field_name]
+  // QMD-77 A3: the scope a declared `array` field is still open in — [parent_id, field_name,
+  // level]. `pendingArrayField` is cleared by the first list that feeds the array, so it cannot
+  // answer "is this deeper heading inside a collection field's section?".
+  let arrayFieldScope: [string, string, number] | null = null;
+  // "This heading declares an identifier" — the same grammar the nested-declaration look-ahead
+  // uses (a leading `#` is a reference, not a declaration; code spans are stripped first).
+  const a3DeclaresRe = /\[\[\s*[^#\]][^\]]*\]\]/;
+  // A valid map entry: a bullet item whose text opens with a valid identifier and a colon.
+  const mapEntryRe = /^[a-zA-Z_][a-zA-Z0-9_]*\s*:/;
 
   // Track pending text field from [[field]] or [[field: text]] heading (for multiline text)
   // [parent_id, field_name, field_level, field_label]
@@ -231,6 +333,11 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
   // Track pending object array from [[field: [Kind]]] heading
   // [parent_id, field_name, array_kind, level]
   let pendingObjectArray: [string, string, string, number] | null = null;
+  // QMD-70: [parent_id, field_name] of an object array whose own table has already been consumed,
+  // so a SECOND table under the same heading can be reported instead of silently becoming prose.
+  // Cleared at the next heading: a heading either opens an element (the table then belongs to that
+  // element) or leaves the array altogether.
+  let arrayTableConsumed: [string, string, number] | null = null;
 
   // Track pending YAML field from [[field: yaml]] heading
   // [parent_id, field_name, field_label]
@@ -253,11 +360,16 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
   }> = [];
   let textBlockCounter = 0;
   const contentOrder: string[] = []; // Order of top-level elements (text blocks and objects)
+  // Fragments of the pending text block. Only the structured_in_textblock gate reads them, and only
+  // their count: the block's content is the verbatim source slice from textBlockSource (QMD-77).
   let pendingTextBlockContent: string[] = [];
   let pendingTextBlockStarted = false;
   let pendingTextBlockLine = 0;
   let pendingTextBlockLevel = 0; // Level of the TextBlock heading
-  let pendingCodeFences: CodeFenceInfo[] = [];
+  let pendingCodeFences: PendingCodeFence[] = [];
+  // QMD-77: the text above the first heading is decided once, when that heading (or EOF) arrives.
+  let leadingTextDone = false;
+  const sourceLines = markdown.split('\n');
 
   // Track parsing errors (structured_in_textblock, invalid_field_key, etc.)
   interface ParsingError {
@@ -271,6 +383,8 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
     field_type?: string;
     object?: string;
     definitions?: string[];
+    /** QMD-71: what to write instead, on `unsupported_number_format`. */
+    hint?: string;
     line: number | null;
     __file?: string;
   }
@@ -321,11 +435,16 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
 
   function hasNestedStructuredHeadings(startIdx: number, currentLevel: number): boolean {
     /**
-     * Look-ahead to check if there are nested headings with [[...]] at a deeper level.
-     * Returns true if any heading at a deeper level contains [[...]] bracket syntax.
+     * Look-ahead to check whether any heading at a deeper level DECLARES an identifier.
      * Stops at headings at same or higher level.
+     *
+     * QMD-75: "declares" is the format's own grammar, not "contains two brackets". The regex
+     * used to be /\[\[[^\]]+\]\]/, which counted a code span (`### Uses `[[x]]` syntax`) and a
+     * reference (`### See [[#s]]`) as declarations — so a comment heading that names a
+     * reference decided whether its PARENT is an object, and the parent then grew a field
+     * literally called `#s`. Code spans are stripped and a leading `#` is excluded.
      */
-    const bracketRe = /\[\[[^\]]+\]\]/;
+    const declaresRe = /\[\[\s*[^#\]][^\]]*\]\]/;
     let j = startIdx + 3; // Skip heading_open, inline, heading_close
     while (j < tokens.length) {
       const tok = tokens[j];
@@ -335,10 +454,10 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
         if (nextLevel <= currentLevel) {
           return false;
         }
-        // Check if the heading text contains [[...]]
+        // Check whether the heading declares an identifier
         if (j + 1 < tokens.length && tokens[j + 1]?.type === 'inline') {
           const headingContent = tokens[j + 1]?.content || '';
-          if (bracketRe.test(headingContent)) {
+          if (declaresRe.test(headingContent.replace(backtickStripRe, ''))) {
             return true;
           }
         }
@@ -387,6 +506,94 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
     return false;
   }
 
+  /**
+   * Where an object's own non-field content ends: scan forward from `startIdx` and return the
+   * first line that is no longer part of the comment, plus the token index to resume at.
+   *
+   * QMD-75: this exists because the same scan was written out twice — once for the
+   * table/`---`/quote capture and once for the fence capture — and the two drifted. Both
+   * QMD-75 corrections (an ordered list's nested bullets are that item's content, and a deeper
+   * undeclared heading ends this comment so the comment-heading branch can record its own
+   * entry) went into the first copy only, so a fence body followed by `### Note` and
+   * `- Table: x` still had TypeScript invent a field `Table` where Rust and Python produced two
+   * comments. One helper, one boundary, both callers.
+   */
+  function findCommentEnd(
+    startIdx: number,
+    initialEndLine: number,
+    currentLevel: number
+  ): { endLine: number; scanIdx: number } {
+    let endLine = initialEndLine;
+    let scanIdx = startIdx;
+    // Depth of ORDERED lists the scan is currently inside. A bullet list nested under an
+    // ordered item is that item's content, not the object's fields — the rule QMD-71 settled
+    // for Rust and Python. Without this the scan ended AT such a list and handed it to the
+    // field parser, which read `- Table: x` as a field and then reported `mixed_field_keys` on
+    // the next item; Rust and Python read the whole thing as prose.
+    let orderedDepth = 0;
+
+    while (scanIdx < tokens.length) {
+      const scanTok = tokens[scanIdx];
+      if (!scanTok) break;
+
+      if (scanTok.type === 'ordered_list_open') {
+        orderedDepth++;
+      } else if (scanTok.type === 'ordered_list_close') {
+        orderedDepth--;
+      }
+
+      if (scanTok.type === 'heading_open') {
+        const nextLevel = getHeadingLevel(scanTok.tag);
+        if (nextLevel <= currentLevel) {
+          endLine = scanTok.map ? scanTok.map[0] : endLine;
+          break;
+        }
+        const nextHeader = parseHeader(tokens, scanIdx);
+        if (nextHeader) {
+          // A heading that DECLARES an identifier — by a kind, a field type, or a bare
+          // explicit id — ends the comment, whatever follows it. Requiring fields directly
+          // after it as well meant a `[[id]]` heading whose own body is a deeper `[[id]]`
+          // heading was swallowed into the comment: on one real document a `---` above it cost
+          // two nesting levels, and the grandchild that did carry fields was re-parented onto
+          // the object that owned the `---`.
+          if (nextHeader.kind || nextHeader.fieldType || nextHeader.hasExplicitId) {
+            endLine = scanTok.map ? scanTok.map[0] : endLine;
+            break;
+          }
+          // A DEEPER heading that declares nothing is a comment heading of its own, so this
+          // comment ends before it and the comment-heading branch records the heading plus its
+          // body as a SECOND entry — which is what Rust and Python produce. Walking through it
+          // merged the two entries into one and then handed its field-like bullets to the
+          // field parser, which reported `mixed_field_keys` on a line that is only prose with
+          // a colon in it.
+          endLine = scanTok.map ? scanTok.map[0] : endLine;
+          break;
+        }
+      }
+
+      // Stop at a field list that belongs to the object itself
+      if (
+        scanTok.type === 'bullet_list_open' &&
+        orderedDepth === 0 &&
+        bulletListHasFields(scanIdx)
+      ) {
+        endLine = scanTok.map ? scanTok.map[0] : endLine;
+        break;
+      }
+
+      // QMD-70: take the maximum rather than overwriting. The scan walks INTO the block, and a
+      // child token's map can be NARROWER than its container's — a table with no data rows is
+      // `table_open [4,6]` but `thead_open`/`tr_open` are `[4,5]`, so plain assignment shrank
+      // the slice and dropped the separator row, which Rust and Python both keep.
+      if (scanTok.map) {
+        endLine = Math.max(endLine, scanTok.map[1]);
+      }
+      scanIdx++;
+    }
+
+    return { endLine, scanIdx };
+  }
+
   function resolveChildId(
     parentId: string,
     localId: string,
@@ -422,6 +629,41 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
     if (token.type === 'heading_open') {
       const level = getHeadingLevel(token.tag);
       const header: HeaderData | null = parseHeader(tokens, i);
+      if (!leadingTextDone) {
+        leadingTextDone = true;
+        const leadingStart = leadingTextStart(sourceLines, token.map ? token.map[0] + 1 : 1);
+        if (leadingStart !== null) {
+          if (!pendingTextBlockStarted) {
+            pendingTextBlockStarted = true;
+            pendingTextBlockLevel = 0;
+          }
+          pendingTextBlockLine = leadingStart;
+        }
+      }
+
+      // QMD-77 A3: a heading deeper than a field declared `array` does NOT create an object — the
+      // DECLARED KIND decides what the section is, the same rule QMD-75 settled for `text`. A
+      // collection's value is its list items and a heading is not one, so the declaration it
+      // carries is lost: report it instead of dropping it in silence. The heading closes the
+      // field's content, exactly as prose between two lists does.
+      if (
+        arrayFieldScope &&
+        level > arrayFieldScope[2] &&
+        a3DeclaresRe.test((tokens[i + 1]?.content || '').replace(backtickStripRe, ''))
+      ) {
+        parsingErrors.push({
+          __id: `error_${parsingErrors.length}`,
+          __kind: '__ParsingError',
+          type: 'mixed_array',
+          field: arrayFieldScope[1],
+          object: `[[#${arrayFieldScope[0]}]]`,
+          line: token.map ? token.map[0] + 1 : null,
+        });
+        pendingArrayField = null;
+        commentAnchor = arrayFieldScope[1];
+        i += 3; // Skip heading_open, inline, heading_close
+        continue;
+      }
 
       if (header) {
         // Get line number (1-based for LSP)
@@ -443,9 +685,16 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
         if (pendingTextField) {
           const [pfParentId, pfFieldName, pfLevel, pfFieldLabel] = pendingTextField;
 
-          // If this heading is deeper than the text field AND has no explicit [[id]],
-          // it's part of the text content, not a new object
-          if (level > pfLevel && !header.hasExplicitId) {
+          // If this heading is deeper than the text field, it is part of the text content,
+          // not a new object.
+          //
+          // QMD-75: a deeper heading used to escape the text field when it carried its own
+          // `[[id]]`, which closed the field early and re-parented that heading onto the text
+          // field's OWNER. Rust and Python both let the text swallow it, and they are right:
+          // the field's declared kind is `text`, so everything below it is its value. This is
+          // the same defect as the bare-`[[id]]` branch, on the spelling the author wrote out
+          // explicitly.
+          if (level > pfLevel) {
             // Use raw-slice: scan forward to find end boundary, then extract raw content
             let scanIdx = i + 3; // After heading_open, inline, heading_close
             while (scanIdx < tokens.length) {
@@ -456,32 +705,39 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
                 if (nextLevel <= pfLevel) {
                   break;
                 }
-                const nextHeader = parseHeader(tokens, scanIdx);
-                if (nextHeader && nextHeader.hasExplicitId) {
-                  break;
-                }
                 scanIdx += 3; // Skip heading_open, inline, heading_close
                 continue;
               }
               scanIdx++;
             }
 
-            // Extract raw content from heading start to end boundary
-            const headingStartLine = token.map ? token.map[0] : 0;
-            let endLine = headingStartLine + 1;
+            // Extract the field's WHOLE raw content, from just after its own heading to the
+            // end boundary, and assign it.
+            //
+            // QMD-75: this used to slice from THIS heading and append with a single '\n\n',
+            // which normalised the author's blank lines — two blank lines before a swallowed
+            // heading came back as one, so the round trip was not lossless and the value
+            // differed from Rust and Python, both of which take one slice.
+            let endLine: number;
             if (scanIdx < tokens.length && tokens[scanIdx]?.map) {
               endLine = tokens[scanIdx]!.map![0];
             } else {
               endLine = blockTree.lineCount;
             }
-            const rawText = blockTree.getLinesRaw(headingStartLine, endLine).trim();
+            // QMD-75: `pendingTextFieldStartLine` is set from `heading_open.map` at every point
+            // that opens a text field, so it is never null here. The old fallback sliced from
+            // THIS heading — the swallowed one — which silently dropped everything the field had
+            // above it, the very defect this block fixes; an unreachable wrong branch is worse
+            // than a loud one, so it is an assertion now.
+            if (pendingTextFieldStartLine === null) {
+              throw new Error('internal: text field closed with no recorded start line');
+            }
+            const rawText = blockTree.getLinesRaw(pendingTextFieldStartLine, endLine).trim();
 
             // Save text to parent object
             const pfParentObj = objects[pfParentId];
             if (pfParentObj) {
-              const existing = pfParentObj[pfFieldName];
-              const existingText = typeof existing === 'string' ? existing : '';
-              pfParentObj[pfFieldName] = existingText ? existingText + '\n\n' + rawText : rawText;
+              pfParentObj[pfFieldName] = rawText;
 
               if (!pfParentObj.__types) {
                 pfParentObj.__types = {};
@@ -574,6 +830,35 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           pendingArrayField = null;
         }
 
+        // QMD-77 A3: a heading at or above the collection's own level is a sibling, so the
+        // collection's section ends here. A DEEPER one never reaches this point — it was reported
+        // and consumed above.
+        if (arrayFieldScope && level <= arrayFieldScope[2]) {
+          arrayFieldScope = null;
+        }
+
+        // QMD-70: an array fed by a TABLE cannot also take heading elements. A heading deeper than
+        // the array's own level would be such an element, but the array has already been built from
+        // the table, so the heading silently became a plain field on the parent and its declared
+        // Kind was dropped (`User` -> `__Object`). Report it.
+        //
+        // Only a heading that declares an OBJECT counts. One carrying a field type (`text`, `yaml`,
+        // `array`, ...) is a field on the parent, not an element, and is perfectly legal there — as
+        // is a heading at or above the array's own level, which is a sibling rather than an element.
+        if (arrayTableConsumed && level > arrayTableConsumed[2] && !header?.fieldType) {
+          parsingErrors.push({
+            __id: `error_${parsingErrors.length}`,
+            __kind: '__ParsingError',
+            type: 'mixed_array',
+            field: arrayTableConsumed[1],
+            object: `[[#${arrayTableConsumed[0]}]]`,
+            line: lineNum ?? null,
+          });
+        }
+
+        // A heading ends the container's own content — see the declaration.
+        arrayTableConsumed = null;
+
         // Check if we're exiting an object array context
         if (pendingObjectArray) {
           const [, , , arrLevel] = pendingObjectArray;
@@ -588,6 +873,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           // This is a field array, not an object
           // Mark for next list to be parsed as array items
           pendingArrayField = [parentId, header.id];
+          arrayFieldScope = [parentId, header.id, level];
         }
         // Check if this is an object array [[field: [Kind]]]
         else if (header.fieldType === 'object_array' && parentId) {
@@ -651,7 +937,11 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
         else if (header.fieldType === 'text' && parentId) {
           // Mark for multiline text field, store the level for context tracking
           pendingTextField = [parentId, header.id, level, header.label];
-          pendingTextFieldStartLine = tokens[i + 2]?.map ? tokens[i + 2]!.map![1] : null;
+          // QMD-75: take the content start from the heading_open token. markdown-it gives
+          // `heading_close` a null map, so this was ALWAYS null — which silently disabled
+          // the raw-slice path that closes a text field, leaving the value to whatever the
+          // paragraph handler had appended. A `---`-only body therefore came out empty.
+          pendingTextFieldStartLine = token.map ? token.map[1] : null;
         }
         // Check if this is a map field [[field: map]]
         else if (header.fieldType === 'map' && parentId) {
@@ -671,9 +961,27 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           let foundList = false;
           while (listScan < scanIdx) {
             const tok = tokens[listScan];
+            if (tok?.type === 'heading_open') {
+              // QMD-77 A3: a heading deeper than the map's own level (a shallower one bounded
+              // `scanIdx`) is content inside the map that is not a bullet list of `key: value`
+              // items — the spec's own words. It never creates an object: the DECLARED KIND
+              // decides, as QMD-75 settled for `text`.
+              parsingErrors.push({
+                __id: `error_${parsingErrors.length}`,
+                __kind: '__ParsingError',
+                type: 'invalid_map_content',
+                field: header.id,
+                object: `[[#${parentId}]]`,
+                line: tok.map ? tok.map[0] + 1 : 0,
+              });
+              listScan += 3; // heading_open, inline, heading_close
+              continue;
+            }
             if (tok?.type === 'bullet_list_open') {
               if (foundList) {
-                // Second bullet list — invalid
+                // An additional bullet list — the spec populates the map from the FIRST valid list
+                // only, and reports the rest ONCE per list. Walking into it emitted a second error
+                // for its own paragraph token.
                 const errLine = tok.map ? tok.map[0] + 1 : 0;
                 parsingErrors.push({
                   __id: `error_${parsingErrors.length}`,
@@ -683,26 +991,101 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
                   object: `[[#${parentId}]]`,
                   line: errLine,
                 });
-                listScan++;
+                let depth = 0;
+                while (listScan < scanIdx) {
+                  const tt = tokens[listScan]?.type;
+                  if (tt === 'bullet_list_open') {
+                    depth++;
+                  } else if (tt === 'bullet_list_close') {
+                    depth--;
+                    if (depth === 0) {
+                      listScan++;
+                      break;
+                    }
+                  }
+                  listScan++;
+                }
                 continue;
               }
               foundList = true;
-              const [fields, , , invalidItems, nextI] = parseFieldsFromList(
-                tokens,
-                listScan,
-                blockTree,
-                { rawStrings: true }
-              );
+              const [
+                fields,
+                ,
+                ,
+                invalidItems,
+                nextI,
+                ,
+                mapNestedErrors,
+                mapBlockErrors,
+                ,
+                mapWrappedErrors,
+              ] = parseFieldsFromList(tokens, listScan, blockTree, { rawStrings: true });
               Object.assign(mapData, fields as Record<string, string>);
-              for (const inv of invalidItems) {
+              // QMD-77 A3: a map is a FLAT `str -> str` dictionary, so an indented sub-item is not
+              // an entry. Both error lists were collected and then thrown away here, so the
+              // construct was dropped in silence — and a silent drop in a document with no errors is
+              // content loss the round-trip test is entitled to catch. Ordinary field lists already
+              // report exactly these two: `nested_subitems` under a key with no value,
+              // `block_in_inline_field` under a key that has one.
+              for (const nsErr of mapNestedErrors) {
                 parsingErrors.push({
                   __id: `error_${parsingErrors.length}`,
                   __kind: '__ParsingError',
-                  type: 'invalid_map_entry',
-                  field: header.id,
+                  type: 'nested_subitems',
+                  field: nsErr.key,
                   object: `[[#${parentId}]]`,
-                  line: inv.line ?? 0,
+                  line: nsErr.line,
                 });
+              }
+              for (const blkErr of mapBlockErrors) {
+                parsingErrors.push({
+                  __id: `error_${parsingErrors.length}`,
+                  __kind: '__ParsingError',
+                  type: 'block_in_inline_field',
+                  field: blkErr.key,
+                  object: `[[#${parentId}]]`,
+                  line: blkErr.line,
+                });
+              }
+              for (const wrErr of mapWrappedErrors) {
+                parsingErrors.push({
+                  __id: `error_${parsingErrors.length}`,
+                  __kind: '__ParsingError',
+                  type: 'wrapped_field_value',
+                  field: wrErr.key,
+                  object: `[[#${parentId}]]`,
+                  line: wrErr.line,
+                });
+              }
+              // QMD-77 A3: report EVERY item of the first list that is not a valid `key: value`
+              // pair. `invalidItems` only carries an item that follows a valid field (it exists to
+              // preserve such an item in `__comments`), so a list whose FIRST item has no colon was
+              // reported by nothing at all — while the spec says "invalid map entries generate
+              // `invalid_map_entry`".
+              void invalidItems;
+              let itemScan = listScan + 1;
+              let itemDepth = 1;
+              while (itemScan < nextI && itemDepth >= 1) {
+                const itok = tokens[itemScan];
+                if (itok?.type === 'bullet_list_open') {
+                  itemDepth++;
+                } else if (itok?.type === 'bullet_list_close') {
+                  itemDepth--;
+                } else if (
+                  itok?.type === 'inline' &&
+                  itemDepth === 1 &&
+                  !mapEntryRe.test(((itok.content || '').split('\n', 1)[0] || '').trim())
+                ) {
+                  parsingErrors.push({
+                    __id: `error_${parsingErrors.length}`,
+                    __kind: '__ParsingError',
+                    type: 'invalid_map_entry',
+                    field: header.id,
+                    object: `[[#${parentId}]]`,
+                    line: itok.map ? itok.map[0] + 1 : 0,
+                  });
+                }
+                itemScan++;
               }
               listScan = nextI;
               continue;
@@ -762,6 +1145,13 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           if (header.label) {
             obj.__label = header.label;
           }
+          // QMD-77 C4: the spec says `__has_explicit_id` is false when the id was AUTO-GENERATED and
+          // absent when the author wrote one. An object-array element written as a bare `### Alice`
+          // has an auto id like any other heading, but only Rust marked it — so a rebuild from this
+          // output would print an id the author never wrote.
+          if (!header.hasExplicitId) {
+            obj.__has_explicit_id = false;
+          }
           // Add reference to parent's array
           const parentObj = objects[arrParentId];
           if (parentObj) {
@@ -792,81 +1182,55 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
             continue;
           }
 
-          const nextIdx = i + 3; // After heading_open, inline, heading_close
-          const nextToken = tokens[nextIdx];
+          // QMD-75: ONE predicate decides, and prose is not part of it. A bare `[[id]]`
+          // heading is an object when, before the next heading at its own level or shallower,
+          // there is either a field list or a deeper heading that DECLARES an identifier;
+          // otherwise it is the implicit text field the fixtures pin.
+          //
+          // Two earlier readings are gone because each let the body decide identity, which is
+          // what this task is about. `nextIsDeeperHeading` made ANY deeper heading an
+          // object-maker, so `## Closure [[clo]]` + `### Note` was an object while the same pair
+          // with one paragraph between them was a text field. And the field-list test required
+          // the list to be the very NEXT token, so a paragraph, a `---`, a table or a fence in
+          // front of a field list turned the object into a text field that swallowed its own
+          // fields — and in TypeScript re-parented the declaration below onto the grandparent.
+          // Rust decides with `has_fields_after`, which walks past non-field blocks; Python and
+          // TypeScript now ask the same question.
+          const hasDeclaredChildren = hasNestedStructuredHeadings(i, level);
+          const hasFieldList = hasFieldsAfterHeading(i);
 
-          if (nextToken && nextToken.type === 'paragraph_open') {
-            // Text content follows - this is a text field
-            pendingTextField = [parentId, header.id, level, header.label];
-            pendingTextFieldStartLine = tokens[i + 2]?.map ? tokens[i + 2]!.map![1] : null;
-          } else if (nextToken && nextToken.type === 'bullet_list_open') {
-            // List follows - check if it has fields (- key: value)
-            const hasFields = hasFieldsAfterHeading(i);
-            if (hasFields) {
-              // Nested object with fields
-              const parentFullId = objects[parentId]?.__id || parentId;
-              const resolved = resolveChildId(parentId, header.id);
-              const objId = resolved.composedId;
-              const obj: QmdcObject = {} as QmdcObject;
-              obj.__id = objId;
-              if (resolved.localId !== null) {
-                obj.__local_id = resolved.localId;
-              }
-              obj.__kind = '__Object';
-              obj.__level = level;
-              obj.__line = lineNum;
-              if (header.label) {
-                obj.__label = header.label;
-              }
-              obj.__parent = `[[#${parentFullId}]]`;
-              obj.__parent_field = header.id;
-              const parentObj = objects[parentId];
-              if (parentObj) {
-                parentObj[header.id] = `[[#${objId}]]`;
-              }
-              objects[objId] = obj;
-              objectStack.push([objId, level]);
-            } else {
-              // List without fields - text field
-              pendingTextField = [parentId, header.id, level, header.label];
-              pendingTextFieldStartLine = tokens[i + 2]?.map ? tokens[i + 2]!.map![1] : null;
+          if (hasDeclaredChildren || hasFieldList) {
+            // Nested object
+            const parentFullId = objects[parentId]?.__id || parentId;
+            const resolved = resolveChildId(parentId, header.id);
+            const objId = resolved.composedId;
+            const obj: QmdcObject = {} as QmdcObject;
+            obj.__id = objId;
+            if (resolved.localId !== null) {
+              obj.__local_id = resolved.localId;
             }
-          } else if (nextToken && nextToken.type === 'heading_open') {
-            // Another heading follows - check if it's a child
-            const nextLevel = getHeadingLevel(nextToken.tag);
-            if (nextLevel > level) {
-              // Child heading - this is a nested object
-              const parentFullId = objects[parentId]?.__id || parentId;
-              const resolved = resolveChildId(parentId, header.id);
-              const objId = resolved.composedId;
-              const obj: QmdcObject = {} as QmdcObject;
-              obj.__id = objId;
-              if (resolved.localId !== null) {
-                obj.__local_id = resolved.localId;
-              }
-              obj.__kind = '__Object';
-              obj.__level = level;
-              obj.__line = lineNum;
-              if (header.label) {
-                obj.__label = header.label;
-              }
-              obj.__parent = `[[#${parentFullId}]]`;
-              obj.__parent_field = header.id;
-              const parentObj = objects[parentId];
-              if (parentObj) {
-                parentObj[header.id] = `[[#${objId}]]`;
-              }
-              objects[objId] = obj;
-              objectStack.push([objId, level]);
-            } else {
-              // Same or higher level - empty text field
-              pendingTextField = [parentId, header.id, level, header.label];
-              pendingTextFieldStartLine = tokens[i + 2]?.map ? tokens[i + 2]!.map![1] : null;
+            obj.__kind = '__Object';
+            obj.__level = level;
+            obj.__line = lineNum;
+            if (header.label) {
+              obj.__label = header.label;
             }
+            obj.__parent = `[[#${parentFullId}]]`;
+            obj.__parent_field = header.id;
+            const parentObj = objects[parentId];
+            if (parentObj) {
+              parentObj[header.id] = `[[#${objId}]]`;
+            }
+            objects[objId] = obj;
+            objectStack.push([objId, level]);
           } else {
-            // Default: treat as text field
+            // Implicit text field (prose, fence, table, list without fields, or nothing)
             pendingTextField = [parentId, header.id, level, header.label];
-            pendingTextFieldStartLine = tokens[i + 2]?.map ? tokens[i + 2]!.map![1] : null;
+            // QMD-75: take the content start from the heading_open token. markdown-it gives
+            // `heading_close` a null map, so this was ALWAYS null — which silently disabled
+            // the raw-slice path that closes a text field, leaving the value to whatever the
+            // paragraph handler had appended. A `---`-only body therefore came out empty.
+            pendingTextFieldStartLine = token.map ? token.map[1] : null;
           }
         } else if (parentId && !header.hasExplicitId) {
           // Heading WITHOUT [[id]] inside object = COMMENT (always)
@@ -1032,7 +1396,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
             }
 
             // Save any pending text block first
-            if (pendingTextBlockStarted && pendingTextBlockContent.length > 0) {
+            if (pendingTextBlockStarted) {
               const textBlockId = `text_${textBlockCounter}`;
               textBlockCounter++;
               const tb: {
@@ -1044,12 +1408,16 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
               } = {
                 __id: textBlockId,
                 __kind: '__TextBlock',
-                content: pendingTextBlockContent.join('\n\n'),
+                content: textBlockSource(
+                  sourceLines,
+                  pendingTextBlockLine,
+                  lineNum ?? sourceLines.length + 1
+                ),
               };
               if (format === 'full') {
                 tb.__line = pendingTextBlockLine;
                 if (pendingCodeFences.length > 0) {
-                  tb.__code_fences = [...pendingCodeFences];
+                  tb.__code_fences = rebasedFences(pendingCodeFences, pendingTextBlockLine);
                 }
               }
               textBlocks.push(tb);
@@ -1095,6 +1463,27 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
               const parentObj = objects[parentId];
               if (parentObj) {
                 parentObj[header.id] = `[[#${resolved.composedId}]]`;
+              }
+              // QMD-77 A1: a NESTED heading can collide too. This branch had no duplicate check at
+              // all, so the first `dup.c` was overwritten by the second and vanished from the graph
+              // with nothing reported, where Rust and Python keep both and report each collision.
+              if (
+                resolved.composedId in objects &&
+                '__line' in (objects[resolved.composedId] ?? {})
+              ) {
+                const existing = objects[resolved.composedId]!;
+                if (!(resolved.composedId in firstSeenLines)) {
+                  firstSeenLines[resolved.composedId] = existing.__line as number;
+                }
+                duplicateObjects.push(existing);
+                parsingErrors.push({
+                  __id: `__error_dup_${resolved.composedId}`,
+                  __kind: '__ParsingError',
+                  type: 'duplicate_id',
+                  message: `Duplicate ID '${resolved.composedId}' (first defined on line ${firstSeenLines[resolved.composedId]})`,
+                  object: `[[#${resolved.composedId}]]`,
+                  line: lineNum ?? null,
+                });
               }
               objects[resolved.composedId] = obj;
               objectStack.push([resolved.composedId, level]);
@@ -1223,7 +1612,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           } else {
             // TextBlock - each heading without [[id]] starts a NEW text block
             // First, save any pending text block
-            if (pendingTextBlockStarted && pendingTextBlockContent.length > 0) {
+            if (pendingTextBlockStarted) {
               const textBlockId = `text_${textBlockCounter}`;
               textBlockCounter++;
               const tb: {
@@ -1235,12 +1624,16 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
               } = {
                 __id: textBlockId,
                 __kind: '__TextBlock',
-                content: pendingTextBlockContent.join('\n\n'),
+                content: textBlockSource(
+                  sourceLines,
+                  pendingTextBlockLine,
+                  lineNum ?? sourceLines.length + 1
+                ),
               };
               if (format === 'full') {
                 tb.__line = pendingTextBlockLine;
                 if (pendingCodeFences.length > 0) {
-                  tb.__code_fences = [...pendingCodeFences];
+                  tb.__code_fences = rebasedFences(pendingCodeFences, pendingTextBlockLine);
                 }
               }
               textBlocks.push(tb);
@@ -1258,8 +1651,19 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           }
         }
 
-        // Reset comment anchor for new object
-        commentAnchor = '__self';
+        // Reset comment anchor for new object.
+        //
+        // QMD-70: a heading that carries a field type AND has a structural parent declares a
+        // FIELD on that parent rather than a new object, so it must not reset the parent's
+        // anchor. Resetting it made content following such a heading anchor at `__self` where
+        // Python keeps the last field before it. This mirrors Python's condition exactly
+        // (`if not field_type or not parent_id`) — every field type, not just `object_array`,
+        // because `yaml`/`json` headings set a pending fence and never re-set the anchor
+        // afterwards, so for them the wrong reset is observable. A heading with no parent does
+        // create an object, so it still resets.
+        if (!(header.fieldType && parentId)) {
+          commentAnchor = '__self';
+        }
       }
 
       i += 3; // Skip heading_open, inline, heading_close
@@ -1276,15 +1680,16 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           const tok = tokens[scanIdx];
           if (!tok) break;
 
-          // Stop at next heading that ends the text field context
+          // Stop at next heading that ends the text field context.
+          //
+          // QMD-75: only a heading at the field's own level or shallower ends it. A DEEPER
+          // heading is part of the text even when it declares its own `[[id]]` — the field's
+          // declared kind is `text`, so everything below it is its value, which is what Rust
+          // and Python do. Breaking here also closed the pending field, so the declaration
+          // was then re-parented onto the field's owner.
           if (tok.type === 'heading_open') {
             const nextLevel = getHeadingLevel(tok.tag);
             if (nextLevel <= fieldLevel) {
-              endLine = tok.map ? tok.map[0] : endLine;
-              break;
-            }
-            const nextHeader = parseHeader(tokens, scanIdx);
-            if (nextHeader && nextHeader.hasExplicitId) {
               endLine = tok.map ? tok.map[0] : endLine;
               break;
             }
@@ -1322,13 +1727,29 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           (parentObj.__labels as Record<string, string>)[fieldName] = fieldLabel;
         }
 
-        pendingTextField = null;
-        pendingTextFieldStartLine = null;
+        // QMD-71: the field this heading declared is now the comment anchor. This branch wrote the
+        // field but never recorded the anchor, so following content fell back to whatever was
+        // anchored before the heading — the last scalar field of the parent object. The
+        // `pendingArrayField` branch just below has always done this; only this one forgot.
+        commentAnchor = fieldName;
+        // QMD-75: the field stays OPEN. Closing it here ended the value at this list, so a
+        // deeper heading below became a new object on the owner instead of more text. The
+        // close path in the heading handler, or the end-of-file flush, writes the final slice.
         i = scanIdx;
       } else if (pendingArrayField) {
         // This list is for a [[field: array]] section
         const [parentId, fieldName] = pendingArrayField;
-        const [items, nextI] = parseArrayItemsFromList(tokens, i);
+        const [items, nextI, arrayWrappedErrors] = parseArrayItemsFromList(tokens, i);
+        for (const wrErr of arrayWrappedErrors) {
+          parsingErrors.push({
+            __id: `error_${parsingErrors.length}`,
+            __kind: '__ParsingError',
+            type: 'wrapped_field_value',
+            field: fieldName,
+            object: `[[#${parentId}]]`,
+            line: wrErr.line,
+          });
+        }
         const parentObj = objects[parentId];
         if (parentObj) {
           parentObj[fieldName] = items;
@@ -1354,9 +1775,40 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
             nextI,
             rawValues,
             nestedSubitemsErrors,
+            blockInFieldErrors,
+            unsupportedNumberErrors,
+            wrappedValueErrors,
           ] = parseFieldsFromList(tokens, i, blockTree);
           const currentObj = objects[currentId];
           if (currentObj) {
+            // QMD-77 A4: report the forbidden construct BEFORE the branches below. A list whose
+            // only content was `- key:` plus an indented sub-list yields no fields, so it fell into
+            // the "whole list is prose" branch whose `continue` skipped the emission further down —
+            // the construct stayed as comment text and no error was raised, where rs and py report
+            // it and drop it. Dropped either way, exactly as when the object has other fields.
+            const droppedNestedSubitemList =
+              nestedSubitemsErrors.length > 0 && invalidItems.length === 0;
+            for (const wrErr of wrappedValueErrors) {
+              parsingErrors.push({
+                __id: `error_${parsingErrors.length}`,
+                __kind: '__ParsingError',
+                type: 'wrapped_field_value',
+                field: wrErr.key,
+                object: `[[#${currentId}]]`,
+                line: wrErr.line,
+              });
+            }
+            for (const nsErr of nestedSubitemsErrors) {
+              parsingErrors.push({
+                __id: `error_${parsingErrors.length}`,
+                __kind: '__ParsingError',
+                type: 'nested_subitems',
+                field: nsErr.key,
+                object: `[[#${currentId}]]`,
+                line: nsErr.line,
+              });
+            }
+
             // Check if any field keys already exist in the object.
             // If so, this bullet list is a DUPLICATE — treat it as
             // comment content instead of overwriting existing fields.
@@ -1403,7 +1855,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
                     ? tokens[scanJ]!.map![1]
                     : token.map[1];
                 const rawList = blockTree.getLinesRaw(token.map[0], endLine).trim();
-                if (rawList) {
+                if (rawList && !droppedNestedSubitemList) {
                   if (!currentObj.__comments) {
                     currentObj.__comments = [];
                   }
@@ -1501,15 +1953,41 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
               }
             }
 
-            // nested_subitems errors
-            for (const nsErr of nestedSubitemsErrors) {
+            // QMD-71: a value that looks like a number QMD.md cannot carry. The authored text is
+            // kept as the field's value, so nothing is lost; the error names it.
+            for (const numErr of unsupportedNumberErrors) {
               parsingErrors.push({
                 __id: `error_${parsingErrors.length}`,
                 __kind: '__ParsingError',
-                type: 'nested_subitems',
-                field: nsErr.key,
+                type: 'unsupported_number_format',
+                field: numErr.key,
                 object: `[[#${currentId}]]`,
-                line: nsErr.line,
+                line: numErr.line,
+                hint: numErr.hint,
+              });
+            }
+
+            // nested_subitems errors are emitted above, before the no-fields branches.
+
+            // QMD-70: an indented block under a field that HAS a value. The field is kept, the
+            // block is preserved verbatim anchored on that field, and the error names it.
+            for (const blkErr of blockInFieldErrors) {
+              if (blkErr.content) {
+                if (!currentObj.__comments) {
+                  currentObj.__comments = [];
+                }
+                (currentObj.__comments as Array<{ after: string; content: string }>).push({
+                  after: blkErr.key,
+                  content: blkErr.content,
+                });
+              }
+              parsingErrors.push({
+                __id: `error_${parsingErrors.length}`,
+                __kind: '__ParsingError',
+                type: 'block_in_inline_field',
+                field: blkErr.key,
+                object: `[[#${currentId}]]`,
+                line: blkErr.line,
               });
             }
 
@@ -1521,7 +1999,30 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           }
           i = nextI;
         } else if (pendingTextBlockStarted) {
-          // Collect bullet list as markdown text for TextBlock
+          // Collect bullet list as markdown text for TextBlock.
+          //
+          // QMD-77 B2: from the RAW source, not rebuilt from inline content. markdown-it strips a
+          // continuation line's indent inside the inline token, so `- item` + `  continued` came
+          // back with the continuation flush left, where Rust and Python keep the source bytes.
+          if (token.map) {
+            let scanJ = i + 1;
+            let depth = 1;
+            while (scanJ < tokens.length && depth > 0) {
+              const tt = tokens[scanJ]?.type;
+              if (tt === 'bullet_list_open') depth++;
+              else if (tt === 'bullet_list_close') depth--;
+              if (depth === 0) break;
+              scanJ++;
+            }
+            const endLine =
+              scanJ < tokens.length && tokens[scanJ]?.map ? tokens[scanJ]!.map![1] : token.map[1];
+            const rawList = blockTree.getLinesRaw(token.map[0], endLine).trim();
+            if (rawList) {
+              pendingTextBlockContent.push(rawList);
+            }
+            i = scanJ + 1;
+            continue;
+          }
           const listItems: string[] = [];
           i++; // Skip bullet_list_open
           while (i < tokens.length && tokens[i]?.type !== 'bullet_list_close') {
@@ -1540,7 +2041,20 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
           i++;
         }
       }
-    } else if (token.type === 'ordered_list_open') {
+    } else if (token.type === 'ordered_list_open' && !pendingTextField) {
+      // QMD-71: an ordered list inside a `[[field: text]]` section is NOT handled here.
+      //
+      // This handler used to claim it and build the field's value by re-emitting
+      // `${n}. ${inline.content}` per item, then appending any further `inline` content. Two things
+      // were lost that way: a fenced block's token type is `fence`, not `inline`, so every fence
+      // inside the field vanished, and a second item arriving after one did so through the
+      // trailing-content loop, which appends without a number, so its marker vanished too.
+      // `1. First:` + fence + `1. Second:` + fence came out as "1. First:\n\nSecond:".
+      //
+      // A raw-slice branch for lists in text fields already existed further down the chain — it was
+      // simply unreachable for ordered lists, because this arm matched first. Excluding
+      // `pendingTextField` here hands them to it, so bullet and ordered lists now take the same
+      // path, which is what Rust and Python do.
       if (pendingArrayField) {
         // Ordered lists are forbidden in array fields (rule_no_ordered_list_array).
         // Emit error, keep array empty, preserve content in __comments.
@@ -1599,68 +2113,6 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
         pendingArrayField = null;
         commentAnchor = fieldName;
         i = scanJ + 1; // skip past ordered_list_close
-      } else if (pendingTextField) {
-        // Collect ordered list as text for [[field: text]] section
-        const [parentId, fieldName, _fieldLevel, fieldLabel] = pendingTextField;
-        const textParts: string[] = [];
-        let itemNum = 1;
-
-        // Collect all list items as text
-        while (i < tokens.length && tokens[i]?.type !== 'ordered_list_close') {
-          const tok = tokens[i];
-          if (tok?.type === 'inline' && tok.content) {
-            textParts.push(`${itemNum}. ${tok.content}`);
-            itemNum++;
-          }
-          i++;
-        }
-        i++; // skip ordered_list_close
-
-        // Check if there's more content after the list (paragraphs until next heading)
-        const moreText: string[] = [];
-        while (i < tokens.length) {
-          const tok = tokens[i];
-          if (!tok) break;
-          if (tok.type === 'heading_open') {
-            break;
-          }
-          if (tok.type === 'inline' && tok.content) {
-            moreText.push(tok.content);
-          }
-          i++;
-        }
-
-        // Combine all text
-        let allText = textParts.join('\n');
-        if (moreText.length > 0) {
-          allText += '\n\n' + moreText.join('\n\n');
-        }
-
-        const parentObj = objects[parentId];
-        if (parentObj) {
-          parentObj[fieldName] = allText;
-
-          // Add __types for string field
-          if (!parentObj.__types) {
-            parentObj.__types = {};
-          }
-          (parentObj.__types as Record<string, string>)[fieldName] = 'string';
-
-          // Add __syntax for multiline_text
-          if (!parentObj.__syntax) {
-            parentObj.__syntax = {};
-          }
-          (parentObj.__syntax as Record<string, string>)[fieldName] = 'multiline_text';
-
-          // Add __labels for field label
-          if (!parentObj.__labels) {
-            parentObj.__labels = {};
-          }
-          (parentObj.__labels as Record<string, string>)[fieldName] = fieldLabel;
-        }
-
-        pendingTextField = null;
-        pendingTextFieldStartLine = null;
       } else if (!pendingTextBlockStarted) {
         // Ordered list as comment inside an object (e.g. trailing ordered list after array)
         const currentId = getCurrentObjectId();
@@ -1750,6 +2202,17 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
       } else {
         i++;
       }
+    } else if (token.type === 'hr' && pendingTextBlockStarted) {
+      // QMD-77 B1 (Q4): a thematic break inside a text block is content. No parser had an `hr`
+      // branch here at all, so `---` was dropped by all three — while in an OBJECT's body it
+      // survives, because a comment is a raw source slice that spans it.
+      if (token.map) {
+        const rawRule = blockTree.getLinesRaw(token.map[0], token.map[1]).trim();
+        if (rawRule) {
+          pendingTextBlockContent.push(rawRule);
+        }
+      }
+      i++;
     } else if (token.type === 'table_open' && pendingTextBlockStarted) {
       // Collect table as raw markdown text for TextBlock
       if (token.map) {
@@ -1828,9 +2291,81 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
       }
 
       i = scanIdx;
-    } else if (token.type === 'table_open' && pendingObjectArray) {
+    } else if (token.type === 'table_open' && pendingArrayField) {
+      // A table is forbidden under a PRIMITIVE array field. A primitive array holds scalars and a
+      // table has columns, so there is no defined mapping onto the field -- unlike an OBJECT array
+      // (`[[field: [Kind]]]`), where one row becomes one object. Until now the table was silently
+      // dropped and the three parsers disagreed about whether the field existed at all.
+      //
+      // Handled exactly like `ordered_list_in_array`, the other construct forbidden in an array
+      // field: keep the array empty, preserve the content verbatim in `__comments` so the round
+      // trip stays lossless, and emit a `__ParsingError`.
+      const [parentId, fieldName] = pendingArrayField;
+      const parentObj = objects[parentId];
+
+      // Initialize empty array and syntax (normally done by parseArrayItemsFromList)
+      if (parentObj) {
+        parentObj[fieldName] = [];
+        if (!parentObj.__syntax) {
+          parentObj.__syntax = {};
+        }
+        (parentObj.__syntax as Record<string, string>)[fieldName] = 'markdown_list';
+      }
+
+      // Capture raw content as __comments for lossless round-trip
+      let scanJ = i + 1;
+      while (scanJ < tokens.length && tokens[scanJ]?.type !== 'table_close') {
+        scanJ++;
+      }
+      if (parentObj && token.map) {
+        const rawEnd =
+          scanJ < tokens.length && tokens[scanJ]?.map ? tokens[scanJ]!.map![1] : token.map[1];
+        const rawTable = blockTree.getLinesRaw(token.map[0], rawEnd).trim();
+        if (rawTable) {
+          if (!parentObj.__comments) {
+            parentObj.__comments = [];
+          }
+          const existingComments = parentObj.__comments as Array<{
+            after: string;
+            content: string;
+          }>;
+          const existing = existingComments.find((c) => c.after === fieldName);
+          if (existing) {
+            existing.content = existing.content + '\n\n' + rawTable;
+          } else {
+            existingComments.push({ after: fieldName, content: rawTable });
+          }
+        }
+      }
+
+      // Emit table_in_array error
+      const errorLine = token.map ? token.map[0] + 1 : null;
+      parsingErrors.push({
+        __id: `error_${parsingErrors.length}`,
+        __kind: '__ParsingError',
+        type: 'table_in_array',
+        field: fieldName,
+        object: `[[#${parentId}]]`,
+        line: errorLine,
+      });
+
+      pendingArrayField = null;
+      commentAnchor = fieldName;
+      i = scanJ + 1; // skip past table_close
+    } else if (
+      token.type === 'table_open' &&
+      pendingObjectArray &&
+      // QMD-70: only the array CONTAINER's own table converts into child objects.
+      // `pendingObjectArray` stays set for the whole array subtree, because each sibling
+      // element still needs it, so on its own it cannot tell "table under the array heading"
+      // from "table inside one of its elements". The current object does: it is the array's
+      // parent while positioned in the container, and the element itself once an element
+      // heading has opened. Without this check a table written as ordinary content inside an
+      // element had its rows converted into sibling elements of the parent array.
+      getCurrentObjectId() === pendingObjectArray[0]
+    ) {
       // Table after [[field: [Kind]]] heading
-      const [arrParentId, arrField, arrKind] = pendingObjectArray;
+      const [arrParentId, arrField, arrKind, arrLevel] = pendingObjectArray;
       const parentObj = objects[arrParentId];
 
       if (parentObj) {
@@ -1919,7 +2454,62 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
         }
       }
 
+      arrayTableConsumed = [arrParentId, arrField, arrLevel];
       pendingObjectArray = null;
+    } else if (
+      token.type === 'table_open' &&
+      arrayTableConsumed &&
+      getCurrentObjectId() === arrayTableConsumed[0]
+    ) {
+      // A SECOND table under one object-array heading. The array's own table has already been
+      // consumed, so this one describes nothing: its rows cannot extend the array (they would
+      // collide on the generated local ids) and the heading declares an array, not prose. Until now
+      // it silently became the parent's comment, which also made the document impossible to rebuild
+      // faithfully -- the comment anchors on the field BEFORE the array heading, so the table moved
+      // above that heading on rebuild.
+      //
+      // Same treatment as `table_in_array` and `ordered_list_in_array`: preserve the content
+      // verbatim in `__comments` for a lossless round trip and emit an error.
+      const [errParentId, errFieldName] = arrayTableConsumed;
+      const errParentObj = objects[errParentId];
+
+      let scanJ = i + 1;
+      while (scanJ < tokens.length && tokens[scanJ]?.type !== 'table_close') {
+        scanJ++;
+      }
+      if (errParentObj && token.map) {
+        const rawEnd =
+          scanJ < tokens.length && tokens[scanJ]?.map ? tokens[scanJ]!.map![1] : token.map[1];
+        const rawTable = blockTree.getLinesRaw(token.map[0], rawEnd).trim();
+        if (rawTable) {
+          if (!errParentObj.__comments) {
+            errParentObj.__comments = [];
+          }
+          const existingComments = errParentObj.__comments as Array<{
+            after: string;
+            content: string;
+          }>;
+          const existing = existingComments.find((c) => c.after === commentAnchor);
+          if (existing) {
+            existing.content = existing.content + '\n\n' + rawTable;
+          } else {
+            existingComments.push({ after: commentAnchor, content: rawTable });
+          }
+        }
+      }
+
+      const errorLine = token.map ? token.map[0] + 1 : null;
+      parsingErrors.push({
+        __id: `error_${parsingErrors.length}`,
+        __kind: '__ParsingError',
+        type: 'extra_table_in_array',
+        field: errFieldName,
+        object: `[[#${errParentId}]]`,
+        line: errorLine,
+      });
+
+      arrayTableConsumed = null;
+      i = scanJ + 1; // skip past table_close
     } else if (token.type === 'fence' && pendingYamlField) {
       // YAML fence after [[field: yaml]] heading
       const [yamlParentId, yamlFieldName, yamlFieldLabel] = pendingYamlField;
@@ -2185,6 +2775,23 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
             listNesting--;
           }
 
+          // QMD-70: stop before a table that belongs to an object array.
+          //
+          // Prose between an array heading and its table must not absorb the table: the prose is
+          // the container's comment, the table is still the array's own content. This matches what
+          // all three parsers already do when a heading ELEMENT follows the prose instead of a
+          // table — the prose becomes a comment and the element still joins the array. Without
+          // this the scan swallowed the table into the comment and left the array empty.
+          if (
+            scanTok.type === 'table_open' &&
+            listNesting === 0 &&
+            pendingObjectArray &&
+            getCurrentObjectId() === pendingObjectArray[0]
+          ) {
+            contentEndLine = scanTok.map ? scanTok.map[0] : contentEndLine;
+            break;
+          }
+
           // Stop at heading
           if (scanTok.type === 'heading_open') {
             const nextLevel = getHeadingLevel(scanTok.tag);
@@ -2204,7 +2811,13 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
                 break;
               }
             }
-            // Nested heading without [[id]] - include in comment
+            // QMD-71: a nested heading WITHOUT [[id]] is a comment heading, and the format says
+            // it groups with the content BELOW it ("they and all content below them",
+            // docs/format/comments.qmd.md). Swallowing it here also advanced the token index past
+            // it, so the comment-heading handler never saw it and the heading was glued to the
+            // text ABOVE instead. Stop, and let that handler slice from the heading.
+            contentEndLine = scanTok.map ? scanTok.map[0] : contentEndLine;
+            break;
           }
 
           // Stop at field list (only at top level)
@@ -2263,6 +2876,16 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
             contentEndLine = scanTok.map[1];
           }
           scanIdx++;
+        }
+
+        // QMD-71: the scan ran out of tokens without finding a boundary, so nothing structural
+        // follows and the comment runs to the end of the document. This matters because some
+        // constructs produce NO tokens: markdown-it consumes a link reference definition
+        // (`[d]: https://…`) into its link map, so ending at the last token's line dropped those
+        // lines and left the `[d]` labels in the text pointing at nothing. The comment-heading path
+        // above already defaults to `lineCount` for the same reason.
+        if (scanIdx >= tokens.length) {
+          contentEndLine = blockTree ? blockTree.lineCount : contentEndLine;
         }
 
         // Extract raw slice
@@ -2382,58 +3005,32 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
     } else if (
       (token.type === 'table_open' || token.type === 'blockquote_open' || token.type === 'hr') &&
       !pendingTextField &&
-      !pendingObjectArray
+      // QMD-70: reached for a table inside an array ELEMENT as well, not only outside any
+      // array. The guard used to be `!pendingObjectArray`, which excluded the whole array
+      // subtree; the branch above now claims only the container's own tables, so everything
+      // else falls through here and is carried as the element's comment content — the same
+      // treatment a table gets in any other prose position.
+      !(pendingObjectArray && getCurrentObjectId() === pendingObjectArray[0])
     ) {
       // Block-level content as comment inside object - use raw slice
-      // Capture when: after fields (commentAnchor !== '__self') OR object has explicit Kind
+      // Capture when: after fields (commentAnchor !== '__self') OR the heading DECLARED the
+      // object — a Kind or a bare explicit [[id]] (see wasDeclared below)
       const currentId = getCurrentObjectId();
       const currentObj = currentId ? objects[currentId] : null;
-      const hasExplicitKind =
-        currentObj && typeof currentObj.__kind === 'string' && currentObj.__kind !== '__Object';
-      if (currentId && (commentAnchor !== '__self' || hasExplicitKind)) {
+      // QMD-75: an object's own content survives whenever the heading DECLARED it — by a
+      // kind or by a bare explicit `[[id]]`. Testing the kind alone dropped a `---`, a table
+      // or a fence under a bare `[[id]]` object (`__kind: __Object`) while keeping it under
+      // `[[id: Kind]]`, so the author's choice to spell a kind decided whether content
+      // survived. Rust and Python had the same gate in the same two places.
+      const wasDeclared =
+        currentObj &&
+        ((typeof currentObj.__kind === 'string' && currentObj.__kind !== '__Object') ||
+          currentObj.__has_explicit_id !== false);
+      if (currentId && (commentAnchor !== '__self' || wasDeclared)) {
         const startLine = token.map ? token.map[0] : 0;
-        let endLine = token.map ? token.map[1] : startLine + 1;
+        const initialEndLine = token.map ? token.map[1] : startLine + 1;
         const currentLevel = objectStack.length > 0 ? objectStack[objectStack.length - 1]![1] : 0;
-        let scanIdx = i + 1;
-
-        // Scan to find end boundary
-        while (scanIdx < tokens.length) {
-          const scanTok = tokens[scanIdx];
-          if (!scanTok) break;
-
-          // Stop at heading
-          if (scanTok.type === 'heading_open') {
-            const nextLevel = getHeadingLevel(scanTok.tag);
-            if (nextLevel <= currentLevel) {
-              endLine = scanTok.map ? scanTok.map[0] : endLine;
-              break;
-            }
-            // Check if nested heading creates object or field
-            const nextHeader = parseHeader(tokens, scanIdx);
-            if (nextHeader) {
-              if (nextHeader.kind || nextHeader.fieldType) {
-                endLine = scanTok.map ? scanTok.map[0] : endLine;
-                break;
-              }
-              if (nextHeader.hasExplicitId && hasFieldsAfterHeading(scanIdx)) {
-                endLine = scanTok.map ? scanTok.map[0] : endLine;
-                break;
-              }
-            }
-          }
-
-          // Stop at field list
-          if (scanTok.type === 'bullet_list_open' && bulletListHasFields(scanIdx)) {
-            endLine = scanTok.map ? scanTok.map[0] : endLine;
-            break;
-          }
-
-          // Update endLine
-          if (scanTok.map) {
-            endLine = scanTok.map[1];
-          }
-          scanIdx++;
-        }
+        const { endLine, scanIdx } = findCommentEnd(i + 1, initialEndLine, currentLevel);
 
         // Extract raw slice
         const rawContent = blockTree.getLinesRaw(startLine, endLine).trim();
@@ -2468,9 +3065,8 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
         : `\`\`\`\n${fenceContent}\n\`\`\``;
       const fenceLines = fenceText.split('\n').length;
 
-      // Calculate offset within content (0-based line number)
-      const existingContent = pendingTextBlockContent.join('\n\n');
-      const offsetLine = existingContent.length === 0 ? 0 : existingContent.split('\n').length + 1; // +1 for blank line separator
+      // The offset is taken when the block is emitted, against its first line (QMD-77).
+      const fenceLine = token.map ? token.map[0] + 1 : 1;
 
       // Initialize text block if needed
       if (!pendingTextBlockStarted) {
@@ -2481,7 +3077,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
       // Add code fence metadata
       pendingCodeFences.push({
         lang,
-        offset_line: offsetLine,
+        start_line: fenceLine,
         length_lines: fenceLines,
       });
 
@@ -2490,53 +3086,24 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
       i++;
     } else if (token.type === 'fence') {
       // Fence inside object — capture as comment using raw slice
-      // Capture when: after fields (commentAnchor !== '__self') OR object has explicit Kind
+      // Capture when: after fields (commentAnchor !== '__self') OR the heading DECLARED the
+      // object — a Kind or a bare explicit [[id]] (see wasDeclared below)
       const currentId = getCurrentObjectId();
       const currentObj = currentId ? objects[currentId] : null;
-      const hasExplicitKind =
-        currentObj && typeof currentObj.__kind === 'string' && currentObj.__kind !== '__Object';
-      if (currentId && (commentAnchor !== '__self' || hasExplicitKind)) {
+      // QMD-75: an object's own content survives whenever the heading DECLARED it — by a
+      // kind or by a bare explicit `[[id]]`. Testing the kind alone dropped a `---`, a table
+      // or a fence under a bare `[[id]]` object (`__kind: __Object`) while keeping it under
+      // `[[id: Kind]]`, so the author's choice to spell a kind decided whether content
+      // survived. Rust and Python had the same gate in the same two places.
+      const wasDeclared =
+        currentObj &&
+        ((typeof currentObj.__kind === 'string' && currentObj.__kind !== '__Object') ||
+          currentObj.__has_explicit_id !== false);
+      if (currentId && (commentAnchor !== '__self' || wasDeclared)) {
         const startLine = token.map ? token.map[0] : 0;
-        let endLine = token.map ? token.map[1] : startLine + 1;
+        const initialEndLine = token.map ? token.map[1] : startLine + 1;
         const currentLevel = objectStack.length > 0 ? objectStack[objectStack.length - 1]![1] : 0;
-        let scanIdx = i + 1;
-
-        // Scan to find end boundary
-        while (scanIdx < tokens.length) {
-          const scanTok = tokens[scanIdx];
-          if (!scanTok) break;
-
-          if (scanTok.type === 'heading_open') {
-            const nextLevel = getHeadingLevel(scanTok.tag);
-            if (nextLevel <= currentLevel) {
-              endLine = scanTok.map ? scanTok.map[0] : endLine;
-              break;
-            }
-            const nextHeader = parseHeader(tokens, scanIdx);
-            if (nextHeader) {
-              if (nextHeader.kind || nextHeader.fieldType) {
-                endLine = scanTok.map ? scanTok.map[0] : endLine;
-                break;
-              }
-              if (nextHeader.hasExplicitId) {
-                endLine = scanTok.map ? scanTok.map[0] : endLine;
-                break;
-              }
-            }
-          }
-
-          // Stop at field list
-          // Stop at field list
-          if (scanTok.type === 'bullet_list_open' && bulletListHasFields(scanIdx)) {
-            endLine = scanTok.map ? scanTok.map[0] : endLine;
-            break;
-          }
-
-          if (scanTok.map) {
-            endLine = scanTok.map[1];
-          }
-          scanIdx++;
-        }
+        const { endLine, scanIdx } = findCommentEnd(i + 1, initialEndLine, currentLevel);
 
         const rawContent = blockTree.getLinesRaw(startLine, endLine).trim();
         if (rawContent) {
@@ -2596,9 +3163,11 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
       const endLine = blockTree.lineCount;
       const rawText = blockTree.getLinesRaw(pendingTextFieldStartLine, endLine).trim();
       if (rawText) {
-        const existing = pfParentObj[pfFieldName];
-        const existingText = typeof existing === 'string' ? existing : '';
-        pfParentObj[pfFieldName] = existingText ? existingText + '\n\n' + rawText : rawText;
+        // QMD-75: assign, do not append. This slice already spans the field's whole content
+        // from just after its heading, so appending it to the fragments the paragraph handler
+        // wrote on the way duplicated the value. Every termination path now writes the same
+        // single slice, which is what Rust and Python do.
+        pfParentObj[pfFieldName] = rawText;
       } else if (!(pfFieldName in pfParentObj)) {
         pfParentObj[pfFieldName] = '';
       }
@@ -2613,8 +3182,17 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
     pendingTextFieldStartLine = null;
   }
 
+  // A document with no heading: all of it is the text above the first heading.
+  if (!leadingTextDone) {
+    const leadingStart = leadingTextStart(sourceLines, sourceLines.length + 1);
+    if (leadingStart !== null) {
+      pendingTextBlockStarted = true;
+      pendingTextBlockLine = leadingStart;
+    }
+  }
+
   // Handle any remaining pending text block at end of file
-  if (pendingTextBlockStarted && pendingTextBlockContent.length > 0) {
+  if (pendingTextBlockStarted) {
     const textBlockId = `text_${textBlockCounter}`;
     const tb: {
       __id: string;
@@ -2625,12 +3203,12 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
     } = {
       __id: textBlockId,
       __kind: '__TextBlock',
-      content: pendingTextBlockContent.join('\n\n'),
+      content: textBlockSource(sourceLines, pendingTextBlockLine, sourceLines.length + 1),
     };
     if (format === 'full') {
       tb.__line = pendingTextBlockLine;
       if (pendingCodeFences.length > 0) {
-        tb.__code_fences = [...pendingCodeFences];
+        tb.__code_fences = rebasedFences(pendingCodeFences, pendingTextBlockLine);
       }
     }
     textBlocks.push(tb);

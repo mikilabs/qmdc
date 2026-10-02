@@ -211,12 +211,12 @@ qmdc query . "SELECT source_id, target_id, edge_type FROM edges"
 |---------|-------------|---------|
 | **Workspace** | `[[id: __Workspace]]` in root `readme.qmd.md` | Top-level container — all files in the tree become one graph |
 | **Namespace** | `[[id: __Namespace]]` in a subfolder's `readme.qmd.md` | Logical partition; objects inherit `__namespace` automatically |
-| **Cross-file reference** | `[[#namespace:id]]` or `[[#namespace:Kind:id]]` | Typed edge between objects in different files/namespaces |
+| **Cross-file reference** | `[[#namespace:id]]` | Typed edge between objects in different files/namespaces |
 
 The workspace layer:
 
 1. Parses each `.qmd.md` file independently
-2. Indexes all objects by `namespace:Kind:id`
+2. Indexes all objects by `workspace:namespace:id` (its `__global_id`)
 3. Resolves every `[[#...]]` reference and reports broken links
 4. Assigns metadata (`__file`, `__namespace`, `__workspace`) to each object
 5. Builds the edge graph with typed relationships

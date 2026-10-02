@@ -1,0 +1,10 @@
+{
+  "columns": [
+    "summary"
+  ],
+  "rows": [
+    [
+      "guard __main__, name _x_, tag <b>bold</b>, star *y*, tick `z`"
+    ]
+  ]
+}

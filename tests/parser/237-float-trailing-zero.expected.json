@@ -1,0 +1,14 @@
+[
+  {
+    "__id": "d",
+    "__label": "D",
+    "__kind": "G",
+    "version": 2.0,
+    "zero": 0.0,
+    "__types": {
+      "version": "number",
+      "zero": "number"
+    },
+    "__level": 1
+  }
+]

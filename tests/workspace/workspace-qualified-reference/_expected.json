@@ -1,0 +1,16 @@
+{
+  "workspace_id": "qmd69_ws_qualified",
+  "files": [
+    "consumer.qmd.md",
+    "readme.qmd.md",
+    "services/readme.qmd.md",
+    "services/service.qmd.md"
+  ],
+  "objects": {
+    "__Workspace": ["qmd69_ws_qualified"],
+    "__Namespace": ["services"],
+    "Project": ["commerce"],
+    "Service": ["payments_api"]
+  },
+  "errors": []
+}

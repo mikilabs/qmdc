@@ -1,6 +1,6 @@
-# Workspace B [[qmd63_ws_b: __Workspace]]
+# Workspace B [[qmd63_dup_id: __Workspace]]
 
-- description: QMD-63 — second of two sibling workspaces under the container
+- description: QMD-63 — second sibling, declaring the SAME id on purpose (QMD-72)
 
 ## Beta [[beta: Thing]]
 

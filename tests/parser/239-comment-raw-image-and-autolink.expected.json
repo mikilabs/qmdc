@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "shot",
+    "__label": "Shot",
+    "__kind": "Screenshot",
+    "__comments": [
+      {
+        "after": "slot",
+        "content": "![Hero: the preview beside the editor](../.assets/hero.png)"
+      },
+      {
+        "after": "slot",
+        "content": "Reported upstream as issue #9 (<https://github.com/mikilabs/qmdc/issues/9>)."
+      }
+    ],
+    "slot": "hero",
+    "__types": {
+      "slot": "string"
+    },
+    "__level": 2
+  }
+]

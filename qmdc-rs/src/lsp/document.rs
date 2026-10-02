@@ -5,7 +5,7 @@ use std::collections::HashMap;
 #[allow(dead_code)]
 pub struct ParsedReference {
     pub target: String,
-    pub ref_type: String, // "local", "hash_local", "kind", "namespace", "crossfile"
+    pub ref_type: String, // "local", "hash_local", "namespace", "crossfile"
     pub line: u32,
     pub start_col: u32,
     pub end_col: u32,

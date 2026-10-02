@@ -1,0 +1,23 @@
+{
+  "_comment": "QMD-71: the hint reaches the LSP surface. The message is built generically from the error's detail fields, so `hint` appears without the diagnostic builder knowing about it — and the two groups get different hints: a spelling the grammar does not define says what to write, a magnitude outside the range says to quote it, because quoting is then the only way out.",
+  "diagnostics": [
+    {
+      "message": "unsupported_number_format: field: rate, object: [[#config]], hint: write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)",
+      "range": {
+        "start": { "line": 3, "character": 0 },
+        "end": { "line": 3, "character": 12 }
+      },
+      "severity": 1,
+      "code": "unsupported_number_format"
+    },
+    {
+      "message": "unsupported_number_format: field: max, object: [[#config]], hint: magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)",
+      "range": {
+        "start": { "line": 4, "character": 0 },
+        "end": { "line": 4, "character": 26 }
+      },
+      "severity": 1,
+      "code": "unsupported_number_format"
+    }
+  ]
+}

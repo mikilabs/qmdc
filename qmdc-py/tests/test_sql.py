@@ -9,8 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from qmdc.db import QmdcDatabase
-from qmdc.workspace import parse_all_workspaces
+from qmdc import QmdcDatabase, parse_all_workspaces
 
 
 def find_project_root() -> Path:

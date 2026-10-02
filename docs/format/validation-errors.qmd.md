@@ -25,12 +25,14 @@ Note: before producing a `broken_link` error, the validator attempts `__local_id
 1. Verify the target object exists
 2. Fix the ID in the reference
 3. Create the missing object
-4. Add namespace/Kind to the reference: `[[#namespace:id]]`
+4. Add a qualifier to the reference: `[[#namespace:id]]` or `[[#workspace:namespace:id]]`
 5. Use the full hierarchical ID: `[[#parent.child]]` instead of `[[#child]]`
 
 ## Duplicate ID [[err_duplicate_id: ValidationError]]
 
-Two objects with the same `Kind:Id` in one namespace.
+Two objects with the same `Kind:Id` in one namespace. Every occurrence after the first is reported,
+and `candidates` lists all of them, in the order the files are read: directory, then
+`readme.qmd.md`, then file name, each compared by UTF-8 bytes.
 
 - code: duplicate_id
 - severity: error
@@ -57,21 +59,22 @@ A `[[#id]]` reference could point to multiple objects (ID collision or multiple 
 
 ### Cause [[cause: text]]
 
-- Same ID on objects with different Kind: `Table:users` and `Entity:users`
 - Same ID in different namespaces
-- Reference without Kind or namespace qualifier
+- Reference without a namespace qualifier
 - Multiple objects share the same `__local_id` (e.g., several child objects named `[[config]]` under different parents, all with `__local_id: "config"`)
+
+Two objects with the same ID in ONE namespace are a `duplicate_id`, whatever their Kinds.
 
 ### Solution [[solution: text]]
 
-1. Add Kind to the reference: `[[#Table:users]]`
-2. Add namespace to the reference: `[[#storage:users]]`
-3. Use the full form: `[[#storage:Table:users]]`
-4. Use the full hierarchical ID: `[[#parent.config]]` instead of `[[#config]]`
+1. Add namespace to the reference: `[[#storage:users]]`
+2. Use the full form: `[[#workspace:storage:users]]`
+3. Use the full hierarchical ID: `[[#parent.config]]` instead of `[[#config]]`
 
 ## Nested Workspace [[err_nested_workspace: ValidationError]]
 
-A workspace inside another workspace (nested workspaces are forbidden).
+A workspace inside another workspace, left out of the result: its files are not part of the outer
+workspace, so they are missing from the graph.
 
 - code: nested_workspace
 - severity: error
@@ -81,11 +84,16 @@ A workspace inside another workspace (nested workspaces are forbidden).
 - A `__Workspace` object was created inside an existing workspace
 - Incorrect directory structure
 
+Not reported when the inner workspace is composed alongside the outer one — `-w repo -w repo/.qmdc`,
+or a directory holding both. Its files are then in the result under its own workspace, so nothing
+is missing. This is the layout qmdc-wiki gives a repository it models.
+
 ### Solution [[solution: text]]
 
-1. Move the nested workspace up one level (make them siblings)
-2. Change the Kind to `__Namespace` instead of `__Workspace`
-3. Delete the nested workspace
+1. Compose both: `qmdc workspace validate -w <outer> -w <outer>/<inner>`
+2. Move the nested workspace up one level (make them siblings)
+3. Change the Kind to `__Namespace` instead of `__Workspace`, if it was meant to be part of the outer workspace
+4. Delete the nested workspace
 
 ## Workspace In Wrong File [[err_workspace_in_wrong_file: ValidationError]]
 
@@ -246,6 +254,195 @@ Or use YAML notation:
 
 ```markdown example
 - steps: [First step, Second step, Third step]
+```
+
+## Table In Array [[err_table_in_array: ValidationError]]
+
+A Markdown table is used under a primitive array field (`[[field: array]]`).
+
+- code: table_in_array
+- severity: error
+
+### Cause [[cause: text]]
+
+A primitive array holds scalar values, and a table has columns — there is no defined mapping from
+one onto the other, so the parser cannot decide what a row should become.
+
+This differs from an OBJECT array (`[[field: [Kind]]]`), where a table IS valid: each data row
+becomes one object and the column names become its fields. The distinction is the declared field
+type, not the table.
+
+The table content is preserved in `__comments` for lossless round-trip, but the parser generates an
+error.
+
+### Examples [[examples: text]]
+
+```markdown example
+## Doc [[doc]]
+
+### Tags [[tags: array]]
+
+| a |
+|---|
+| 1 |
+```
+
+### Solution [[solution: text]]
+
+If the values are scalars, use a bullet list:
+
+```markdown example
+### Tags [[tags: array]]
+
+- one
+- two
+```
+
+If each row is meant to be an object, declare an object array and give it a Kind:
+
+```markdown example
+### Tags [[tags: [Tag]]]
+
+| name | colour |
+| ---- | ------ |
+| one  | red    |
+```
+
+## Extra Table In Array [[err_extra_table_in_array: ValidationError]]
+
+A second Markdown table appears under one object-array heading.
+
+- code: extra_table_in_array
+- severity: error
+
+### Cause [[cause: text]]
+
+The array heading's own table is what feeds the array — each data row becomes one object, with a
+positional id derived from the row's index. A second table under the same heading cannot extend the
+array, because its rows would generate the same ids as the first table's, and the heading declares an
+array rather than prose, so the table describes nothing.
+
+The table content is preserved in `__comments` for lossless round-trip, but the parser generates an
+error.
+
+Note this applies only to the array CONTAINER's own content. A table inside an array ELEMENT is that
+element's content and is perfectly valid — see the Arrays section.
+
+### Examples [[examples: text]]
+
+```markdown example
+## Team [[team: Group]]
+
+### Members [[members: [User]]]
+
+| name  |
+| ----- |
+| Alice |
+
+| name |
+| ---- |
+| Bob  |
+```
+
+### Solution [[solution: text]]
+
+Put every row in one table:
+
+```markdown example
+### Members [[members: [User]]]
+
+| name  |
+| ----- |
+| Alice |
+| Bob   |
+```
+
+## Mixed Array [[err_mixed_array: ValidationError]]
+
+An array section holds something that cannot be one of its elements: an object array fed by a table
+AND also carrying heading elements, or a declaration inside a primitive `[[field: array]]`.
+
+- code: mixed_array
+- severity: error
+
+### Cause [[cause: text]]
+
+An object array is written in exactly one of two forms — a table, where each data row becomes an
+object, or subheadings, where each subheading becomes an object. Mixing them is not supported: once
+the array has been built from the table, a following element heading cannot join it, so it silently
+becomes a plain field on the parent and its declared Kind is lost.
+
+Note this fires only when the TABLE comes first. A table AFTER an element heading is that element's
+own content, which is valid — see the Arrays section.
+
+The same code covers a PRIMITIVE array, `[[field: array]]`, that contains a deeper heading declaring
+an identifier. A primitive array's elements are list items, and a heading is not one, so the
+declaration cannot become an element — and the heading does not become an object either, because the
+declared kind decides what the section is — the rule `docs/format/headings.qmd.md` states for `text`.
+The
+heading closes the array's content, exactly as prose between two lists does, and its own text is not
+preserved: the document is invalid and has to be fixed.
+
+### Examples [[examples: text]]
+
+```markdown example
+## Team [[team: Group]]
+
+### Members [[members: [User]]]
+
+| name  |
+| ----- |
+| Alice |
+
+#### Bob [[bob]]
+
+- role: dev
+```
+
+Here `bob` does not join `members`: it becomes `team.bob`, a field on `team`, with its Kind degraded
+from `User` to `__Object`.
+
+A declaration inside a primitive array:
+
+```markdown example
+## Session [[s: Session]]
+
+### Closure [[clo: array]]
+
+- one
+- two
+
+#### Task [[t5: SessionTask]]
+
+- status: x
+```
+
+`clo` keeps exactly `["one", "two"]`, no object `s.clo.t5` or `s.t5` is created, and one `mixed_array`
+error points at the `#### Task` line.
+
+### Solution [[solution: text]]
+
+Use one form for the whole array. Either put every element in the table:
+
+```markdown example
+### Members [[members: [User]]]
+
+| name  | role  |
+| ----- | ----- |
+| Alice |       |
+| Bob   | dev   |
+```
+
+Or write every element as a subheading:
+
+```markdown example
+### Members [[members: [User]]]
+
+#### Alice [[alice]]
+
+#### Bob [[bob]]
+
+- role: dev
 ```
 
 ## Explicit System Type [[err_explicit_system_type: ValidationError]]
@@ -437,9 +634,11 @@ Content inside `[[field: map]]` that is not a bullet list with `key: value` pair
 
 ### Cause [[cause: text]]
 
-A map field accepts only a single bullet list with `- key: value` items. Any other content between the map heading and the next heading at the same or higher level is an error: paragraphs, code fences, numbered lists, additional bullet lists.
+A map field accepts only a single bullet list with `- key: value` items. Any other content between the map heading and the next heading at the same or higher level is an error: paragraphs, code fences, numbered lists, additional bullet lists, and deeper headings — including a deeper heading that DECLARES an identifier, which creates no object, because the declared kind decides what the section is.
 
-Invalid content is ignored; the map is populated only from the first valid bullet list.
+Invalid content is ignored; the map is populated only from the first valid bullet list. An entry after an offending block does not join the map.
+
+A map is a flat `str -> str` dictionary, so an indented sub-item is not an entry either: under a `- key:` with no value it is `invalid_map_entry`'s sibling error `nested_subitems` and the key is dropped; under a `- key: value` the sub-item is dropped and the entry keeps its own value.
 
 ### Examples [[examples: text]]
 
@@ -473,6 +672,73 @@ Remove all content except the bullet list with `key: value` pairs:
 - port: 8080
 ```
 
+## Block In Inline Field [[err_block_in_inline_field: ValidationError]]
+
+An indented block follows an inline field that already has a value.
+
+- code: block_in_inline_field
+- severity: error
+
+### Cause [[cause: text]]
+
+An inline field (`- key: value`) holds a scalar. It has no content of its own, so an indented table,
+list, paragraph, quote or fence placed under it belongs to nothing — the format defines no meaning
+for it.
+
+This is the sibling of `nested_subitems`, which covers the EMPTY-value form (`- key:` followed by
+indented items). Here the value is present and the block follows it.
+
+Not to be confused with YAML multiline (`- key: |` or `- key: >`), where the indented block IS the
+field's value. That is valid and is not reported.
+
+The block content is preserved in `__comments`, anchored on the field and with its indentation
+removed, for lossless round-trip; the parser generates an error.
+
+### Examples [[examples: text]]
+
+```markdown example
+## P [[p: G]]
+
+- lead: Ann
+
+- note: something
+
+  | ic |
+  |----|
+  | x |
+```
+
+### Solution [[solution: text]]
+
+If the block belongs to the object, put it outside the field list:
+
+```markdown example
+## P [[p: G]]
+
+- lead: Ann
+- note: something
+
+| ic |
+|----|
+| x  |
+```
+
+If it belongs to the field, declare a heading-syntax text field instead:
+
+```markdown example
+## P [[p: G]]
+
+- lead: Ann
+
+### Note [[note: text]]
+
+something
+
+| ic |
+|----|
+| x  |
+```
+
 ## Nested Subitems [[err_nested_subitems: ValidationError]]
 
 A nested list under an inline field (`- key:` followed by indented `- item` lines).
@@ -503,6 +769,55 @@ Valid keys match `[a-zA-Z][a-zA-Z0-9_]*`. When SOME items in one object's list a
 
 Fix the invalid keys (`First Name:` → `first_name:`), or convert the list to a text field if it is prose.
 
+## Unsupported Number Format [[err_unsupported_number_format: ValidationError]]
+
+A field value looks like a number QMD.md cannot carry.
+
+- code: unsupported_number_format
+- severity: error
+
+### Cause [[cause: text]]
+
+QMD.md's numeric grammar is deliberately narrow: `-?\d+(\.\d+)?`, with a magnitude between `1e-4`
+and 2^53-1. Two kinds of value trip this error.
+
+A spelling the format does not define — `1e5`, `1.5e-3`, `2E3`, `.5`, `5.`, `+1`, `1_000`, `0x1f`,
+`0o17`. Each of these only ever worked in whichever host language happened to accept it, which is
+exactly why the three parsers used to disagree about them.
+
+A value in a supported spelling but outside the range. Above 2^53-1 an integer cannot survive a round
+trip through a double — `9223372036854775807` comes back as a different number in a JavaScript
+reader — and below `1e-4` a decimal can only be written with an exponent, which the grammar has no
+form for.
+
+The field keeps the text the author wrote, as a String, so nothing is lost and the document still
+round-trips. The error exists so the spelling is refused out loud instead of silently becoming a
+string.
+
+```markdown example
+## Config [[config: Settings]]
+
+- retries: 3            ← fine
+- rate: 1e-3            ← error: exponent
+- max: 9223372036854775807   ← error: beyond 2^53-1
+- epsilon: 0.00001      ← error: needs an exponent to write back
+- released: 2026-09-24  ← fine, a plain string and no error
+```
+
+### Solution [[solution: text]]
+
+Write the value in the supported grammar (`0.001` rather than `1e-3`), or quote it to say a String
+was meant all along (`- max: "9223372036854775807"`).
+
+A quoted value raises no error, which is the intended escape hatch: the quotes state that the text is
+the value.
+
+The error carries a `hint` field naming which of those two ways out applies, so the reader is told
+what to write rather than only what is wrong. A spelling the grammar does not define gets `write a
+plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)`; a magnitude
+outside the range gets `magnitude outside 0.0001..9007199254740991 (quote the value to keep it as
+text)`, since quoting is then the only way out. It is the only error that carries a hint.
+
 ## Invalid ID Character [[err_invalid_id_character: ValidationError]]
 
 A dot in a NESTED heading's explicit ID.
@@ -523,3 +838,36 @@ Dot-ID declarations (`[[parent.child]]`) are legal only on top-level headings. A
 ### Solution [[solution: text]]
 
 Use a simple local id for the nested heading (`[[child]]`); the dot-path (`parent.child`) is composed automatically.
+
+## Wrapped Field Value [[err_wrapped_field_value: ValidationError]]
+
+A field value, or an array element, continued on an indented second line.
+
+- code: wrapped_field_value
+- severity: error
+
+### Cause [[cause: text]]
+
+A value is written on one line. A continuation line was read three different ways — Rust joined the
+lines with a space, Python with a newline, TypeScript kept only the first line and dropped the rest in
+silence — so the same document carried three different values depending on which parser read it. The
+value is now the authored first line everywhere, and the continuation is reported instead of being
+absorbed or discarded quietly.
+
+```markdown example
+## Session [[s: Session]]
+
+- note: first line
+  second line
+```
+
+`note` is `first line`, and one `wrapped_field_value` error points at the continuation's line. An
+element of a `[[field: array]]` list behaves the same way.
+
+The two legal multiline forms are untouched, because each announces itself on the first line: YAML
+pipe (`- key: |`) and a YAML array whose bracket opens the value (`- key: [`).
+
+### Solution [[solution: text]]
+
+Put the value on one line, use the YAML pipe form for genuinely multiline text, or move it to a
+heading-syntax text field (`### Note [[note: text]]`).

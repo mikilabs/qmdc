@@ -1,0 +1,14 @@
+{
+  "diagnostics": [
+    {
+      "file": "team.qmd.md",
+      "line": 11,
+      "code": "mixed_array",
+      "message": "mixed_array: field: members, object: [[#team]]",
+      "severity": "error"
+    }
+  ],
+  "count": 1,
+  "truncated": false,
+  "success": true
+}

@@ -15,6 +15,11 @@ _FIELD_RE = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(.*)$")
 _INVALID_FL_RE = re.compile(r"^([^:]+):\s+(.*)$", re.DOTALL)
 _VALID_KEY_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 _BACKTICK_STRIP_RE = re.compile(r"`[^`]+`")
+# QMD-77 A3: "this heading declares an identifier" — the same grammar the nested-declaration
+# look-ahead uses (a leading `#` is a reference, not a declaration; code spans are stripped first).
+_DECLARES_RE = re.compile(r"\[\[\s*[^#\]][^\]]*\]\]")
+# A valid map entry: a bullet item whose text opens with a valid identifier and a colon.
+_MAP_ENTRY_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*\s*:")
 _BOLD_STRIP_RE = re.compile(r"\*\*([^*]*)\*\*")
 _ITALIC_STRIP_RE = re.compile(r"\*([^*]*)\*")
 _STRIKETHROUGH_STRIP_RE = re.compile(r"~~([^~]*)~~")
@@ -125,18 +130,15 @@ def classify_reference(inner: str) -> str:
     if "/" in content or (not inner.startswith("#") and "#" in content):
         return "crossfile"
 
-    # Check for Kind:id or Kind.id format (first char is uppercase = Kind)
-    # Or namespace:id format (first char is lowercase = namespace)
+    # A reference target is a right-aligned suffix of `workspace:namespace:id` with an
+    # optional `.field` suffix (QMD-69). There is no Kind segment, so any qualified
+    # target classifies as `namespace`; the uppercase-first-segment heuristic that used
+    # to tell `Kind:id` from `namespace:id` is gone.
     if ":" in content or "." in content:
         sep = ":" if ":" in content else "."
         parts = content.split(sep, 1)
         if len(parts) == 2:
-            first = parts[0]
-            # If first char is uppercase, assume Kind
-            if first and first[0].isupper():
-                return "kind"
-            else:
-                return "namespace"
+            return "namespace"
 
     # hash_local vs local
     if inner.startswith("#"):
@@ -195,6 +197,52 @@ def extract_references_from_text(
             }
         )
     return refs
+
+
+_HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+
+
+def _text_block_source(lines: list[str], start: int, end: int) -> str:
+    """QMD-77: the ``content`` of a ``__TextBlock`` is the verbatim source of its region.
+
+    Lines ``start..end`` (1-based, ``end`` exclusive), each without a trailing ``\\r``, with
+    leading and trailing blank lines dropped. Rebuilding the text from tokens lost constructs one
+    by one (a blockquote, an HTML block, the second line of a setext heading, the markup inside a
+    heading); a slice cannot lose any of them. Rust and TypeScript implement the same function.
+    """
+    end = min(end, len(lines) + 1)
+    if start < 1 or start >= end:
+        return ""
+    region = [line[:-1] if line.endswith("\r") else line for line in lines[start - 1 : end - 1]]
+    nonblank = [n for n, line in enumerate(region) if line.strip()]
+    if not nonblank:
+        return ""
+    return "\n".join(region[nonblank[0] : nonblank[-1] + 1])
+
+
+def _leading_text_start(lines: list[str], first_heading_line: int) -> int | None:
+    """QMD-77: the 1-based line the text above the first heading starts on, if there is any.
+
+    ``None`` when that text holds nothing but blank lines and HTML comments - an HTML comment is
+    ignored and opens no block. Any other content opens the leading ``__TextBlock``, whatever
+    Markdown construct it is.
+    """
+    above = lines[: max(0, min(first_heading_line - 1, len(lines)))]
+    if not _HTML_COMMENT_RE.sub("", "\n".join(above)).strip():
+        return None
+    return next(n + 1 for n, line in enumerate(above) if line.strip())
+
+
+def _rebased_fences(fences: list[dict[str, Any]], block_line: int) -> list[CodeFenceInfo]:
+    """Turn the fences' absolute source lines into offsets within the block's content."""
+    return [
+        {
+            "lang": f["lang"],
+            "offset_line": f["start_line"] - block_line,
+            "length_lines": f["length_lines"],
+        }
+        for f in fences
+    ]
 
 
 def parse(
@@ -271,10 +319,19 @@ def parse(
 
     # Track pending array field from [[field: array]] heading
     pending_array_field: tuple[str, str] | None = None  # (parent_id, field_name)
+    # QMD-77 A3: the scope a declared `array` field is still open in — (parent_id, field_name,
+    # level). `pending_array_field` is cleared by the first list that feeds the array, so it cannot
+    # answer "is this deeper heading inside a collection field's section?".
+    array_field_scope: tuple[str, str, int] | None = None
 
     # Track pending object array from [[field: [Kind]]] heading
     # (parent_id, field_name, array_kind, level)
     pending_object_array: tuple[str, str, str, int] | None = None
+    # QMD-70: (parent_id, field_name) of an object array whose own table has already been
+    # consumed, so a SECOND table under the same heading can be reported instead of silently
+    # becoming prose. Cleared at the next heading: a heading either opens an element (the table
+    # then belongs to that element) or leaves the array altogether.
+    array_table_consumed: tuple[str, str, int] | None = None
 
     # Track pending YAML field from [[field: yaml]] heading
     pending_yaml_field: tuple[str, str, str] | None = None  # (parent_id, field_name, label)
@@ -292,12 +349,18 @@ def parse(
     # Track content order for __Document
     content_order: list[str] = []  # List of object IDs and text block IDs in order
 
-    # Track pending text block content
+    # Fragments of the pending text block. Only the structured_in_textblock gate reads
+    # them, and only their count: the block's content is the verbatim source slice from
+    # _text_block_source (QMD-77).
     pending_text_block_content: list[str] = []
     pending_text_block_started: bool = False
     pending_text_block_line: int = 0
     pending_text_block_level: int = 0  # Level of the TextBlock heading
-    pending_code_fences: list[CodeFenceInfo] = []
+    # Fences keep their absolute start_line until the block is emitted.
+    pending_code_fences: list[dict[str, Any]] = []
+    # QMD-77: the text above the first heading is decided once, when that heading (or EOF) arrives.
+    leading_text_done: bool = False
+    source_lines: list[str] = markdown.split("\n")
 
     # Track parsing errors (structured_in_textblock, etc.)
     parsing_errors: list[dict[str, Any]] = []
@@ -336,11 +399,16 @@ def parse(
 
     def has_nested_structured_headings(start_idx: int, current_level: int) -> bool:
         """
-        Look-ahead to check if there are nested headings with [[...]] at a deeper level.
-        Returns True if any heading at a deeper level contains [[...]] bracket syntax.
+        Look-ahead to check whether any heading at a deeper level DECLARES an identifier.
         Stops at headings at same or higher level.
+
+        QMD-75: "declares" is the format's own grammar, not "contains two brackets". The regex
+        used to be r"\\[\\[[^\\]]+\\]\\]", which counted a code span (`### Uses `[[x]]` syntax`)
+        and a reference (`### See [[#s]]`) as declarations — so a comment heading that names a
+        reference decided whether its PARENT is an object, and the parent then grew a field
+        literally called `#s`. Code spans are stripped and a leading `#` is excluded.
         """
-        bracket_re = re.compile(r"\[\[[^\]]+\]\]")
+        declares_re = re.compile(r"\[\[\s*[^#\]][^\]]*\]\]")
         j = start_idx + 3  # Skip heading_open, inline, heading_close
         while j < len(tokens):
             tok = tokens[j]
@@ -348,10 +416,10 @@ def parse(
                 next_level = get_heading_level(tok.tag)
                 if next_level <= current_level:
                     return False
-                # Check if the heading text contains [[...]]
+                # Check whether the heading declares an identifier
                 if j + 1 < len(tokens) and tokens[j + 1].type == "inline":
                     heading_content = tokens[j + 1].content or ""
-                    if bracket_re.search(heading_content):
+                    if declares_re.search(_BACKTICK_STRIP_RE.sub("", heading_content)):
                         return True
                 j += 3  # Skip heading_open, inline, heading_close
                 continue
@@ -409,6 +477,42 @@ def parse(
         if token.type == "heading_open":
             level = get_heading_level(token.tag)
             header: HeaderResult | None = parse_header(tokens, i)
+            if not leading_text_done:
+                leading_text_done = True
+                leading_start = _leading_text_start(
+                    source_lines, (token.map[0] + 1) if token.map else 1
+                )
+                if leading_start is not None:
+                    if not pending_text_block_started:
+                        pending_text_block_started = True
+                        pending_text_block_level = 0
+                    pending_text_block_line = leading_start
+
+            # QMD-77 A3: a heading deeper than a field declared `array` does NOT create an object —
+            # the DECLARED KIND decides what the section is, the same rule QMD-75 settled for
+            # `text`. A collection's value is its list items and a heading is not one, so the
+            # declaration it carries is lost: report it instead of dropping it in silence. The
+            # heading closes the field's content, exactly as prose between two lists does.
+            if (
+                array_field_scope
+                and level > array_field_scope[2]
+                and i + 1 < len(tokens)
+                and _DECLARES_RE.search(_BACKTICK_STRIP_RE.sub("", tokens[i + 1].content or ""))
+            ):
+                parsing_errors.append(
+                    {
+                        "__id": f"error_{len(parsing_errors)}",
+                        "__kind": "__ParsingError",
+                        "type": "mixed_array",
+                        "field": array_field_scope[1],
+                        "object": f"[[#{array_field_scope[0]}]]",
+                        "line": (token.map[0] + 1) if token.map else None,
+                    }
+                )
+                pending_array_field = None
+                comment_anchor = array_field_scope[1]
+                i += 3  # Skip heading_open, inline, heading_close
+                continue
 
             if header:
                 # Pop objects from stack that are at same or deeper level
@@ -452,6 +556,40 @@ def parse(
                     comment_anchor = paf_field_name
                     pending_array_field = None
 
+                # QMD-77 A3: a heading at or above the collection's own level is a sibling, so the
+                # collection's section ends here. A DEEPER one never reaches this point — it was
+                # reported and consumed above.
+                if array_field_scope and level <= array_field_scope[2]:
+                    array_field_scope = None
+
+                # QMD-70: an array fed by a TABLE cannot also take heading elements. A heading
+                # deeper than the array's own level would be such an element, but the array has
+                # already been built from the table, so the heading silently became a plain field
+                # on the parent and its declared Kind was dropped (`User` -> `__Object`). Report it.
+                #
+                # Only a heading that declares an OBJECT counts. One carrying a field type
+                # (`text`, `yaml`, `array`, ...) is a field on the parent, not an element, and is
+                # perfectly legal there — as is a heading at or above the array's own level, which
+                # is a sibling rather than an element.
+                if (
+                    array_table_consumed
+                    and level > array_table_consumed[2]
+                    and not (header.get("field_type") if header else None)
+                ):
+                    parsing_errors.append(
+                        {
+                            "__id": f"error_{len(parsing_errors)}",
+                            "__kind": "__ParsingError",
+                            "type": "mixed_array",
+                            "field": array_table_consumed[1],
+                            "object": f"[[#{array_table_consumed[0]}]]",
+                            "line": line_num,
+                        }
+                    )
+
+                # A heading ends the container's own content — see the declaration.
+                array_table_consumed = None
+
                 # Check if we're exiting an object array context
                 if pending_object_array:
                     arr_parent_id, arr_field, arr_kind, arr_level = pending_object_array
@@ -464,6 +602,7 @@ def parse(
                     # This is a field array, not an object
                     # Mark for next list to be parsed as array items
                     pending_array_field = (parent_id, header["id"])
+                    array_field_scope = (parent_id, header["id"], level)
 
                 # Check if this is an object array [[field: [Kind]]]
                 elif header.get("field_type") == "object_array" and parent_id:
@@ -584,9 +723,31 @@ def parse(
                     list_scan = i + 3
                     found_list = False
                     while list_scan < scan_idx:
+                        if tokens[list_scan].type == "heading_open":
+                            # QMD-77 A3: a heading deeper than the map's own level (a shallower one
+                            # bounded `scan_idx`) is content inside the map that is not a bullet
+                            # list of `key: value` items — the spec's own words. It never creates an
+                            # object: the DECLARED KIND decides, as QMD-75 settled for `text`.
+                            err_line = (
+                                (tokens[list_scan].map[0] + 1) if tokens[list_scan].map else 0
+                            )
+                            parsing_errors.append(
+                                {
+                                    "__id": f"error_{len(parsing_errors)}",
+                                    "__kind": "__ParsingError",
+                                    "type": "invalid_map_content",
+                                    "field": header["id"],
+                                    "object": f"[[#{parent_id}]]",
+                                    "line": err_line,
+                                }
+                            )
+                            list_scan += 3  # heading_open, inline, heading_close
+                            continue
                         if tokens[list_scan].type == "bullet_list_open":
                             if found_list:
-                                # Second bullet list — invalid
+                                # An additional bullet list — the spec populates the map from the
+                                # FIRST valid list only, and reports the rest ONCE per list. Walking
+                                # into it emitted a second error for its own paragraph token.
                                 err_line = (
                                     (tokens[list_scan].map[0] + 1) if tokens[list_scan].map else 0
                                 )
@@ -600,7 +761,17 @@ def parse(
                                         "line": err_line,
                                     }
                                 )
-                                list_scan += 1
+                                depth = 0
+                                while list_scan < scan_idx:
+                                    tt = tokens[list_scan].type
+                                    if tt == "bullet_list_open":
+                                        depth += 1
+                                    elif tt == "bullet_list_close":
+                                        depth -= 1
+                                        if depth == 0:
+                                            list_scan += 1
+                                            break
+                                    list_scan += 1
                                 continue
                             found_list = True
                             (
@@ -609,23 +780,85 @@ def parse(
                                 _field_syntax,
                                 invalid_items,
                                 next_i,
-                                _nested_errors,
+                                map_nested_errors,
+                                map_block_errors,
+                                _unsupported_numbers,
+                                map_wrapped_errors,
                             ) = parse_fields_from_list(
                                 tokens, list_scan, block_tree, raw_strings=True
                             )
                             map_data.update(fields)
-                            # Emit errors for invalid entries
-                            for inv in invalid_items:
+                            # QMD-77 A3: a map is a FLAT `str -> str` dictionary, so an indented
+                            # sub-item is not an entry. Both error lists were collected and then
+                            # thrown away here, so the construct was dropped in silence — and a
+                            # silent drop in a document with no errors is content loss the
+                            # round-trip test is entitled to catch. Ordinary field lists already
+                            # report exactly these two: `nested_subitems` under a key with no value,
+                            # `block_in_inline_field` under a key that has one.
+                            for ns_err in map_nested_errors:
                                 parsing_errors.append(
                                     {
                                         "__id": f"error_{len(parsing_errors)}",
                                         "__kind": "__ParsingError",
-                                        "type": "invalid_map_entry",
-                                        "field": header["id"],
+                                        "type": "nested_subitems",
+                                        "field": ns_err["key"],
                                         "object": f"[[#{parent_id}]]",
-                                        "line": inv.get("line", 0),
+                                        "line": ns_err["line"],
                                     }
                                 )
+                            for blk_err in map_block_errors:
+                                parsing_errors.append(
+                                    {
+                                        "__id": f"error_{len(parsing_errors)}",
+                                        "__kind": "__ParsingError",
+                                        "type": "block_in_inline_field",
+                                        "field": blk_err["key"],
+                                        "object": f"[[#{parent_id}]]",
+                                        "line": blk_err["line"],
+                                    }
+                                )
+                            for wr_err in map_wrapped_errors:
+                                parsing_errors.append(
+                                    {
+                                        "__id": f"error_{len(parsing_errors)}",
+                                        "__kind": "__ParsingError",
+                                        "type": "wrapped_field_value",
+                                        "field": wr_err["key"],
+                                        "object": f"[[#{parent_id}]]",
+                                        "line": wr_err["line"],
+                                    }
+                                )
+                            # QMD-77 A3: report EVERY item of the first list that is not a valid
+                            # `key: value` pair. `invalid_items` only carries an item that follows a
+                            # valid field (it exists to preserve such an item in `__comments`), so a
+                            # list whose FIRST item has no colon was reported by nothing at all —
+                            # while the spec says invalid map entries generate `invalid_map_entry`.
+                            item_scan = list_scan + 1
+                            item_depth = 1
+                            while item_scan < next_i and item_depth >= 1:
+                                itok = tokens[item_scan]
+                                if itok.type == "bullet_list_open":
+                                    item_depth += 1
+                                elif itok.type == "bullet_list_close":
+                                    item_depth -= 1
+                                elif (
+                                    itok.type == "inline"
+                                    and item_depth == 1
+                                    and not _MAP_ENTRY_RE.match(
+                                        (itok.content or "").split("\n", 1)[0].strip()
+                                    )
+                                ):
+                                    parsing_errors.append(
+                                        {
+                                            "__id": f"error_{len(parsing_errors)}",
+                                            "__kind": "__ParsingError",
+                                            "type": "invalid_map_entry",
+                                            "field": header["id"],
+                                            "object": f"[[#{parent_id}]]",
+                                            "line": (itok.map[0] + 1) if itok.map else 0,
+                                        }
+                                    )
+                                item_scan += 1
                             list_scan = next_i
                             continue
                         elif tokens[list_scan].type in (
@@ -688,6 +921,13 @@ def parse(
                         obj["__local_id"] = local_id_out
                     if header["label"]:
                         obj["__label"] = header["label"]
+                    # QMD-77 C4: the spec says `__has_explicit_id` is false when the id was
+                    # AUTO-GENERATED, and absent when the author wrote one. An object-array element
+                    # written as a bare `### Alice` has an auto id like any other heading, but only
+                    # Rust marked it — so a rebuild from this output would print an id the author
+                    # never wrote.
+                    if not header.get("has_explicit_id", False):
+                        obj["__has_explicit_id"] = False
                     objects[arr_parent_id][arr_field].append(f"[[#{composed_id}]]")
                     objects[composed_id] = obj
                     object_stack.append((composed_id, level))
@@ -719,98 +959,71 @@ def parse(
                     next_idx = i + 3  # After heading_open, inline, heading_close
                     next_token = tokens[next_idx] if next_idx < len(tokens) else None
 
-                    if next_token and next_token.type == "bullet_list_open":
-                        # List follows - check if it has fields
-                        has_fields = has_fields_after_heading(i, level)
-                        if has_fields:
-                            # Nested object with fields
-                            local_id = header["id"]
-                            composed_id, local_id_out = resolve_child_id(parent_id, local_id)
-                            parent_full_id = objects[parent_id]["__id"]
-                            obj = {
-                                "__id": composed_id,
-                                "__kind": "__Object",
-                                "__level": level,
-                                "__line": line_num,
-                            }
-                            if local_id_out is not None:
-                                obj["__local_id"] = local_id_out
-                            if header["label"]:
-                                obj["__label"] = header["label"]
-                            obj["__parent"] = f"[[#{parent_full_id}]]"
-                            obj["__parent_field"] = local_id
-                            objects[parent_id][local_id] = f"[[#{composed_id}]]"
-                            objects[composed_id] = obj
-                            object_stack.append((composed_id, level))
-                        else:
-                            # List without fields - text field: use raw slice
-                            content_start_line = token.map[1] if token.map else 0
-                            content_end_line = block_tree.line_count
-                            scan_idx = i + 3
-                            while scan_idx < len(tokens):
-                                scan_tok = tokens[scan_idx]
-                                if scan_tok.type == "heading_open":
-                                    next_level = get_heading_level(scan_tok.tag)
-                                    if next_level <= level:
-                                        content_end_line = (
-                                            scan_tok.map[0] if scan_tok.map else content_end_line
-                                        )
-                                        break
-                                scan_idx += 1
-                            raw_content = block_tree.get_lines_raw(
-                                content_start_line, content_end_line
-                            ).strip()
-                            objects[parent_id][header["id"]] = raw_content
-                            if "__types" not in objects[parent_id]:
-                                objects[parent_id]["__types"] = {}
-                            objects[parent_id]["__types"][header["id"]] = "string"
-                            if "__syntax" not in objects[parent_id]:
-                                objects[parent_id]["__syntax"] = {}
-                            objects[parent_id]["__syntax"][header["id"]] = "multiline_text"
-                            if "__labels" not in objects[parent_id]:
-                                objects[parent_id]["__labels"] = {}
-                            objects[parent_id]["__labels"][header["id"]] = header["label"]
-                            comment_anchor = header["id"]
-                            i = scan_idx
-                            continue
-                    elif next_token and next_token.type == "heading_open":
-                        # Another heading follows - check if it's a child
-                        next_level = get_heading_level(next_token.tag)
-                        if next_level > level:
-                            # Child heading - nested object
-                            local_id = header["id"]
-                            composed_id, local_id_out = resolve_child_id(parent_id, local_id)
-                            parent_full_id = objects[parent_id]["__id"]
-                            obj = {
-                                "__id": composed_id,
-                                "__kind": "__Object",
-                                "__level": level,
-                                "__line": line_num,
-                            }
-                            if local_id_out is not None:
-                                obj["__local_id"] = local_id_out
-                            if header["label"]:
-                                obj["__label"] = header["label"]
-                            obj["__parent"] = f"[[#{parent_full_id}]]"
-                            obj["__parent_field"] = local_id
-                            objects[parent_id][local_id] = f"[[#{composed_id}]]"
-                            objects[composed_id] = obj
-                            object_stack.append((composed_id, level))
-                        else:
-                            # Same or higher level - empty text field
-                            objects[parent_id][header["id"]] = ""
-                            if "__types" not in objects[parent_id]:
-                                objects[parent_id]["__types"] = {}
-                            objects[parent_id]["__types"][header["id"]] = "string"
-                            if "__syntax" not in objects[parent_id]:
-                                objects[parent_id]["__syntax"] = {}
-                            objects[parent_id]["__syntax"][header["id"]] = "multiline_text"
-                            if "__labels" not in objects[parent_id]:
-                                objects[parent_id]["__labels"] = {}
-                            objects[parent_id]["__labels"][header["id"]] = header["label"]
-                            comment_anchor = header["id"]
+                    # QMD-75: ONE predicate decides, and prose is not part of it. A bare
+                    # `[[id]]` heading is an object when, before the next heading at its own
+                    # level or shallower, there is either a field list or a deeper heading that
+                    # DECLARES an identifier; otherwise it is the implicit text field pinned by
+                    # fixtures 021/030/107 (`### Description [[description]]` plus prose).
+                    #
+                    # Two earlier readings are gone because each let the body decide identity,
+                    # which is what this task is about. `next_is_deeper_heading` made ANY deeper
+                    # heading an object-maker, so `## Closure [[clo]]` + `### Note` was an object
+                    # while the same pair with one paragraph between them was a text field.
+                    # And the field-list test required the list to be the very NEXT token, so a
+                    # paragraph, a `---`, a table or a fence in front of a field list turned the
+                    # object into a text field that swallowed its own fields. Rust decides with
+                    # `has_fields_after`, which walks past non-field blocks; Python and
+                    # TypeScript now ask the same question.
+                    has_declared_children = has_nested_structured_headings(i, level)
+                    has_field_list = has_fields_after_heading(i, level)
+
+                    if has_declared_children or has_field_list:
+                        # Nested object
+                        local_id = header["id"]
+                        composed_id, local_id_out = resolve_child_id(parent_id, local_id)
+                        parent_full_id = objects[parent_id]["__id"]
+                        obj = {
+                            "__id": composed_id,
+                            "__kind": "__Object",
+                            "__level": level,
+                            "__line": line_num,
+                        }
+                        if local_id_out is not None:
+                            obj["__local_id"] = local_id_out
+                        if header["label"]:
+                            obj["__label"] = header["label"]
+                        obj["__parent"] = f"[[#{parent_full_id}]]"
+                        obj["__parent_field"] = local_id
+                        objects[parent_id][local_id] = f"[[#{composed_id}]]"
+                        objects[composed_id] = obj
+                        object_stack.append((composed_id, level))
+                    elif (
+                        next_token
+                        and next_token.type == "heading_open"
+                        and get_heading_level(next_token.tag) <= level
+                    ):
+                        # Sibling or shallower heading follows - empty text field
+                        #
+                        # QMD-75: the level test is what makes this branch mean what its comment
+                        # says. It used to fire for ANY heading, which was unreachable while a
+                        # deeper heading made the heading an object; once that reading was
+                        # dropped, a DEEPER heading landed here and the field came out empty
+                        # while its content became a comment on the PARENT — where Rust and
+                        # TypeScript put the whole block in the field, which is its value.
+                        objects[parent_id][header["id"]] = ""
+                        if "__types" not in objects[parent_id]:
+                            objects[parent_id]["__types"] = {}
+                        objects[parent_id]["__types"][header["id"]] = "string"
+                        if "__syntax" not in objects[parent_id]:
+                            objects[parent_id]["__syntax"] = {}
+                        objects[parent_id]["__syntax"][header["id"]] = "multiline_text"
+                        if "__labels" not in objects[parent_id]:
+                            objects[parent_id]["__labels"] = {}
+                        objects[parent_id]["__labels"][header["id"]] = header["label"]
+                        comment_anchor = header["id"]
                     else:
-                        # Default: text field (paragraph, fence, table, etc.) - use raw slice
+                        # Implicit text field (prose, fence, table, list without fields)
+                        # - use raw slice
                         content_start_line = token.map[1] if token.map else 0
                         content_end_line = block_tree.line_count
                         scan_idx = i + 3
@@ -1003,17 +1216,23 @@ def parse(
                             continue
 
                         # Save any pending text block first
-                        if pending_text_block_started and pending_text_block_content:
+                        if pending_text_block_started:
                             text_block_id = f"text_{text_block_counter}"
                             text_block_counter += 1
                             tb: dict[str, Any] = {
                                 "__id": text_block_id,
                                 "__kind": "__TextBlock",
-                                "content": "\n\n".join(pending_text_block_content),
+                                "content": _text_block_source(
+                                    source_lines,
+                                    pending_text_block_line,
+                                    line_num or len(source_lines) + 1,
+                                ),
                                 "__line": pending_text_block_line,
                             }
                             if pending_code_fences:
-                                tb["__code_fences"] = list(pending_code_fences)
+                                tb["__code_fences"] = _rebased_fences(
+                                    pending_code_fences, pending_text_block_line
+                                )
                             text_blocks.append(tb)
                             content_order.append(text_block_id)
                             pending_text_block_content = []
@@ -1203,17 +1422,23 @@ def parse(
                     else:
                         # TextBlock - each heading without [[id]] starts a NEW text block
                         # First, save any pending text block
-                        if pending_text_block_started and pending_text_block_content:
+                        if pending_text_block_started:
                             text_block_id = f"text_{text_block_counter}"
                             text_block_counter += 1
                             tb: dict[str, Any] = {
                                 "__id": text_block_id,
                                 "__kind": "__TextBlock",
-                                "content": "\n\n".join(pending_text_block_content),
+                                "content": _text_block_source(
+                                    source_lines,
+                                    pending_text_block_line,
+                                    line_num or len(source_lines) + 1,
+                                ),
                                 "__line": pending_text_block_line,
                             }
                             if pending_code_fences:
-                                tb["__code_fences"] = list(pending_code_fences)
+                                tb["__code_fences"] = _rebased_fences(
+                                    pending_code_fences, pending_text_block_line
+                                )
                             text_blocks.append(tb)
                             content_order.append(text_block_id)
                             pending_text_block_content = []
@@ -1237,7 +1462,18 @@ def parse(
             if pending_array_field:
                 # This list is for a [[field: array]] section
                 parent_id, field_name = pending_array_field
-                items, next_i = parse_array_items_from_list(tokens, i)
+                items, next_i, array_wrapped_errors = parse_array_items_from_list(tokens, i)
+                for wr_err in array_wrapped_errors:
+                    parsing_errors.append(
+                        {
+                            "__id": f"error_{len(parsing_errors)}",
+                            "__kind": "__ParsingError",
+                            "type": "wrapped_field_value",
+                            "field": field_name,
+                            "object": f"[[#{parent_id}]]",
+                            "line": wr_err["line"],
+                        }
+                    )
                 objects[parent_id][field_name] = items
 
                 # Add __syntax for markdown_list
@@ -1259,7 +1495,40 @@ def parse(
                         invalid_items,
                         next_i,
                         nested_subitems_errors,
+                        block_in_field_errors,
+                        unsupported_number_errors,
+                        wrapped_value_errors,
                     ) = parse_fields_from_list(tokens, i, block_tree)
+
+                    # QMD-77 A4: report the forbidden construct BEFORE the branches below, not
+                    # after them. A list whose only content was `- key:` plus an indented sub-list
+                    # yields no fields at all, so it fell into the "whole list is prose" branch and
+                    # its `continue` skipped the emission further down — the construct was silently
+                    # kept as comment text while Rust reported it. The construct is dropped either
+                    # way, exactly as it already was when the object had other fields.
+                    dropped_nested_subitem_list = bool(nested_subitems_errors) and not invalid_items
+                    for wr_err in wrapped_value_errors:
+                        parsing_errors.append(
+                            {
+                                "__id": f"error_{len(parsing_errors)}",
+                                "__kind": "__ParsingError",
+                                "type": "wrapped_field_value",
+                                "field": wr_err["key"],
+                                "object": f"[[#{current_id}]]",
+                                "line": wr_err["line"],
+                            }
+                        )
+                    for ns_err in nested_subitems_errors:
+                        parsing_errors.append(
+                            {
+                                "__id": f"error_{len(parsing_errors)}",
+                                "__kind": "__ParsingError",
+                                "type": "nested_subitems",
+                                "field": ns_err["key"],
+                                "object": f"[[#{current_id}]]",
+                                "line": ns_err["line"],
+                            }
+                        )
 
                     # Check if any field keys already exist in the object.
                     # If so, this bullet list is a DUPLICATE — treat it as
@@ -1292,7 +1561,6 @@ def parse(
                     # No valid fields but has invalid items — treat entire list
                     # as comment content (e.g. bullet list with colons in prose)
                     if not fields and invalid_items:
-                        has_invalid_keys = any(inv.get("key") for inv in invalid_items)
                         if token.map:
                             scan_j = i + 1
                             while (
@@ -1307,21 +1575,13 @@ def parse(
                             raw_list = block_tree.get_lines_raw(token.map[0], end_line).strip()
                             if raw_list:
                                 append_comment(current_id, comment_anchor, raw_list, merge=True)
-                            # Emit mixed_field_keys error if items had invalid keys
-                            if has_invalid_keys:
-                                error_line = next(
-                                    (inv.get("line", 0) for inv in invalid_items if inv.get("key")),
-                                    invalid_items[0].get("line", 0),
-                                )
-                                parsing_errors.append(
-                                    {
-                                        "__id": f"error_{len(parsing_errors)}",
-                                        "__kind": "__ParsingError",
-                                        "type": "mixed_field_keys",
-                                        "object": f"[[#{current_id}]]",
-                                        "line": error_line,
-                                    }
-                                )
+                            # QMD-75: no `mixed_field_keys` here. The name means a list MIXES
+                            # valid fields with invalid keys, and this branch is the case where
+                            # there are no valid fields at all — the whole list is prose, which
+                            # is exactly how it is stored. Rust and TypeScript report nothing and
+                            # produce a byte-identical object; only Python added a diagnostic
+                            # about content it had itself read as prose. The genuine mixed case
+                            # is still reported below, where `fields` is non-empty.
                             i = scan_j + 1
                         else:
                             i = next_i
@@ -1342,7 +1602,7 @@ def parse(
                                 else token.map[1]
                             )
                             raw_list = block_tree.get_lines_raw(token.map[0], end_line).strip()
-                            if raw_list:
+                            if raw_list and not dropped_nested_subitem_list:
                                 append_comment(current_id, comment_anchor, raw_list)
                             i = scan_j + 1
                         else:
@@ -1425,16 +1685,37 @@ def parse(
                                 }
                             )
 
-                    # nested_subitems errors
-                    for ns_err in nested_subitems_errors:
+                    # QMD-71: a value that looks like a number QMD.md cannot carry. The authored
+                    # text is kept as the field's value, so nothing is lost; the error names it.
+                    for num_err in unsupported_number_errors:
                         parsing_errors.append(
                             {
                                 "__id": f"error_{len(parsing_errors)}",
                                 "__kind": "__ParsingError",
-                                "type": "nested_subitems",
-                                "field": ns_err["key"],
+                                "type": "unsupported_number_format",
+                                "field": num_err["key"],
                                 "object": f"[[#{current_id}]]",
-                                "line": ns_err["line"],
+                                "line": num_err["line"],
+                                "hint": num_err["hint"],
+                            }
+                        )
+
+                    # nested_subitems errors are emitted above, before the no-fields branches.
+
+                    # QMD-70: an indented block under a field that HAS a value. The field is
+                    # kept, the block is preserved verbatim anchored on that field, and the
+                    # error names it.
+                    for blk_err in block_in_field_errors:
+                        if blk_err["content"]:
+                            append_comment(current_id, blk_err["key"], blk_err["content"])
+                        parsing_errors.append(
+                            {
+                                "__id": f"error_{len(parsing_errors)}",
+                                "__kind": "__ParsingError",
+                                "type": "block_in_inline_field",
+                                "field": blk_err["key"],
+                                "object": f"[[#{current_id}]]",
+                                "line": blk_err["line"],
                             }
                         )
 
@@ -1476,6 +1757,15 @@ def parse(
                             pending_text_block_content.append("\n".join(list_items))
                 else:
                     i += 1
+        elif token.type == "hr" and pending_text_block_started:
+            # QMD-77 B1 (Q4): a thematic break inside a text block is content. No parser had an
+            # `hr` branch here at all, so `---` was dropped by all three — while in an OBJECT's
+            # body it survives, because a comment is a raw source slice that spans it.
+            if token.map:
+                raw_rule = block_tree.get_lines_raw(token.map[0], token.map[1]).strip()
+                if raw_rule:
+                    pending_text_block_content.append(raw_rule)
+            i += 1
         elif token.type == "table_open" and pending_text_block_started:
             # Collect table as raw markdown text for TextBlock
             if token.map:
@@ -1493,7 +1783,67 @@ def parse(
                 i = scan_j + 1
             else:
                 i += 1
-        elif token.type == "table_open" and pending_object_array:
+        elif token.type == "table_open" and pending_array_field:
+            # A table is forbidden under a PRIMITIVE array field. A primitive array holds
+            # scalars and a table has columns, so there is no defined mapping onto the field --
+            # unlike an OBJECT array (`[[field: [Kind]]]`), where one row becomes one object.
+            # Until now the table was silently dropped and the three parsers disagreed about
+            # whether the field existed at all.
+            #
+            # Handled exactly like `ordered_list_in_array`, the other construct forbidden in an
+            # array field: keep the array empty, preserve the content verbatim in `__comments`
+            # so the round trip stays lossless, and emit a `__ParsingError`.
+            parent_id, field_name = pending_array_field
+
+            # Initialize empty array and syntax (normally done by parse_array_items_from_list)
+            objects[parent_id][field_name] = []
+            if "__syntax" not in objects[parent_id]:
+                objects[parent_id]["__syntax"] = {}
+            objects[parent_id]["__syntax"][field_name] = "markdown_list"
+
+            # Capture raw content as __comments for lossless round-trip
+            scan_j = i + 1
+            while scan_j < len(tokens) and tokens[scan_j].type != "table_close":
+                scan_j += 1
+            if token.map:
+                raw_end = (
+                    tokens[scan_j].map[1]
+                    if scan_j < len(tokens) and tokens[scan_j].map
+                    else token.map[1]
+                )
+                raw_table = block_tree.get_lines_raw(token.map[0], raw_end).strip()
+                if raw_table:
+                    append_comment(parent_id, field_name, raw_table, merge=True)
+
+            # Emit table_in_array error
+            error_line = token.map[0] + 1 if token.map else None
+            parsing_errors.append(
+                {
+                    "__id": f"error_{len(parsing_errors)}",
+                    "__kind": "__ParsingError",
+                    "type": "table_in_array",
+                    "field": field_name,
+                    "object": f"[[#{parent_id}]]",
+                    "line": error_line,
+                }
+            )
+
+            pending_array_field = None
+            comment_anchor = field_name
+            i = scan_j + 1  # skip past table_close
+        elif (
+            token.type == "table_open"
+            and pending_object_array
+            # QMD-70: only the array CONTAINER's own table converts into child objects.
+            # `pending_object_array` stays set for the whole array subtree, because each
+            # sibling element still needs it, so on its own it cannot tell "table under the
+            # array heading" from "table inside one of its elements". The current object does:
+            # it is the array's parent while positioned in the container, and the element
+            # itself once an element heading has opened. Without this check a table written as
+            # ordinary content inside an element had its rows converted into sibling elements
+            # of the parent array.
+            and get_current_object_id() == pending_object_array[0]
+        ):
             # Table after [[field: [Kind]]] heading
             arr_parent_id, arr_field, arr_kind, arr_level = pending_object_array
 
@@ -1566,7 +1916,51 @@ def parse(
                 objects[obj_id] = obj
                 objects[arr_parent_id][arr_field].append(f"[[#{obj_id}]]")
 
+            array_table_consumed = (arr_parent_id, arr_field, arr_level)
             pending_object_array = None
+        elif (
+            token.type == "table_open"
+            and array_table_consumed
+            and get_current_object_id() == array_table_consumed[0]
+        ):
+            # A SECOND table under one object-array heading. The array's own table has already
+            # been consumed, so this one describes nothing: its rows cannot extend the array
+            # (they would collide on the generated local ids) and the heading declares an array,
+            # not prose. Until now it silently became the parent's comment, which also made the
+            # document impossible to rebuild faithfully -- the comment anchors on the field
+            # BEFORE the array heading, so the table moved above that heading on rebuild.
+            #
+            # Same treatment as `table_in_array` and `ordered_list_in_array`: preserve the
+            # content verbatim in `__comments` for a lossless round trip and emit an error.
+            parent_id_e, field_name_e, _ = array_table_consumed
+
+            scan_j = i + 1
+            while scan_j < len(tokens) and tokens[scan_j].type != "table_close":
+                scan_j += 1
+            if token.map:
+                raw_end = (
+                    tokens[scan_j].map[1]
+                    if scan_j < len(tokens) and tokens[scan_j].map
+                    else token.map[1]
+                )
+                raw_table = block_tree.get_lines_raw(token.map[0], raw_end).strip()
+                if raw_table:
+                    append_comment(parent_id_e, comment_anchor, raw_table, merge=True)
+
+            error_line = token.map[0] + 1 if token.map else None
+            parsing_errors.append(
+                {
+                    "__id": f"error_{len(parsing_errors)}",
+                    "__kind": "__ParsingError",
+                    "type": "extra_table_in_array",
+                    "field": field_name_e,
+                    "object": f"[[#{parent_id_e}]]",
+                    "line": error_line,
+                }
+            )
+
+            array_table_consumed = None
+            i = scan_j + 1  # skip past table_close
         elif token.type == "fence" and pending_yaml_field:
             # YAML fence after [[field: yaml]] heading
             yaml_parent_id, yaml_field_name, yaml_label = pending_yaml_field
@@ -1625,10 +2019,18 @@ def parse(
                 token.type == "table_open"
                 and (
                     comment_anchor != "__self"
+                    # QMD-75: a table at an object's own anchor is its content whenever the
+                    # heading DECLARED the object -- by a kind or by an explicit `[[id]]`.
+                    # Testing the kind alone dropped the table under a bare `[[id]]` object
+                    # (`__kind: __Object`) while keeping it under `[[id: Kind]]`, so the
+                    # author's choice to spell a kind decided whether content survived.
                     or (
-                        get_current_object_id()
-                        and objects.get(get_current_object_id(), {}).get("__kind", "")
-                        not in ("__Object", "")
+                        get_current_object_id() is not None
+                        and (
+                            objects.get(get_current_object_id(), {}).get("__kind", "")
+                            not in ("__Object", "")
+                            or "__has_explicit_id" not in objects.get(get_current_object_id(), {})
+                        )
                     )
                 )
             )
@@ -1672,6 +2074,23 @@ def parse(
                     ):
                         list_nesting -= 1
 
+                    # QMD-70: stop before a table that belongs to an object array.
+                    #
+                    # Prose between an array heading and its table must not absorb the table:
+                    # the prose is the container's comment, the table is still the array's own
+                    # content. This matches what all three parsers already do when a heading
+                    # ELEMENT follows the prose instead of a table — the prose becomes a comment
+                    # and the element still joins the array. Without this the scan swallowed the
+                    # table into the comment and left the array empty.
+                    if (
+                        scan_tok.type == "table_open"
+                        and list_nesting == 0
+                        and pending_object_array
+                        and get_current_object_id() == pending_object_array[0]
+                    ):
+                        content_end_line = scan_tok.map[0] if scan_tok.map else content_end_line
+                        break
+
                     # Stop at heading
                     if scan_tok.type == "heading_open":
                         next_level = get_heading_level(scan_tok.tag)
@@ -1691,7 +2110,14 @@ def parse(
                                     scan_tok.map[0] if scan_tok.map else content_end_line
                                 )
                                 break
-                        # Nested heading without [[id]] - include in comment
+                        # QMD-71: a nested heading WITHOUT [[id]] is a comment heading, and the
+                        # format says it groups with the content BELOW it ("they and all content
+                        # below them", docs/format/comments.qmd.md). Swallowing it here also
+                        # advanced the token index past it, so the comment-heading handler never
+                        # saw it and the heading was glued to the text ABOVE instead. Stop, and
+                        # let that handler slice from the heading.
+                        content_end_line = scan_tok.map[0] if scan_tok.map else content_end_line
+                        break
 
                     # Stop at field list (only at top level)
                     # Check FIRST item - if field, whole list is field list
@@ -1894,18 +2320,38 @@ def parse(
             else:
                 current_id = get_current_object_id()
                 if current_id and comment_anchor == "__self":
-                    # Ordered list before fields - add as comment
-                    list_items: list[str] = []
-                    item_num = 1
-                    i += 1  # skip ordered_list_open
-                    while i < len(tokens) and tokens[i].type != "ordered_list_close":
-                        if tokens[i].type == "inline":
-                            list_items.append(f"{item_num}. {tokens[i].content}")
-                            item_num += 1
-                        i += 1
-                    i += 1  # skip ordered_list_close
-                    if list_items:
-                        append_comment(current_id, comment_anchor, "\n".join(list_items))
+                    # Ordered list before fields - add as comment.
+                    #
+                    # QMD-71: raw slice, like the two sibling cases below already do. Rebuilding the
+                    # list from its `inline` tokens flattened any NESTED list into the outer one and
+                    # renumbered it, so `1. First:` with indented `- a` / `- b` under it came out as
+                    # `1. First:` / `2. a` / `3. b` — indentation and bullet markers gone, and two
+                    # items that were never numbered given numbers. Rust and TypeScript slice here.
+                    if token.map:
+                        scan_j = i + 1
+                        while scan_j < len(tokens) and tokens[scan_j].type != "ordered_list_close":
+                            scan_j += 1
+                        end_line = (
+                            tokens[scan_j].map[1]
+                            if scan_j < len(tokens) and tokens[scan_j].map
+                            else token.map[1]
+                        )
+                        raw_list = block_tree.get_lines_raw(token.map[0], end_line).strip()
+                        if raw_list:
+                            append_comment(current_id, comment_anchor, raw_list)
+                        i = scan_j + 1
+                    else:
+                        list_items: list[str] = []
+                        item_num = 1
+                        i += 1  # skip ordered_list_open
+                        while i < len(tokens) and tokens[i].type != "ordered_list_close":
+                            if tokens[i].type == "inline":
+                                list_items.append(f"{item_num}. {tokens[i].content}")
+                                item_num += 1
+                            i += 1
+                        i += 1  # skip ordered_list_close
+                        if list_items:
+                            append_comment(current_id, comment_anchor, "\n".join(list_items))
                 elif current_id and comment_anchor and comment_anchor != "__self":
                     # Ordered list after fields (e.g. trailing ordered list
                     # after array) — single merged comment
@@ -1985,11 +2431,8 @@ def parse(
                 )
                 fence_lines = fence_text.count("\n") + 1
 
-                # Calculate offset within content (0-based line number)
-                existing_content = "\n\n".join(pending_text_block_content)
-                offset_line = (
-                    0 if not existing_content else existing_content.count("\n") + 2
-                )  # +2 for blank line separator
+                # The offset is taken when the block is emitted, against its first line (QMD-77).
+                fence_line = (token.map[0] + 1) if token.map else 1
 
                 # Initialize text block if needed
                 if not pending_text_block_started:
@@ -1999,7 +2442,7 @@ def parse(
 
                 # Add code fence metadata
                 pending_code_fences.append(
-                    {"lang": lang, "offset_line": offset_line, "length_lines": fence_lines}
+                    {"lang": lang, "start_line": fence_line, "length_lines": fence_lines}
                 )
 
                 # Add code fence text to pending text block
@@ -2010,17 +2453,26 @@ def parse(
         else:
             i += 1
 
+    # A document with no heading: all of it is the text above the first heading.
+    if not leading_text_done:
+        leading_start = _leading_text_start(source_lines, len(source_lines) + 1)
+        if leading_start is not None:
+            pending_text_block_started = True
+            pending_text_block_line = leading_start
+
     # Handle any remaining pending text block at end of file
-    if pending_text_block_started and pending_text_block_content:
+    if pending_text_block_started:
         text_block_id = f"text_{text_block_counter}"
         tb: dict[str, Any] = {
             "__id": text_block_id,
             "__kind": "__TextBlock",
-            "content": "\n\n".join(pending_text_block_content),
+            "content": _text_block_source(
+                source_lines, pending_text_block_line, len(source_lines) + 1
+            ),
             "__line": pending_text_block_line,
         }
         if pending_code_fences:
-            tb["__code_fences"] = list(pending_code_fences)
+            tb["__code_fences"] = _rebased_fences(pending_code_fences, pending_text_block_line)
         text_blocks.append(tb)
         content_order.append(text_block_id)
 
@@ -2037,6 +2489,14 @@ def parse(
     if FEATURE_POSITIONS in active_features:
         lines = markdown.split("\n")
         _extract_field_positions(objects, lines)
+        # QMD-75: a duplicate id moves the FIRST occurrence out of `objects` so the second can
+        # parse in its place, and it was then never visited here -- the first of two colliding
+        # objects came back with no `__positions` at all, while Rust and TypeScript both keep
+        # them. It is still output, so its LSP positions must be filled too.
+        if duplicate_objects:
+            _extract_field_positions(
+                {f"__dup_{n}": obj for n, obj in enumerate(duplicate_objects)}, lines
+            )
 
     # Build result list
     result: list[dict[str, Any]] = []

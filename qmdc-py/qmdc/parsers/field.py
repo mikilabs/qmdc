@@ -1,5 +1,6 @@
 """Field parser - extracts fields from list items."""
 
+import math
 import re
 from typing import Any
 
@@ -9,6 +10,47 @@ from markdown_it.token import Token
 _FIELD_PATTERN = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(.*)$", re.DOTALL)
 _INVALID_FIELD_LIKE_PATTERN = re.compile(r"^([^:]+):\s+(.*)$", re.DOTALL)
 _VALID_KEY_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+# QMD-71: the numeric grammar, decided for the format: an integer or a decimal, nothing else.
+# Everything that used to slip through Python's own `int()`/`float()` -- exponents, a leading or
+# trailing dot, a unary plus, digit separators -- is a string. Same pattern in all three parsers.
+_NUMBER_PATTERN = re.compile(r"^-?[0-9]+(\.[0-9]+)?$")
+# The largest integer magnitude read as a number: 2^53 - 1, the point up to which every integer
+# survives a round trip through an IEEE-754 double. Same constant in the Rust and TypeScript
+# parsers.
+_MAX_EXACT_INTEGER = 9007199254740991
+# The smallest non-zero decimal magnitude that every host writes WITHOUT an exponent. QMD.md's
+# numeric grammar has no exponent form, so a smaller value could not be written back as a number
+# at all -- and the three hosts disagree on where they switch and how they pad the exponent.
+_MIN_PLAIN_DECIMAL = 1e-4
+# Numeric-looking shapes QMD.md does not define. Each one was measured to be accepted by at least
+# one host language and refused by another, which is how they diverged in the first place. Ordinary
+# strings must not match: `2026-09-24`, `12:30:00`, `1.0.2` and `1 000` all fall through.
+#
+# Every digit class here is written `[0-9]`, never `\d`: Python's `\d` matches Unicode decimal
+# digits, so a fullwidth `３` or an Arabic-Indic `٥` would be a number here and a string in the
+# other two parsers, which is exactly the kind of divergence this task exists to remove.
+_UNSUPPORTED_NUMBER_SHAPES = re.compile(
+    r"^(?:"
+    r"[+-]?[0-9]+\.?[0-9]*[eE][+-]?[0-9]+"  # exponent: 1e5, 1.5e-3, 2E3
+    r"|[+-]?\.[0-9]+"  # leading dot: .5
+    r"|[+-]?[0-9]+\."  # trailing dot: 5.
+    r"|\+[0-9]+(?:\.[0-9]+)?"  # unary plus: +1, +1.5
+    r"|[+-]?0[xXoObB][0-9a-fA-F]+"  # other bases: 0x1f, 0o17
+    r")$"
+)
+# Digit separators are checked separately, because the shape also matches a plain integer.
+_SEPARATOR_NUMBER = re.compile(r"^[+-]?[0-9][0-9_]*(\.[0-9_]+)?$")
+# What to write instead, carried on the error so every surface that renders an error's detail fields
+# shows it. Neither text contains a comma: the CLI, the workspace reporters and the LSP all join an
+# error's fields with ", ", so a comma inside one would read as another field. Byte-identical in all
+# three parsers, and the range hint cites the bounds above rather than repeating their digits.
+_UNSUPPORTED_SHAPE_HINT = (
+    "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
+)
+_UNSUPPORTED_RANGE_HINT = (
+    f"magnitude outside {_MIN_PLAIN_DECIMAL:g}..{_MAX_EXACT_INTEGER}"
+    " (quote the value to keep it as text)"
+)
 
 
 def parse_yaml_array(value_str: str) -> tuple[list[Any], dict[str, str]]:
@@ -65,6 +107,74 @@ def _split_yaml_array(s: str) -> list[str]:
     return result
 
 
+def _parse_supported_number(value: str) -> int | float | None:
+    """
+    Parse a value as a number, or return None when QMD.md cannot carry it.
+
+    The single place the numeric bounds live, so `unsupported_number_hint` cannot drift from it.
+    """
+    if not _NUMBER_PATTERN.match(value):
+        return None
+    if "." not in value:
+        # QMD-71: an integer is a number only while it survives a round trip through an IEEE-754
+        # double, which is all an interoperable JSON reader promises. Python would happily carry an
+        # arbitrary-precision integer the other two cannot represent -- TypeScript already rounds
+        # i64 max -- so a longer literal stays the authored string.
+        #
+        # The digit-count guard comes BEFORE `int()` because CPython refuses to convert a string of
+        # more than 4300 digits at all (`ValueError`, sys.set_int_max_str_digits). The old code
+        # wrapped the conversion in `try/except ValueError`, which absorbed that; checking the
+        # grammar first made the except look redundant and removing it turned a long digit run into
+        # a crash. 16 digits cannot exceed 2^53-1 by more than the bound check catches, so this is a
+        # cheap pre-filter, not a second bound.
+        if len(value.lstrip("-")) > 16:
+            return None
+        number: int | float = int(value)
+        return number if abs(number) <= _MAX_EXACT_INTEGER else None
+    # The upper bound applies to a decimal too, and it earns its place twice over: beyond it the
+    # three JSON writers disagree on the SPELLING of the same double (Python and Rust reach for
+    # exponent form where JavaScript prints all the digits), so stopping here removes that whole
+    # class rather than chasing it. It also excludes a literal long enough to overflow, which
+    # `json.dumps` would write as a bare `Infinity` -- not valid JSON at all. The lower bound is the
+    # same argument from the other end: below it every host switches to exponent form, and the
+    # grammar has no spelling for that.
+    number = float(value)
+    if not math.isfinite(number) or abs(number) > _MAX_EXACT_INTEGER:
+        return None
+    if number != 0 and abs(number) < _MIN_PLAIN_DECIMAL:
+        return None
+    return number
+
+
+def unsupported_number_hint(value_str: str) -> str | None:
+    """
+    What to write instead, when a value LOOKS like a number but QMD.md cannot carry it. None when
+    the value is fine.
+
+    Returns the hint rather than a bool because "is this unsupported" and "why" are the SAME
+    decision: the branch that rejects a value is the branch that knows which of the two groups it
+    fell into. Two functions would be two places to drift.
+
+    Two groups, both reported as `unsupported_number_format` rather than silently becoming strings:
+    a shape the format does not define (`1e5`, `.5`, `+1`, `1_000`, `0x1f`), and a shape it does
+    define carrying a magnitude outside the range it can represent and write back.
+
+    Ordinary strings must never match -- `2026-09-24`, `12:30:00`, `1.0.2`, `1 000` are values, not
+    failed numbers.
+    """
+    value = value_str.strip()
+    if _NUMBER_PATTERN.match(value):
+        # A supported shape, so only the magnitude bounds can reject it.
+        if _parse_supported_number(value) is not None:
+            return None
+        return _UNSUPPORTED_RANGE_HINT
+    if "_" in value and _SEPARATOR_NUMBER.match(value):
+        return _UNSUPPORTED_SHAPE_HINT
+    if _UNSUPPORTED_NUMBER_SHAPES.match(value):
+        return _UNSUPPORTED_SHAPE_HINT
+    return None
+
+
 def parse_field_value(value_str: str) -> tuple[Any, str]:
     """
     Parse field value and auto-detect type.
@@ -116,15 +226,10 @@ def parse_field_value(value_str: str) -> tuple[Any, str]:
     if value == "false":
         return False, "boolean"
 
-    # number (int or float)
-    try:
-        # Try int first
-        if "." not in value:
-            return int(value), "number"
-        # Then float
-        return float(value), "number"
-    except ValueError:
-        pass
+    # number (int or float) -- an integer or a decimal only, per _NUMBER_PATTERN
+    parsed_number = _parse_supported_number(value)
+    if parsed_number is not None:
+        return parsed_number, "number"
 
     # string (default) - remove quotes if present
     if (value.startswith('"') and value.endswith('"')) or (
@@ -150,6 +255,9 @@ def parse_fields_from_list(
                    that look like fields but have invalid keys (e.g. Cyrillic).
                    "after" is the last valid field key before this item, or "__self".
     nested_subitems_errors: list of {"key": str, "line": int} for fields with nested sub-items
+    wrapped_value_errors: list of {"key": str, "line": int} for values continued on a second line
+    unsupported_number_errors: list of {"key": str, "line": int, "hint": str} for values that look
+                   like a number QMD.md cannot carry (see `unsupported_number_hint`)
                            (pattern `- key:\n  - item` which is forbidden).
     """
     fields: dict[str, Any] = {}
@@ -157,6 +265,12 @@ def parse_fields_from_list(
     syntax: dict[str, str] = {}
     invalid_items: list[dict[str, Any]] = []
     nested_subitems_errors: list[dict[str, Any]] = []
+    wrapped_value_errors: list[dict[str, Any]] = []
+    # QMD-70: fields with a NON-empty value followed by an indented block.
+    # {"key": str, "line": int, "content": str}
+    block_in_field_errors: list[dict[str, Any]] = []
+    # QMD-71: fields whose value looks like a number QMD.md cannot carry. {"key": str, "line": int}
+    unsupported_number_errors: list[dict[str, Any]] = []
     i = start_idx
 
     # Pattern: `- key: value` or `- key:value` (with DOTALL for multiline values)
@@ -326,6 +440,17 @@ def parse_fields_from_list(
                         last_valid_field = key
                         continue
 
+                # QMD-77 A2: a field value is written on ONE line. A continuation line was read
+                # three different ways — Rust joined with a space, Python with a newline,
+                # TypeScript kept only the first line and dropped the rest in silence — so the same
+                # document carried three different values. The value is now the authored first line
+                # in all three and the continuation is reported. The legal multiline forms are
+                # untouched: YAML pipe (`key: |`) returned above, and a multiline YAML array opens
+                # with `[`.
+                if "\n" in value_str and not value_str.lstrip().startswith("["):
+                    wrapped_value_errors.append({"key": key, "line": current_line + 1})
+                    value_str = value_str.split("\n", 1)[0].rstrip()
+
                 if raw_strings:
                     fields[key] = value_str
                     types[key] = "string"
@@ -335,6 +460,14 @@ def parse_fields_from_list(
                     fields[key] = value
                     types[key] = "array" if type_name == "ref_array" else type_name
                     last_valid_field = key
+
+                    # QMD-71: a value that looks like a number QMD.md cannot carry is kept as the
+                    # authored text -- nothing is lost -- and reported, so the author is told the
+                    # spelling is unsupported instead of silently receiving a string.
+                    if (number_hint := unsupported_number_hint(value_str)) is not None:
+                        unsupported_number_errors.append(
+                            {"key": key, "line": current_line, "hint": number_hint}
+                        )
 
                     # Track syntax for arrays
                     if type_name == "ref_array":
@@ -384,6 +517,84 @@ def parse_fields_from_list(
                             del types[key]
                         i = lookahead
                         continue
+
+                # QMD-70: a field with a NON-EMPTY value followed by an indented BLOCK.
+                #
+                # `nested_subitems` above covers the empty-value form (`- key:` then indented
+                # items). This is the other one: `- key: value`, a blank line, then an indented
+                # table / list / paragraph / quote / fence. An inline field holds a scalar and has
+                # no content of its own, so the block belongs to nothing — and all three parsers
+                # mangled it differently, each applying whichever nearby rule it had. Python and
+                # TypeScript turned every block into list items (a table became its cell texts, a
+                # paragraph gained a `- ` prefix); Rust appended prose straight into the field's
+                # value with no separator (`something` + `quoted` = `somethingquoted`) and lost the
+                # field entirely for an indented list.
+                #
+                # Keep the field, preserve the block verbatim (dedented) as a comment anchored on
+                # the field, and report it — the shape `table_in_array` and `ordered_list_in_array`
+                # already use.
+                # A YAML BLOCK SCALAR header is not a value with a block after it — the block IS
+                # the value. Any of `|`, `|-`, `|+`, `>`, `>-`, `>+`, optionally with an
+                # indentation indicator (`|2`), counts. Recognising only bare `|` and `>` reported
+                # a valid `- key: |-` with a blank line inside as an error.
+                # The value may already carry the block's continuation lines, so match the
+                # header at the START rather than the whole string.
+                is_block_scalar = bool(re.match(r"^[|>][+-]?\d*(\n|$)", value_str.strip()))
+                if value_str != "" and not is_block_scalar and i + 1 < len(tokens):
+                    lookahead = i + 1
+                    while lookahead < len(tokens) and tokens[lookahead].type == "paragraph_close":
+                        lookahead += 1
+                    block_openers = (
+                        "table_open",
+                        "bullet_list_open",
+                        "ordered_list_open",
+                        "blockquote_open",
+                        "paragraph_open",
+                        "fence",
+                        "hr",
+                    )
+                    if lookahead < len(tokens) and tokens[lookahead].type in block_openers:
+                        block_tok = tokens[lookahead]
+                        block_line = (block_tok.map[0] + 1) if block_tok.map else current_line
+                        # Raw slice of the block, with the list indentation removed so the three
+                        # parsers agree regardless of how each one reaches the text.
+                        raw_block = ""
+                        if block_tree is not None and block_tok.map:
+                            raw_block = block_tree.get_lines_raw(block_tok.map[0], block_tok.map[1])
+                            block_lines = raw_block.split("\n")
+                            indents = [
+                                len(ln) - len(ln.lstrip()) for ln in block_lines if ln.strip()
+                            ]
+                            if indents:
+                                strip_n = min(indents)
+                                block_lines = [
+                                    ln[strip_n:] if len(ln) >= strip_n else ln for ln in block_lines
+                                ]
+                            raw_block = "\n".join(block_lines).strip()
+                        # Skip past the whole block
+                        closer = (
+                            block_tok.type.replace("_open", "_close")
+                            if block_tok.type.endswith("_open")
+                            else None
+                        )
+                        if closer:
+                            depth = 0
+                            while lookahead < len(tokens):
+                                if tokens[lookahead].type == block_tok.type:
+                                    depth += 1
+                                elif tokens[lookahead].type == closer:
+                                    depth -= 1
+                                    if depth == 0:
+                                        lookahead += 1
+                                        break
+                                lookahead += 1
+                        else:
+                            lookahead += 1
+                        block_in_field_errors.append(
+                            {"key": key, "line": block_line, "content": raw_block}
+                        )
+                        i = lookahead
+                        continue
             else:
                 # Not a valid field - check if it looks like a field with invalid key
                 invalid_match = invalid_field_like_pattern.match(first_line)
@@ -417,10 +628,22 @@ def parse_fields_from_list(
         # Unknown token, skip
         i += 1
 
-    return fields, types, syntax, invalid_items, i, nested_subitems_errors
+    return (
+        fields,
+        types,
+        syntax,
+        invalid_items,
+        i,
+        nested_subitems_errors,
+        block_in_field_errors,
+        unsupported_number_errors,
+        wrapped_value_errors,
+    )
 
 
-def parse_array_items_from_list(tokens: list[Token], start_idx: int) -> tuple[list[Any], int]:
+def parse_array_items_from_list(
+    tokens: list[Token], start_idx: int
+) -> tuple[list[Any], int, list[dict[str, Any]]]:
     """
     Parse list items as array elements (no key: prefix).
 
@@ -428,10 +651,15 @@ def parse_array_items_from_list(tokens: list[Token], start_idx: int) -> tuple[li
     Only bullet lists reach this function — ordered lists are intercepted
     by the parser and emitted as ordered_list_in_array errors.
 
+    QMD-77 A2: an array ELEMENT is a value, so it is written on one line too. A continuation was
+    joined with a space by Rust and kept with a newline by the other two; it is now cut back to the
+    authored line and reported.
+
     Returns:
-        (items_list, next_index)
+        (items_list, next_index, wrapped_value_errors)
     """
     items: list[Any] = []
+    wrapped_value_errors: list[dict[str, Any]] = []
     i = start_idx
     nesting = 0
 
@@ -462,10 +690,13 @@ def parse_array_items_from_list(tokens: list[Token], start_idx: int) -> tuple[li
             continue
         if token.type == "inline":
             content = token.content.strip()
+            if "\n" in content and not content.lstrip().startswith("["):
+                wrapped_value_errors.append({"line": (token.map[0] + 2) if token.map else 0})
+                content = content.split("\n", 1)[0].rstrip()
             value, _ = parse_field_value(content)
             items.append(value)
             i += 1
             continue
         i += 1
 
-    return items, i
+    return items, i, wrapped_value_errors

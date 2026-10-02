@@ -1,0 +1,14 @@
+{
+  "diagnostics": [
+    {
+      "file": "doc.qmd.md",
+      "line": 5,
+      "code": "table_in_array",
+      "message": "table_in_array: field: tags, object: [[#doc]]",
+      "severity": "error"
+    }
+  ],
+  "count": 1,
+  "truncated": false,
+  "success": true
+}

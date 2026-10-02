@@ -35,7 +35,7 @@
     "__references": [
       {
         "target": "#Table.users",
-        "type": "kind",
+        "type": "namespace",
         "line": 7,
         "start_col": 14,
         "end_col": 30,

@@ -1,0 +1,48 @@
+[
+  {
+    "__id": "team",
+    "__label": "Team",
+    "__kind": "Team",
+    "members": [
+      "[[#team.members.alice]]",
+      "[[#team.members.bob]]"
+    ],
+    "__syntax": {
+      "members": "headers"
+    },
+    "__level": 2,
+    "__labels": {
+      "members": "Members"
+    }
+  },
+  {
+    "__id": "team.members.alice",
+    "__local_id": "alice",
+    "__label": "Alice",
+    "__kind": "User",
+    "__parent": "[[#team]]",
+    "__parent_field": "members",
+    "__comments": [
+      {
+        "after": "role",
+        "content": "| col_a | col_b |\n|-------|-------|\n| r1 | v1 |"
+      }
+    ],
+    "role": "admin",
+    "__types": {
+      "role": "string"
+    }
+  },
+  {
+    "__id": "team.members.bob",
+    "__local_id": "bob",
+    "__label": "Bob",
+    "__kind": "User",
+    "__parent": "[[#team]]",
+    "__parent_field": "members",
+    "role": "dev",
+    "__types": {
+      "role": "string"
+    }
+  }
+]

@@ -1,0 +1,1 @@
+query -w ./deep/checkout/alpha_dir -w ./beta_dir #cli72_b2_files --format json

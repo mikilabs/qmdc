@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "obj",
+    "__label": "Obj",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "name",
+        "content": "- sub1\n- sub2"
+      }
+    ],
+    "name": "hello",
+    "__types": {
+      "name": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "block_in_inline_field",
+    "field": "name",
+    "object": "[[#obj]]",
+    "line": 5
+  }
+]

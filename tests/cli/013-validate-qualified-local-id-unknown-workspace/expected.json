@@ -1,0 +1,13 @@
+[
+  {
+    "type": "broken_link",
+    "message": "Object 'postgres' not found. Did you mean [[#arch:system.data.postgres]]?",
+    "file": "consumer/commerce.qmd.md",
+    "line": 12,
+    "objectId": "commerce",
+    "fieldName": null,
+    "reference": "[[#no_such_ws:arch:postgres]]",
+    "candidates": null,
+    "severity": "error"
+  }
+]

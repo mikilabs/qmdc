@@ -79,6 +79,20 @@ Subheadings without `[[field_id]]` inside an object are comment headings — the
 
 Subheadings with `[[field_id]]` are structural elements that create fields, nested objects, or arrays.
 
+A field's value is the source text as WRITTEN, character for character. Markdown inside it is not
+interpreted, normalised or re-rendered: `__x__` stays `__x__` and does not become `**x**`, an escape
+keeps its backslash, an entity keeps its `&name;` form, inline HTML keeps its tags, and a link keeps
+its title. This is what makes a read followed by a write leave the document unchanged — a value
+rebuilt from parsed Markdown would come back in whatever form the renderer prefers, which for half
+the constructs is not the form the author chose.
+
+A field's value is also written on ONE line. A continuation line — the value carried on an indented
+second line of the same list item — is not part of the value: it raises `wrapped_field_value`, and the
+value is the authored first line. The same holds for an element of a `[[field: array]]` list. The two
+legal multiline forms stay legal, because both announce themselves on the first line: YAML pipe
+(`- key: |`) and a YAML array whose bracket opens the value (`- key: [`). Write a long value with the
+pipe form, or move it to a heading-syntax text field.
+
 ## YAML Multiline Strings [[yaml_multiline: text]]
 
 Fields support YAML pipe syntax for multiline strings:
@@ -104,5 +118,5 @@ Heading-syntax fields (`text`, `array`, `yaml`, `json`, `object_array`) require 
 - References `[[#id]]` in text fields are validated for existence but remain as text (not resolved into objects)
 - References in YAML pipe blocks are not parsed at all
 - References inside inline code and `example`-modified code fences are not parsed
-- Nested lists `- key:\n  - item` are forbidden (`nested_subitems` error). Use YAML arrays or heading-syntax instead.
+- Nested lists `- key:\n  - item` are forbidden (`nested_subitems` error). Use YAML arrays or heading-syntax instead. An indented sub-item is never a field, whatever its own text looks like: `- AMBIGUOUS: text` under `- issues:` does not become an `AMBIGUOUS` field, it is part of the forbidden construct. The parent key is dropped, the construct is dropped, one error names the parent key at its line, and a comment that followed re-anchors on the last surviving field or on `__self` — never on the key that was removed. This holds whether or not the object has other fields.
 - Map fields (`[[field: map]]`) accept only bullet lists with `- key: value` pairs. All values are strings (no type auto-detection).

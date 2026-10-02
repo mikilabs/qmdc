@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from qmdc.workspace import parse_workspace, scan_workspace
+from qmdc import parse_workspace, scan_workspace
 
 # Root directory for workspace microtests
 WORKSPACE_TESTS_ROOT = Path(__file__).parent.parent.parent / "tests/workspace"
@@ -540,4 +540,133 @@ def test_qmd59_walkup_relative_dot_resolves_parent_workspace(parser: str):
     assert resolved_ids == {"walkup_ws"}, (
         f"{parser}: query '.' from a workspace subdir must walk UP and resolve "
         f"'walkup_ws', got: {sorted(resolved_ids)}"
+    )
+
+
+@pytest.mark.parametrize("parser", ["rust", "python", "typescript"])
+def test_qmd77_unreadable_directory_keeps_readable_files(parser: str, tmp_path):
+    """QMD-77 D1: a scan that meets a directory it cannot read skips it and returns
+    everything else.
+
+    TypeScript's scanWorkspace let an uncaught EACCES escape, so ONE unreadable
+    subdirectory cost the whole result -- not a single readable file came back --
+    where Rust, Python and `git` itself skip the directory and carry on.
+
+    Built at runtime rather than committed: git stores no `chmod 000` directory, and
+    a fixture that carried one would be readable again on checkout.
+    """
+    import os
+    import subprocess
+
+    if os.geteuid() == 0:
+        pytest.skip("running as root: mode 000 does not deny access, so the case cannot be posed")
+
+    root_dir = Path(__file__).parent.parent.parent
+    (tmp_path / "readme.qmd.md").write_text(
+        "# WS [[qmd77_d1: __Workspace]]\n\n## Top [[top]]\n\n- v: 1\n", encoding="utf-8"
+    )
+    (tmp_path / "second.qmd.md").write_text("## Second [[second]]\n\n- v: 2\n", encoding="utf-8")
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    (locked / "hidden.qmd.md").write_text("## Hidden [[hidden]]\n\n- v: 3\n", encoding="utf-8")
+    locked.chmod(0o000)
+
+    parser_path = {
+        "rust": root_dir / "bin/qmdc-rs",
+        "python": root_dir / "bin/qmdc-py",
+        "typescript": root_dir / "bin/qmdc-ts",
+    }[parser]
+    if not parser_path.exists():
+        pytest.fail(f"{parser} parser wrapper not found at {parser_path}")
+
+    try:
+        result = subprocess.run(
+            [str(parser_path), "workspace", "parse", str(tmp_path)],
+            capture_output=True,
+            text=True,
+            cwd=root_dir,
+        )
+    finally:
+        locked.chmod(0o755)
+
+    assert result.stdout.strip(), (
+        f"{parser}: an unreadable subdirectory must not empty the result "
+        f"(stderr: {result.stderr.strip()[:300]!r})"
+    )
+    payload = json.loads(result.stdout)
+    objects = payload.get("objects", payload if isinstance(payload, list) else [])
+    ids = {o.get("__id") for o in objects}
+    assert {"qmd77_d1", "top", "second"} <= ids, (
+        f"{parser}: the readable files must still be parsed, got ids {sorted(i for i in ids if i)}"
+    )
+    assert "hidden" not in ids, f"{parser}: the unreadable directory must be skipped, not read"
+
+
+@pytest.mark.parametrize("parser", ["rust", "python", "typescript"])
+def test_qmd77_workspace_parse_envelope(parser: str, tmp_path):
+    """QMD-77 C6: the `workspace parse` envelope is pinned, not merely agreed on.
+
+    QMD-75 aligned the envelope across the three parsers -- `index` with snake_case
+    sub-keys, the `errors` block's key names, `workspaces` as `{id, root, path}` --
+    and nothing asserted any of it, so the next divergence in the envelope would
+    have been invisible to the suite. QMD-77 C3 then renamed the error's owning
+    object to `objectId`/`fieldName`, the names `workspace validate` already used;
+    this test is what keeps both commands answering with one vocabulary.
+    """
+    import json
+    import subprocess
+
+    root_dir = Path(__file__).parent.parent.parent
+    (tmp_path / "readme.qmd.md").write_text(
+        "# WS [[qmd77_c6: __Workspace]]\n\n- description: envelope\n", encoding="utf-8"
+    )
+    # A file that carries a text block AND a parsing error, so the envelope is exercised whole.
+    (tmp_path / "one.qmd.md").write_text(
+        "Intro prose.\n\n# A [[a: Thing]]\n\n- x: 1\n- Bad Key: 2\n", encoding="utf-8"
+    )
+
+    parser_path = {
+        "rust": root_dir / "bin/qmdc-rs",
+        "python": root_dir / "bin/qmdc-py",
+        "typescript": root_dir / "bin/qmdc-ts",
+    }[parser]
+    if not parser_path.exists():
+        pytest.fail(f"{parser} parser wrapper not found at {parser_path}")
+
+    result = subprocess.run(
+        [str(parser_path), "workspace", "parse", str(tmp_path)],
+        capture_output=True,
+        text=True,
+        cwd=root_dir,
+    )
+    assert result.stdout.strip(), f"{parser}: no output (stderr: {result.stderr.strip()[:300]!r})"
+    env = json.loads(result.stdout)
+
+    assert {"root", "files", "objects", "index", "errors", "workspaces"} <= set(env), (
+        f"{parser}: envelope is missing a top-level key, got {sorted(env)}"
+    )
+
+    index = env["index"]
+    assert {"by_global_id", "by_kind", "by_file"} <= set(index), (
+        f"{parser}: `index` sub-keys must be snake_case, got {sorted(index)}"
+    )
+    assert "byGlobalId" not in index, f"{parser}: `index` must not carry a camelCase alias"
+
+    for ws in env["workspaces"]:
+        assert {"id", "root", "path"} == set(ws), (
+            f"{parser}: each `workspaces` entry is {{id, root, path}}, got {sorted(ws)}"
+        )
+
+    errors = env["errors"]
+    assert errors, f"{parser}: the fixture carries a mixed_field_keys error, none reported"
+    keys = set(errors[0])
+    assert {"type", "message", "file", "line", "severity"} <= keys, (
+        f"{parser}: an envelope error carries type/message/file/line/severity, got {sorted(keys)}"
+    )
+    assert "objectId" in keys, (
+        f"{parser}: an envelope error names its object as `objectId`, the key "
+        f"`workspace validate` uses, got {sorted(keys)}"
+    )
+    assert "object" not in keys and "field" not in keys, (
+        f"{parser}: the pre-QMD-77 spellings `object`/`field` must be gone, got {sorted(keys)}"
     )

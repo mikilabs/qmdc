@@ -1,0 +1,17 @@
+{
+  "workspace_id": "qmd73_anchoring",
+  "files": [
+    "readme.qmd.md",
+    "src/top.qmd.md"
+  ],
+  "objects": {
+    "Thing": [
+      "src_top"
+    ],
+    "__Workspace": [
+      "qmd73_anchoring"
+    ]
+  },
+  "errors": [],
+  "_comment": "QMD-73: `files` is what `git ls-files --others --exclude-standard` keeps when this .qmdcignore is installed as .gitignore."
+}

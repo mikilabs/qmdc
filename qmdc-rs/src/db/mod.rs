@@ -491,25 +491,40 @@ impl QmdcDatabase {
     }
 
     /// Resolve a target reference and insert an edge if the target exists.
-    /// If the target doesn't exist as an object but contains a dot, try field-level resolution:
-    /// split on last dot, check if prefix is an object and suffix is a field on it.
+    ///
+    /// `target_ref` is the FULL reference target with its qualifiers (`ws:ns:id`,
+    /// `ws::id`, `ns:id` or `id`), parsed here by the one shared grammar so the graph
+    /// and the validator cannot disagree (QMD-69).
+    ///
+    /// If the target doesn't exist as an object but its id contains a dot, try
+    /// field-level resolution: split the ID on its last dot, check if the prefix is an
+    /// object and the suffix a field on it.
     fn resolve_and_insert_edge(
         &self,
         source_id: &str,
         field: &str,
-        target_id: &str,
+        target_ref: &str,
         workspace: &str,
         namespace: &str,
         edge_type: Option<&str>,
     ) -> SqliteResult<()> {
-        if let Some(tgid) = self.resolve_target_global_id(target_id, workspace, namespace)? {
+        let (ref_ws, ref_ns, ref_id) =
+            crate::core::reference_scan::parse_reference_target(target_ref);
+        let ref_ws = ref_ws.as_deref();
+        let ref_ns = ref_ns.as_deref();
+
+        if let Some(tgid) =
+            self.resolve_target_global_id(&ref_id, ref_ws, ref_ns, workspace, namespace)?
+        {
             self.insert_edge(source_id, field, &tgid, edge_type)?;
-        } else if target_id.contains('.') {
-            // Field-level resolution: try splitting on last dot
-            if let Some(last_dot) = target_id.rfind('.') {
-                let obj_part = &target_id[..last_dot];
-                let field_part = &target_id[last_dot + 1..];
-                if let Some(tgid) = self.resolve_target_global_id(obj_part, workspace, namespace)? {
+        } else if ref_id.contains('.') {
+            // Field-level resolution: split the ID (never the qualifiers) on the last dot.
+            if let Some(last_dot) = ref_id.rfind('.') {
+                let obj_part = &ref_id[..last_dot];
+                let field_part = &ref_id[last_dot + 1..];
+                if let Some(tgid) =
+                    self.resolve_target_global_id(obj_part, ref_ws, ref_ns, workspace, namespace)?
+                {
                     self.insert_edge_with_target_field(
                         source_id, field, &tgid, edge_type, field_part,
                     )?;
@@ -624,10 +639,10 @@ impl QmdcDatabase {
 
             if single_ref_re.is_match(val) || multi_ref_re.is_match(val) {
                 for cap in ref_extract_re.captures_iter(val) {
-                    let inner = &cap[1];
-                    let target_id = inner.split(':').next_back().unwrap_or("");
-                    if !target_id.is_empty() {
-                        edges.push((key.to_string(), target_id.to_string()));
+                    // QMD-69: keep the FULL reference target, qualifiers included.
+                    let target_ref = cap[1].trim();
+                    if !target_ref.is_empty() {
+                        edges.push((key.to_string(), target_ref.to_string()));
                     }
                 }
             } else {
@@ -642,72 +657,132 @@ impl QmdcDatabase {
         }
     }
 
-    /// Resolve target __global_id from target __id
-    /// First tries same workspace/namespace, then searches all workspaces
+    /// Resolve a target `__global_id` from a parsed reference target (QMD-69).
+    ///
+    /// Each qualifier present narrows the search; the search NEVER widens past the
+    /// referring object's own workspace unless the reference names one. There is no
+    /// "any workspace" fallback: a cross-workspace reference must be qualified, and an
+    /// unresolvable or ambiguous target yields `None`, so no edge is built. That is what
+    /// keeps the graph and `qmdc workspace validate` in agreement.
+    ///
+    /// * `ref_workspace` / `ref_namespace` — the qualifiers as written, if any.
+    ///   `ref_namespace == Some("")` is the ELIDED form `ws::id`: any namespace of the
+    ///   named workspace, ambiguous if more than one candidate matches.
+    /// * `workspace` / `namespace` — the referring object's own position, used when a
+    ///   qualifier is absent.
     fn resolve_target_global_id(
         &self,
         target_id: &str,
+        ref_workspace: Option<&str>,
+        ref_namespace: Option<&str>,
         workspace: &str,
         namespace: &str,
     ) -> SqliteResult<Option<String>> {
-        // First try: same workspace and namespace
-        let candidate = Self::compute_global_id(workspace, namespace, target_id);
-        let exists = self
-            .conn
-            .query_row(
-                "SELECT 1 FROM objects WHERE __global_id = ?1 LIMIT 1",
-                params![candidate],
-                |_| Ok(1),
-            )
-            .optional()?
-            .is_some();
+        // The workspace to search: the one the reference names, otherwise the referring
+        // object's own. There is no widening past it.
+        let eff_workspace = ref_workspace.unwrap_or(workspace);
+        // `Some("")` is the ELIDED namespace (`ws::id`): search every namespace of
+        // `eff_workspace`. A concrete namespace is an assertion. `None` (a bare id) means
+        // own namespace first, then any namespace of the same workspace.
+        let elided = matches!(ref_namespace, Some(""));
+        let concrete_namespace: Option<&str> = match ref_namespace {
+            Some("") => None,
+            Some(rns) => Some(rns),
+            None => Some(namespace),
+        };
 
-        if exists {
-            return Ok(Some(candidate));
+        // First try: an exact `__global_id`, available whenever the namespace is concrete.
+        if let Some(ns) = concrete_namespace {
+            let candidate = Self::compute_global_id(eff_workspace, ns, target_id);
+            let exists = self
+                .conn
+                .query_row(
+                    "SELECT 1 FROM objects WHERE __global_id = ?1 LIMIT 1",
+                    params![candidate],
+                    |_| Ok(1),
+                )
+                .optional()?
+                .is_some();
+            if exists {
+                return Ok(Some(candidate));
+            }
         }
 
-        // Second try: same workspace, any namespace (including empty)
-        let candidate = self
-            .conn
-            .query_row(
-                "SELECT __global_id FROM objects WHERE __workspace = ?1 AND __id = ?2 LIMIT 1",
-                params![workspace, target_id],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?;
-
-        if let Some(tgid) = candidate {
-            return Ok(Some(tgid));
+        // Second try: any namespace of `eff_workspace`. Reached by the elided form, and by a
+        // bare id whose own namespace held nothing. NOT reached by a concrete namespace
+        // qualifier, which must not fall through to a different namespace.
+        //
+        // LIMIT 2 so that several candidates are an ambiguity rather than an arbitrary pick —
+        // `validate` reports `ambiguous_reference` for exactly this case, so the graph must
+        // build no edge.
+        //
+        // A `__Workspace` root object carries no own `__workspace` (it IS the workspace), so
+        // it is reachable only when the id being looked up is that workspace's own name. That
+        // keeps `[[#ws::ws]]` working without letting a bare id reach a sibling's root.
+        if elided || ref_namespace.is_none() {
+            let mut stmt = self.conn.prepare(
+                "SELECT __global_id FROM objects \
+                 WHERE __id = ?2 AND (__workspace = ?1 OR (__workspace = '' AND __id = ?1)) \
+                 LIMIT 2",
+            )?;
+            let matches: Vec<String> = stmt
+                .query_map(params![eff_workspace, target_id], |row| {
+                    row.get::<_, String>(0)
+                })?
+                .collect::<SqliteResult<Vec<String>>>()?;
+            if matches.len() == 1 {
+                return Ok(Some(matches[0].clone()));
+            }
+            if matches.len() > 1 {
+                return Ok(None);
+            }
         }
 
-        // Third try: any workspace (cross-workspace reference)
-        // This handles cases where target is in different workspace
-        let candidate = self
-            .conn
-            .query_row(
-                "SELECT __global_id FROM objects WHERE __id = ?1 LIMIT 1",
-                params![target_id],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?;
-
-        if let Some(tgid) = candidate {
-            return Ok(Some(tgid));
-        }
-
-        // Fourth try: __local_id in same namespace (short-form references like
-        // [[#child]] that resolve via the __local_id fallback when unambiguous).
-        // Matches Python/TS: LIMIT 2 so that 0 or >1 matches resolve to None
-        // (not found or ambiguous).
-        let mut stmt = self.conn.prepare(
-            "SELECT __global_id FROM objects \
-             WHERE __local_id = ?1 AND __workspace = ?2 AND __namespace = ?3 LIMIT 2",
-        )?;
-        let local_matches: Vec<String> = stmt
-            .query_map(params![target_id, workspace, namespace], |row| {
+        // Third try: the `__local_id` fallback for short-form references like `[[#child]]`,
+        // which names a hierarchical object by its last segment.
+        //
+        // QMD-69: the WORKSPACE searched is the one the reference names, not the referring
+        // object's. It used to be hard-wired to the source's own workspace, so spelling out
+        // the workspace that actually holds the target made the reference stop resolving —
+        // while `validate` accepted it, because its own `__local_id` path ignored the
+        // workspace altogether.
+        //
+        // The NAMESPACE rule is the historical one and is NOT the elide/assert rule used
+        // above: an unqualified reference resolves by `__local_id` only inside the referring
+        // object's OWN namespace. That is what keeps a bare `[[#config]]` at the workspace
+        // root from reaching `gateway.config` in the `services` namespace.
+        //
+        // LIMIT 2 so that 0 or >1 matches resolve to None (not found or ambiguous).
+        let local_ns: Option<&str> = match ref_namespace {
+            Some("") => None,        // elided: any namespace of the named workspace
+            Some(rns) => Some(rns),  // asserted
+            None => Some(namespace), // unqualified: own namespace exactly
+        };
+        let mut local_matches: Vec<String> = Vec::new();
+        if let Some(ns) = local_ns {
+            let mut stmt = self.conn.prepare(
+                "SELECT __global_id FROM objects \
+                 WHERE __local_id = ?1 AND __workspace = ?2 AND __namespace = ?3 LIMIT 2",
+            )?;
+            let rows = stmt.query_map(params![target_id, eff_workspace, ns], |row| {
                 row.get::<_, String>(0)
-            })?
-            .collect::<SqliteResult<Vec<String>>>()?;
+            })?;
+            for row in rows {
+                local_matches.push(row?);
+            }
+        } else {
+            // Elided namespace: any namespace of the named workspace.
+            let mut stmt = self.conn.prepare(
+                "SELECT __global_id FROM objects \
+                 WHERE __local_id = ?1 AND __workspace = ?2 LIMIT 2",
+            )?;
+            let rows = stmt.query_map(params![target_id, eff_workspace], |row| {
+                row.get::<_, String>(0)
+            })?;
+            for row in rows {
+                local_matches.push(row?);
+            }
+        }
         if local_matches.len() == 1 {
             return Ok(Some(local_matches[0].clone()));
         }
@@ -744,8 +819,11 @@ impl QmdcDatabase {
                 }
                 if i > start {
                     let inner: String = chars[start..i].iter().collect();
-                    // Take last part after : as the id
-                    let id = inner.rsplit(':').next().unwrap_or(&inner);
+                    // QMD-69: keep the FULL reference target, qualifiers included. It used
+                    // to be truncated to the last `:`-segment here, which discarded the
+                    // workspace and namespace before resolution could ever see them.
+                    // `resolve_target_global_id` parses it with the shared grammar.
+                    let id = inner.trim();
                     if !id.is_empty() && !id.contains(',') && !id.contains(' ') {
                         refs.push(id.to_string());
                     }

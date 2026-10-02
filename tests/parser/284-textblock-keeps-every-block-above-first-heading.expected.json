@@ -1,0 +1,27 @@
+[
+  {
+    "__id": "doc_ry4ljv",
+    "__kind": "__Document",
+    "content": [
+      "[[#text_0]]",
+      "[[#s]]"
+    ]
+  },
+  {
+    "__id": "text_0",
+    "__kind": "__TextBlock",
+    "content": "Intro prose.\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n---\n\n```text\nfenced\n```\n\n- plain item",
+    "__container": "[[#doc_ry4ljv]]"
+  },
+  {
+    "__id": "s",
+    "__label": "Session",
+    "__kind": "Session",
+    "__container": "[[#doc_ry4ljv]]",
+    "status": "ok",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 1
+  }
+]

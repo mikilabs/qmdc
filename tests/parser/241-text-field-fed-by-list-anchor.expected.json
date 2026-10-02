@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "feat",
+    "__label": "Feature",
+    "__kind": "Feature",
+    "__comments": [
+      {
+        "after": "why",
+        "content": "### A plain heading\n\nProse that must anchor on the text field, not on status."
+      }
+    ],
+    "status": "open",
+    "why": "- about: [[#feat]]\n\nProse inside the text field.",
+    "__types": {
+      "status": "string",
+      "why": "string"
+    },
+    "__syntax": {
+      "why": "multiline_text"
+    },
+    "__level": 2,
+    "__labels": {
+      "why": "Why this matters"
+    }
+  }
+]

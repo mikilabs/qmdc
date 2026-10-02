@@ -1,0 +1,24 @@
+{
+  "columns": [
+    "__id",
+    "__file"
+  ],
+  "rows": [
+    [
+      "cli72_b2_alpha",
+      "cli72_b2_alpha/readme.qmd.md"
+    ],
+    [
+      "cli72_b2_files",
+      "cli72_b2_alpha/readme.qmd.md"
+    ],
+    [
+      "cli72_b2_beta",
+      "cli72_b2_beta/readme.qmd.md"
+    ],
+    [
+      "api",
+      "cli72_b2_beta/services/api.qmd.md"
+    ]
+  ]
+}

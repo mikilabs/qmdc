@@ -146,15 +146,27 @@ fn expected_by_kind(expected: &serde_json::Value) -> BTreeMap<String, Vec<String
 
 /// Normalize one error to the comparable subset (type/object/reference/file/line/
 /// candidates), dropping empty fields — mirrors the Python error construction.
+///
+/// QMD-77 C3: the CLI envelope names the owning object `objectId` now, the same key
+/// `workspace validate` uses; the FIXTURES keep their own `object` vocabulary, so both
+/// spellings are accepted here rather than rewriting 40 expectation files. The same
+/// function normalises both sides, which is why it cannot simply rename one key.
 fn norm_error(e: &serde_json::Value) -> BTreeMap<String, serde_json::Value> {
     let mut m = BTreeMap::new();
-    for key in ["type", "object", "reference", "file", "line", "candidates"] {
-        if let Some(v) = e.get(key) {
+    for (out_key, env_keys) in [
+        ("type", ["type", "type"]),
+        ("object", ["objectId", "object"]),
+        ("reference", ["reference", "reference"]),
+        ("file", ["file", "file"]),
+        ("line", ["line", "line"]),
+        ("candidates", ["candidates", "candidates"]),
+    ] {
+        if let Some(v) = env_keys.iter().find_map(|k| e.get(k)) {
             let empty = v.is_null()
                 || v.as_str() == Some("")
                 || v.as_array().map(|a| a.is_empty()).unwrap_or(false);
             if !empty {
-                m.insert(key.to_string(), v.clone());
+                m.insert(out_key.to_string(), v.clone());
             }
         }
     }
@@ -185,13 +197,21 @@ fn test_workspace_conformance() {
         let result = parse_workspace_json(&path);
         let parse_secs = parse_t.elapsed().as_secs_f64();
 
-        // 1. workspace_id (the per-fixture parse cost is attributed to this case)
+        // 1. workspace_id (the per-fixture parse cost is attributed to this case).
+        // QMD-72: the envelope always carries a `workspaces` list; the fixture's
+        // `workspace_id` names the workspace when the result holds exactly one, and is
+        // empty otherwise — the same meaning the QMD-59 `workspace` key had.
         let t = std::time::Instant::now();
         let case = format!("{}/workspace_id", name);
-        let actual_id = result
-            .get("workspace")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let entries = result
+            .get("workspaces")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let actual_id = match entries.as_slice() {
+            [only] => only.get("id").and_then(|v| v.as_str()).unwrap_or(""),
+            _ => "",
+        };
         let expected_id = expected
             .get("workspace_id")
             .and_then(|v| v.as_str())

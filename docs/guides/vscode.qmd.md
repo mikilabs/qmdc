@@ -74,7 +74,7 @@ Open any `.qmd.md` file and you'll see:
 
 ## Key Features
 
-**Go to Definition** — Ctrl+Click (Cmd+Click on Mac) or F12 on any `[[#id]]` jumps to the object's heading. Works across files. Supports `[[#namespace:id]]` and `[[#Kind:id]]` forms, plus `__local_id` fallback for hierarchical IDs.
+**Go to Definition** — Ctrl+Click (Cmd+Click on Mac) or F12 on any `[[#id]]` jumps to the object's heading. Works across files. Supports `[[#namespace:id]]` and `[[#workspace:namespace:id]]` forms, plus `__local_id` fallback for hierarchical IDs.
 
 **Autocomplete** — Type `[[#` and get suggestions for all object IDs in the workspace. Also triggers on `:` for Kind/namespace completion, and inside heading anchors for Kind suggestions.
 

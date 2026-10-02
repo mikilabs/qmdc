@@ -1,0 +1,4 @@
+{
+  "_comment": "QMD-69: a workspace-qualified reference to an object's __local_id, and to a hierarchical id and a field path on it, are all legal and must produce no diagnostic. The __local_id and field-ref paths bypass the qualifier filter today, so the leaf forms are reported as false QMDC001.",
+  "diagnostics": []
+}

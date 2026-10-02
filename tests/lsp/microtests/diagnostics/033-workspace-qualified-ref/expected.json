@@ -1,0 +1,4 @@
+{
+  "_comment": "QMD-69: the documented full reference form [[#workspace:namespace:Kind:id]] must resolve. The LSP currently reports a false QMDC001 because the shared reference-target parser stops at three segments and leaves 'Service:payments_api' glued together as the id.",
+  "diagnostics": []
+}

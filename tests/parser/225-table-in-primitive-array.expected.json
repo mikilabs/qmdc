@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "doc",
+    "__label": "Doc",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "tags",
+        "content": "| a |\n|---|\n| 1 |"
+      }
+    ],
+    "tags": [],
+    "__syntax": {
+      "tags": "markdown_list"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "table_in_array",
+    "field": "tags",
+    "object": "[[#doc]]",
+    "line": 5
+  }
+]

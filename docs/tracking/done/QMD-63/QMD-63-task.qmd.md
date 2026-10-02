@@ -17,12 +17,12 @@ subdirectory (`docs/`). The error surfaces as a `.git`-boundary failure.
 
 ```text
 Tool: qmdc_describe_metamodel
-Args: {"path": "/Users/umaxfun/prj/mikilabs/tgrecs.worktrees/release-1"}
+Args: {"path": "<repo-root>"}
 
 MCP Tool Error Response:
 {"success":false,"error":{"code":"not-resolved",
  "message":"no workspace root found (hit .git boundary at
-  '/Users/umaxfun/prj/mikilabs/tgrecs.worktrees/release-1')"}}
+  '<repo-root>')"}}
 ```
 
 ### Observed behaviour [[qmd63_observed: text]]

@@ -1,0 +1,21 @@
+{
+  "workspace_id": "ns_rel_ids",
+  "files": [
+    "readme.qmd.md",
+    "format/readme.qmd.md",
+    "format/headings.qmd.md",
+    "format/deep/commands.qmd.md"
+  ],
+  "objects": {
+    "Session": ["commands", "headings"],
+    "__Document": ["doc_deep_commands", "doc_headings"],
+    "__Namespace": ["format"],
+    "__TextBlock": [
+      "text_deep_commands_0",
+      "text_headings_0",
+      "text_headings_1"
+    ],
+    "__Workspace": ["ns_rel_ids"]
+  },
+  "errors": []
+}

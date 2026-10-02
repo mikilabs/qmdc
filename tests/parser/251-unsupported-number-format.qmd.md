@@ -1,0 +1,21 @@
+## S [[s: S]]
+
+- ok_int: 42
+- ok_neg: -7
+- ok_dec: 3.14
+- ok_zero: 0.0
+- exp: 1e5
+- exp_neg: 1.5e-3
+- exp_caps: 2E3
+- leading_dot: .5
+- trailing_dot: 5.
+- plus: +1
+- separators: 1_000
+- hex: 0x1f
+- octal: 0o17
+- too_big: 9223372036854775807
+- too_small: 0.00001
+- date_stays_string: 2026-09-24
+- time_stays_string: 12:30:00
+- words_stay_string: 1 000
+- version_stays_string: 1.0.2

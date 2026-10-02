@@ -1,6 +1,6 @@
 """QMDC Semantic - Semantic search for QMDC workspaces."""
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 
 from .chunking import extract_chunks
 from .config import load_config

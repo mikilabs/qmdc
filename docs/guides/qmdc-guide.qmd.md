@@ -2,7 +2,7 @@
 
 Practical guide to the QMD.md format for AI agents
 
-- version: 1.0.2
+- version: 2.0.0
 
 ⚠️ **Important:** In QMD.md, field and object order is strictly preserved as written (insertion order). All parsers guarantee this.
 
@@ -459,23 +459,27 @@ References use full hierarchical dot-paths to target child objects and their fie
 
 There is no filter or wildcard syntax — forms like `[[#items[key=value]]]` are not part of the format and will not resolve. To reference a table row, use its auto-generated ID (`parent.field.field_<n>`, e.g. `[[#users.columns.columns_0]]`), or give the row an explicit name if it will be referenced.
 
-### Kind-Qualified References [[kind_refs: text]]
+### Same ID, Different Kind [[kind_refs: text]]
 
-When two objects have the same ID but different Kind, the reference must specify Kind:
+A reference never names a Kind. Two objects with one ID in the same namespace are a
+`duplicate_id`, whatever their Kinds. Put them in different namespaces and qualify the
+reference with the namespace:
 
 ```markdown example
-## Users [[users: Table]]
+## Users [[users: Table]]       <!-- in namespace storage -->
 - name: users
 
-## Users [[users: Entity]]
+## Users [[users: Entity]]      <!-- in namespace domain -->
 - type: domain_model
 ```
 
 ```markdown example
-- table_ref: [[#Table:users]]     # reference to table
-- entity_ref: [[#Entity:users]]   # reference to entity
-- ambiguous: [[#users]]           # ❌ ERROR!
+- table_ref: [[#storage:users]]   # reference to table
+- entity_ref: [[#domain:users]]   # reference to entity
+- ambiguous: [[#users]]           # ❌ ERROR from a third namespace
 ```
+
+`[[#Table:users]]` reads `Table` as a namespace, so it is a `broken_link`.
 
 ### Cross-Namespace References [[namespace_refs: text]]
 
@@ -484,18 +488,34 @@ When two objects have the same ID but different Kind, the reference must specify
 ```markdown example
 ## API Service [[api_service: Service]]
 
-- database: [[#storage:users]]           # different namespace
-- user_table: [[#storage:Table:users]]   # namespace + Kind
+- database: [[#storage:users]]                  # different namespace
+- user_table: [[#other_ws:storage:users]]       # different workspace
+- ledger: [[#other_ws::ledger]]                 # different workspace, any namespace
 ```
 
-**Full format:** `[[#workspace:namespace:Kind:id]]`
+**Full format:** `[[#workspace:namespace:id]]` — the same grammar as `__global_id`, with an
+optional `.field` suffix on the id. A reference and an identity are written the same way.
 
-All components are optional except `id`:
+A reference is a right-aligned SUFFIX of that grammar; each qualifier you add narrows the
+search:
 
-- `[[#id]]` — local reference (current namespace)
-- `[[#Kind:id]]` — with type (collision resolution)
-- `[[#namespace:id]]` — different namespace
-- `[[#namespace:Kind:id]]` — full form for cross-namespace
+- `[[#id]]` — this workspace: own namespace first, then any namespace of it
+- `[[#namespace:id]]` — this workspace, that namespace
+- `[[#workspace:namespace:id]]` — that workspace, that namespace
+- `[[#workspace::id]]` — that workspace, ANY namespace (the empty middle segment ELIDES the
+  namespace rather than asserting the workspace root)
+
+Two rules follow from this, and both are enforced:
+
+- **A cross-workspace reference must name its workspace.** A bare `[[#id]]` never reaches
+  into a sibling workspace, not even when exactly one workspace holds that id.
+- **A qualifier that matches more than one object is an `ambiguous_reference`, and builds no
+  edge.** `[[#other_ws::ledger]]` is ambiguous if `other_ws` holds `ledger` in two
+  namespaces — exactly as a bare `[[#ledger]]` is ambiguous within one workspace.
+
+There is no `Kind` segment. Ids are unique within a namespace, so a Kind could only ever
+disambiguate an already-invalid workspace; it was never part of identity, and
+`[[#namespace:Kind:id]]` is not valid syntax.
 
 ### Resolution Order and __local_id [[resolution_order: text]]
 
@@ -518,7 +538,7 @@ Renaming an object rewrites references to it AND to all its descendants: renamin
 Reference problems are reported with `severity: error`, but they are **non-fatal**: unlike syntax errors, they never prevent the graph from being built.
 
 - Object not found → the object still loads; the reference remains a plain string; `broken_link` error reported
-- ID collision without Kind → unresolved reference; `ambiguous_reference` error reported
+- ID held in several namespaces, reference without a namespace → unresolved reference; `ambiguous_reference` error reported
 - Broken links don't break the entire graph — validation collects them into a report instead of aborting
 
 ### Where References Are Not Parsed [[refs_not_parsed: text]]
@@ -660,7 +680,7 @@ my-project/
 The parser automatically:
 
 1. Finds all objects in all files
-2. Indexes them by `namespace:Kind:id`
+2. Indexes them by `workspace:namespace:id` (its `__global_id`)
 3. Validates all references
 4. Reports broken links
 
@@ -680,7 +700,7 @@ When parsing a workspace, each object gets:
 }
 ```
 
-- `__file` — file path
+- `__file` — file path, relative to the workspace root (under `-w`, prefixed by the workspace id; the output's `workspaces` list gives each workspace's location on disk)
 - `__line` — line number
 - `__workspace` — reference to `__Workspace` object
 - `__namespace` — reference to `__Namespace` object (or `null` for root)
@@ -764,18 +784,24 @@ done
 | `ambiguous_reference` | Reference `[[#id]]` could point to multiple objects |
 | `broken_parent` | Parent object not found for a dot-ID declaration (see Dot-ID Declarations) |
 | `ambiguous_field_reference` | Dot-path resolves both as an object `__id` and as a field on the prefix object |
-| `nested_workspace` | Workspace inside another workspace (forbidden) |
+| `nested_workspace` | Workspace inside another workspace, left out of the result; compose both with `-w` to include it |
 | `workspace_in_wrong_file` | `__Workspace`/`__Namespace` declared outside `readme.qmd.md` |
 | `structured_in_textblock` | Structured element inside `__TextBlock` |
 | `multiple_definitions` | Heading contains more than one `[[...]]` |
 | `ordered_list_in_array` | Numbered list in heading-syntax array (bullet lists only) |
+| `table_in_array` | Markdown table under a primitive array field (use a bullet list, or declare an object array) |
+| `extra_table_in_array` | A second Markdown table under one object-array heading (only the first feeds the array) |
+| `mixed_array` | An object array fed by a table that also has heading elements (pick one form), or a declaration inside a primitive `[[field: array]]` (a heading is not a list item, and the declared kind still decides — no object is created) |
 | `nested_subitems` | Nested lists `- key:\n  - item` (forbidden) |
+| `block_in_inline_field` | An indented block under a field that already has a value (YAML multiline `- key: \|` is fine) |
+| `unsupported_number_format` | A value that looks like a number QMD.md cannot carry: not `-?[0-9]+(\.[0-9]+)?`, or a magnitude outside `1e-4`…2^53-1. The text is kept as a String; quote it to say a String was meant. Carries a `hint` field naming what to write — the only error that does |
 | `explicit_system_type` | Explicit declaration of `[[id: __Document]]` or `[[id: __TextBlock]]` |
 | `mixed_field_keys` | Mix of valid and invalid keys in one object |
 | `invalid_id_character` | Dot in a NESTED heading's explicit ID (dot-IDs are legal only on top-level headings) |
 | `dangling_field` | Heading-syntax field (`text`, `array`, `yaml`, ...) with no parent object at a higher heading level |
 | `invalid_map_entry` | List item inside `[[field: map]]` that is not a valid `key: value` pair |
 | `invalid_map_content` | Content inside `[[field: map]]` that is not a bullet list of `key: value` items |
+| `wrapped_field_value` | A field value or array element continued on an indented second line (a value is written on one line; use `- key: \|` or a text field) |
 
 ### Pre-Commit Checklist [[pre_commit_checklist: text]]
 
@@ -789,7 +815,7 @@ Before saving a QMD.md file:
 - ✅ Verified via `qmdc parse -i file.qmd.md`
 - ✅ If workspace — verified via `qmdc workspace validate .`
 - ✅ All references exist
-- ✅ No ambiguous references (Kind specified on collision)
+- ✅ No ambiguous references (namespace specified on collision)
 
 ### What Is Normal [[validation_normals: text]]
 
@@ -866,6 +892,9 @@ Parses entire workspace to JSON.
 ```bash
 qmdc workspace parse ./my-project -o workspace.json
 qmdc workspace parse ./my-project --format full
+
+# Compose workspaces that do not share a parent directory (repeatable, every path a peer)
+qmdc workspace parse -w ~/checkouts/repo_a -w /srv/repo_b
 ```
 
 ### Workspace Validate [[cmd_workspace_validate: text]]
@@ -878,7 +907,10 @@ Validates workspace — broken links, duplicate IDs, ambiguous references.
 # Returns JSON array of errors ([] if all ok)
 qmdc workspace validate ./my-project
 
-# Exit code: 0 if no errors, 1 if errors exist
+# A project spanning several repositories, composed in place
+qmdc workspace validate -w ~/checkouts/repo_a -w /srv/repo_b
+
+# Exit code: 0 if no errors, 1 if errors exist, 2 if the invocation was refused
 ```
 
 ### Query — SQL Queries [[cmd_query: text]]
@@ -1037,21 +1069,21 @@ qmdc query . "SELECT __id FROM objects WHERE __id = 'nonexistent'"
 - about: [[#validation]], [[#reference]]
 
 ```markdown example
-## Users [[users: Table]]
+## Users [[users: Table]]       <!-- in namespace storage -->
 ...
 
-## Users [[users: Entity]]
+## Users [[users: Entity]]      <!-- in namespace domain -->
 ...
 
-## Order [[order]]
+## Order [[order]]              <!-- in namespace app -->
 - ref: [[#users]]    # ambiguous!
 ```
 
-Fix by specifying Kind:
+Fix by specifying the namespace:
 
 ```markdown example
-- table_ref: [[#Table:users]]
-- entity_ref: [[#Entity:users]]
+- table_ref: [[#storage:users]]
+- entity_ref: [[#domain:users]]
 ```
 
 ### Nested Lists in Fields [[err_nested_lists: text]]

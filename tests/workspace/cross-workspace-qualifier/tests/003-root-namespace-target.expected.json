@@ -1,0 +1,4 @@
+{
+  "columns": ["edge_type", "target_workspace", "target_namespace", "target_id"],
+  "rows": [["root_ns", "qmd69_repo_a", "", "billing"]]
+}

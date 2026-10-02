@@ -183,7 +183,6 @@ The extension automatically loads all workspaces recursively and maintains an in
 
 ```markdown
 - local: [[#users]]                      # Local reference
-- with_kind: [[#Table:users]]            # Kind-qualified
 - namespace: [[#storage:users]]          # Cross-namespace
 - workspace: [[#proj:storage:users]]     # Cross-workspace
 ```

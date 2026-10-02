@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "S",
+    "__comments": [
+      {
+        "after": "f",
+        "content": "A claim[^1] and another[^note]."
+      },
+      {
+        "after": "f",
+        "content": "[^1]: The first note.\n[^note]: The second."
+      }
+    ],
+    "f": 1,
+    "__types": {
+      "f": "number"
+    },
+    "__level": 2
+  }
+]

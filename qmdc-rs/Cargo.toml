@@ -1,6 +1,6 @@
 [package]
 name = "qmdc"
-version = "1.0.7"
+version = "2.0.0"
 edition = "2021"
 description = "QMDC parser, LSP server, and MCP server — convert QMD.md to a queryable object graph"
 license = "AGPL-3.0-or-later"
@@ -32,7 +32,6 @@ walkdir = "2.4"
 tower-lsp = "0.20"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "io-std", "io-util", "time"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
-globset = "0.4"
 notify = "8.2"
 sqlparser = "0.40"
 rmcp = { version = "0.9", features = ["server", "macros", "transport-io", "transport-async-rw", "schemars"] }

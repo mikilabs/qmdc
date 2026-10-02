@@ -64,6 +64,21 @@ impl WorkspaceIndex {
             .collect()
     }
 
+    /// Every workspace sharing `project_root` — the composed set the open document belongs to
+    /// (QMD-72).
+    ///
+    /// The LSP indexes each workspace under the project folder separately, and resolved
+    /// references against the OWNING workspace alone. A qualified cross-workspace reference was
+    /// therefore reported broken in the editor while the CLI resolved it, which is the LSP half
+    /// of the MCP/CLI split. Composing by `project_root` uses what the registry already holds:
+    /// the same container the CLI composes.
+    pub fn siblings_of(&self, project_root: &Path) -> Vec<&WorkspaceInfo> {
+        self.by_uri
+            .values()
+            .filter(|ws| ws.project_root == project_root)
+            .collect()
+    }
+
     /// Add a workspace to the index
     pub fn add(&mut self, info: WorkspaceInfo) {
         let id = info.id.clone();

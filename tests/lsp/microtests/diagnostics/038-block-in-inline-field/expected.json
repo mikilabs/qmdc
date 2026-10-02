@@ -1,0 +1,20 @@
+{
+  "_comment": "QMD-70: an inline field holds a scalar and has no content of its own, so an indented block under one belongs to nothing. The editor must flag it; surfacing is generic over __ParsingError, so no LSP change was needed.",
+  "diagnostics": [
+    {
+      "message": "block_in_inline_field: field: note, object: [[#p]]",
+      "range": {
+        "start": {
+          "line": 6,
+          "character": 0
+        },
+        "end": {
+          "line": 6,
+          "character": 8
+        }
+      },
+      "severity": 1,
+      "code": "block_in_inline_field"
+    }
+  ]
+}

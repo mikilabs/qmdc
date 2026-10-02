@@ -1,0 +1,1 @@
+error: --with path contains 2 workspaces: ./container (pass each one as its own --with)

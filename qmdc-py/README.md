@@ -56,7 +56,7 @@ qmdc parse -i doc.qmd.md | qmdc rebuild
 ## Programmatic API
 
 ```python
-from qmdc.parser import parse, rebuild
+from qmdc import parse, rebuild
 
 # Parse QMD.md → JSON
 markdown = """
@@ -137,29 +137,23 @@ Available tables:
 ### Workspace API
 
 ```python
-from qmdc.workspace import (
-    scan_workspace,
-    parse_workspace,
-    validate_workspace,
-    query_workspace,
-    get_refs_to,
-)
+from qmdc import execute_query, parse_workspace, scan_workspace, workspace_to_json
 
 # Scan files
-files = scan_workspace("/path/to/workspace")
-# ['readme.qmd.md', 'users.qmd.md', 'database/tables.qmd.md']
+files = scan_workspace("my-project")
+# ['readme.qmd.md', 'api.qmd.md', 'tables.qmd.md']
 
-# Parse the whole workspace
-result = parse_workspace("/path/to/workspace")
-# WorkspaceResult with objects, index, errors
+# Parse the whole workspace; validation errors come with it
+result = parse_workspace("my-project")
+for error in result.errors:
+    print(error.type, error.file, error.line, error.message)
+# broken_link api.qmd.md 4 Object 'no_such_object' not found
 
-# Query objects
-tables = query_workspace(result, kind="Table")
-users = query_workspace(result, object_id="users")
-
-# Find references to an object
-refs = get_refs_to(result, "database/tables.qmd.md#users")
-# [("api.qmd.md", "get_users", "returns"), ...]
+# SQL over the objects and the reference graph
+tables = execute_query(workspace_to_json(result), "SELECT __id FROM objects WHERE __kind = 'Table'")
+# tables.rows == [['users']]
+refs = execute_query(workspace_to_json(result), "SELECT source_id, edge_type FROM edges")
+# refs.rows == [['my_project::get_users', 'returns']]
 ```
 
 See the [format specification](https://qmdc.mikilabs.io/) for the full spec.

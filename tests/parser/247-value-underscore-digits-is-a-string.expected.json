@@ -1,0 +1,34 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "S",
+    "a": "1_000",
+    "b": 1000,
+    "c": "1_0.5",
+    "__types": {
+      "a": "string",
+      "b": "number",
+      "c": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "a",
+    "object": "[[#s]]",
+    "line": 3,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
+  },
+  {
+    "__id": "error_1",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "c",
+    "object": "[[#s]]",
+    "line": 5,
+    "hint": "write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)"
+  }
+]

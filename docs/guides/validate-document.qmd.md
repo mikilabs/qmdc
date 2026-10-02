@@ -42,7 +42,7 @@ Parse a file and check for syntax errors:
 qmdc parse -i myfile.qmd.md > /dev/null
 ```
 
-Exit code `0` means the file is valid. Non-zero means errors — they print to stderr. This catches per-file problems like `structured_in_textblock`, `dangling_field`, `multiple_definitions`, and `ordered_list_in_array`.
+Exit code `0` means the file is valid. Non-zero means errors — they print to stderr. This catches per-file problems like `structured_in_textblock`, `dangling_field`, `multiple_definitions`, `ordered_list_in_array`, `table_in_array`, `extra_table_in_array`, `mixed_array`, and `block_in_inline_field`.
 
 ## Validate an entire workspace
 
@@ -106,14 +106,15 @@ Two objects share the same ID in one namespace.
 
 ### `ambiguous_reference`
 
-A reference matches multiple objects and the parser can't pick one (e.g., `Table:users` and `Entity:users` both match `[[#users]]`).
+A reference matches multiple objects and the parser can't pick one (e.g., `storage:users` and `domain:users` both match `[[#users]]`).
 
 **Fix:**
 
-- Add Kind: `[[#Table:users]]`
 - Add namespace: `[[#storage:users]]`
-- Use the full form: `[[#storage:Table:users]]`
+- Use the full form: `[[#workspace:storage:users]]`
 - Use hierarchical ID: `[[#parent.config]]` instead of `[[#config]]`
+
+A reference has no Kind segment: `[[#Table:users]]` reads `Table` as a namespace.
 
 ### `structured_in_textblock`
 

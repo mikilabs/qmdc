@@ -1,0 +1,17 @@
+[
+  {
+    "__id": "p",
+    "__label": "P",
+    "__kind": "G",
+    "note": "line one\n\nline two",
+    "after": "x",
+    "__types": {
+      "note": "string",
+      "after": "string"
+    },
+    "__syntax": {
+      "note": "yaml_multiline"
+    },
+    "__level": 1
+  }
+]

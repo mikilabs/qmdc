@@ -81,6 +81,7 @@ fn test_cli_conformance() {
         }
         let output = child.wait_with_output().expect("wait qmdc");
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let actual_exit = output.status.code().unwrap_or(-1);
 
         let mut problem: Option<String> = None;
@@ -89,6 +90,19 @@ fn test_cli_conformance() {
                 "exit {} != expected {}",
                 actual_exit, exit_expected
             ));
+        }
+
+        // Optional `expected.stderr`: a SUBSTRING the diagnostic must contain. Without it a
+        // usage-error case asserts only "exited with the right code and printed nothing on
+        // stdout", which a refusal for an entirely different reason also satisfies. Substring
+        // rather than equality because wrapper noise and absolute paths differ per environment.
+        let exp_err = dir.join("expected.stderr");
+        if problem.is_none() && exp_err.exists() {
+            let needle = fs::read_to_string(&exp_err).unwrap_or_default();
+            let needle = needle.trim();
+            if !needle.is_empty() && !stderr.contains(needle) {
+                problem = Some(format!("stderr missing expected text: {}", needle));
+            }
         }
 
         let exp_json = dir.join("expected.json");

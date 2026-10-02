@@ -1,0 +1,34 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "Session",
+    "status": "done",
+    "clo": "[[#s.clo]]",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "s.clo",
+    "__local_id": "clo",
+    "__label": "Closure",
+    "__kind": "__Object",
+    "__parent": "[[#s]]",
+    "__parent_field": "clo",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "| a | b |\n| --- | --- |\n| 1 | 2 |"
+      }
+    ],
+    "note": "y",
+    "other": "z",
+    "__types": {
+      "note": "string",
+      "other": "string"
+    },
+    "__level": 2
+  }
+]

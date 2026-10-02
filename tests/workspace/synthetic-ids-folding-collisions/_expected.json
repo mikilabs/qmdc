@@ -1,0 +1,50 @@
+{
+  "workspace_id": "folding_ids",
+  "files": [
+    "readme.qmd.md",
+    "a-b.qmd.md",
+    "a_b.qmd.md",
+    "a_b_1.qmd.md",
+    "authored.qmd.md",
+    "deep/commands.qmd.md",
+    "deep_commands.qmd.md",
+    "notes.qmd.md",
+    "заметки.qmd.md",
+    "планы.qmd.md"
+  ],
+  "objects": {
+    "Session": [
+      "dash",
+      "doc_notes",
+      "flat",
+      "nested",
+      "notes",
+      "notes_ru",
+      "plans_ru",
+      "suffix_shaped",
+      "underscore"
+    ],
+    "__Document": [
+      "doc_a_b",
+      "doc_a_b_1",
+      "doc_a_b_1_1",
+      "doc_deep_commands",
+      "doc_deep_commands_1",
+      "doc_file",
+      "doc_file_1",
+      "doc_notes_1"
+    ],
+    "__TextBlock": [
+      "text_a_b_0",
+      "text_a_b_1_0",
+      "text_a_b_1_1_0",
+      "text_deep_commands_0",
+      "text_deep_commands_1_0",
+      "text_file_0",
+      "text_file_1_0",
+      "text_notes_1_0"
+    ],
+    "__Workspace": ["folding_ids"]
+  },
+  "errors": []
+}

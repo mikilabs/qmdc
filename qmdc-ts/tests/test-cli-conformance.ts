@@ -61,6 +61,19 @@ function runTests() {
       problem = `exit ${actualExit} != expected ${exitExpected}`;
     }
 
+    // Optional `expected.stderr`: a SUBSTRING the diagnostic must contain. Without it a
+    // usage-error case asserts only "exited with the right code and printed nothing on
+    // stdout", which a refusal for an entirely different reason also satisfies. Substring
+    // rather than equality because wrapper noise (npm warnings) and absolute paths differ
+    // per environment.
+    const expErr = join(dir, 'expected.stderr');
+    if (!problem && existsSync(expErr)) {
+      const needle = readFileSync(expErr, 'utf-8').trim();
+      if (needle.length > 0 && !result.stderr.includes(needle)) {
+        problem = `stderr missing expected text: ${needle}`;
+      }
+    }
+
     const expJson = join(dir, 'expected.json');
     const expTxt = join(dir, 'expected.txt');
     if (!problem && existsSync(expJson)) {

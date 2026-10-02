@@ -31,7 +31,7 @@ REPORT_DIR = os.path.join(ROOT, "test-reports")
 CONFIG_FILE = os.path.join(ROOT, "scripts", "test-baseline.json")
 
 LANGS = ["py", "ts", "rs"]
-CONFORMANCE = ["parser", "workspace", "sql", "cli", "lsp", "mcp"]
+CONFORMANCE = ["parser", "workspace", "sql", "cli", "lsp", "mcp", "ignore"]
 COMPONENTS = ["mkdocs", "semantic", "vscode"]
 
 # TypeScript JUnit report file stem -> canonical suite.
@@ -40,6 +40,7 @@ TS_SUITE = {
     "ts-workspace": "workspace",
     "ts-sql": "sql",
     "ts-cliconf": "cli",
+    "ts-ignore": "ignore",
     "ts-cli": "unit-ts",
 }
 
@@ -56,6 +57,7 @@ RS_CANONICAL_TESTS = {
     "mcp_fixture_tests",
     "mcp_resource_fixture_tests",
     "test_cli_conformance",
+    "test_ignore_matrix",
 }
 
 # Map a Rust nextest binary (classname after the "qmdc::" prefix; "" = lib) to a suite.
@@ -93,6 +95,7 @@ def py_suite(classname: str) -> str:
         ("tests.test_workspace.TestWorkspace", "workspace"),
         ("tests.test_workspace", "unit-py"),
         ("tests.test_cli_conformance", "cli"),
+        ("tests.test_ignore", "ignore"),
         ("tests.test_cli", "unit-py"),
         ("tests.test_db", "unit-py"),
     ]

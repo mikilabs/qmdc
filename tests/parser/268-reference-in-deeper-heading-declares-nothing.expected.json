@@ -1,0 +1,20 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "Session",
+    "status": "done",
+    "clo": "Prose.\n\n### See [[#s]]\n\nMore.",
+    "__types": {
+      "status": "string",
+      "clo": "string"
+    },
+    "__syntax": {
+      "clo": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "clo": "Closure"
+    }
+  }
+]

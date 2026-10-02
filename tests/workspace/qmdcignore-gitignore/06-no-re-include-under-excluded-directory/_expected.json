@@ -1,0 +1,17 @@
+{
+  "workspace_id": "qmd73_no_reinclude",
+  "files": [
+    "outside.qmd.md",
+    "readme.qmd.md"
+  ],
+  "objects": {
+    "Thing": [
+      "outside"
+    ],
+    "__Workspace": [
+      "qmd73_no_reinclude"
+    ]
+  },
+  "errors": [],
+  "_comment": "QMD-73: `files` is what `git ls-files --others --exclude-standard` keeps when this .qmdcignore is installed as .gitignore."
+}

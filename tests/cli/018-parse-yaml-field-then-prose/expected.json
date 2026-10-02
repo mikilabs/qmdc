@@ -1,0 +1,27 @@
+[
+  {
+    "__id": "cfg",
+    "__label": "Cfg",
+    "__kind": "Group",
+    "__comments": [
+      {
+        "after": "lead",
+        "content": "Note after the yaml field."
+      }
+    ],
+    "lead": "Ann",
+    "conf": {
+      "a": 1
+    },
+    "__types": {
+      "lead": "string"
+    },
+    "__syntax": {
+      "conf": "yaml_object"
+    },
+    "__level": 1,
+    "__labels": {
+      "conf": "Conf"
+    }
+  }
+]

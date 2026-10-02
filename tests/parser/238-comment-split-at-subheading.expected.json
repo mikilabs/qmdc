@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "S",
+    "__comments": [
+      {
+        "after": "f",
+        "content": "First para."
+      },
+      {
+        "after": "f",
+        "content": "### Sub heading\n\nSecond para."
+      }
+    ],
+    "f": 1,
+    "__types": {
+      "f": "number"
+    },
+    "__level": 2
+  }
+]

@@ -1,0 +1,56 @@
+[
+  {
+    "__id": "team.members.members_0",
+    "__local_id": "members_0",
+    "__label": "Alice",
+    "__kind": "User",
+    "__parent": "[[#team]]",
+    "__parent_field": "members",
+    "name": "Alice",
+    "__types": {
+      "name": "string"
+    }
+  },
+  {
+    "__id": "team",
+    "__label": "Team",
+    "__kind": "Group",
+    "lead": "Ann",
+    "members": [
+      "[[#team.members.members_0]]"
+    ],
+    "bob": "[[#team.bob]]",
+    "__types": {
+      "lead": "string",
+      "members": "array"
+    },
+    "__syntax": {
+      "members": "table"
+    },
+    "__level": 1,
+    "__labels": {
+      "members": "Members"
+    }
+  },
+  {
+    "__id": "team.bob",
+    "__local_id": "bob",
+    "__label": "Bob",
+    "__kind": "__Object",
+    "__parent": "[[#team]]",
+    "__parent_field": "bob",
+    "role": "dev",
+    "__types": {
+      "role": "string"
+    },
+    "__level": 3
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "mixed_array",
+    "field": "members",
+    "object": "[[#team]]",
+    "line": 11
+  }
+]

@@ -13,7 +13,7 @@
     "__references": [
       {
         "target": "#User:alice",
-        "type": "kind",
+        "type": "namespace",
         "line": 3,
         "start_col": 8,
         "end_col": 23,

@@ -7,7 +7,7 @@ use super::utils::re_double_brackets;
 pub struct Reference {
     pub target: String, // The reference target (id, Kind.id, ns.id, etc.)
     #[serde(rename = "type")]
-    pub ref_type: String, // "local", "hash_local", "kind", "namespace", "crossfile"
+    pub ref_type: String, // "local", "hash_local", "namespace", "crossfile"
     pub line: u32,      // 1-based line number
     pub start_col: u32, // 0-based start column
     pub end_col: u32,   // 0-based end column (exclusive)
@@ -24,23 +24,15 @@ pub fn classify_reference(inner: &str) -> &'static str {
         return "crossfile";
     }
 
-    // Check for Kind:id or Kind.id format
+    // A reference target is a right-aligned suffix of `workspace:namespace:id`
+    // with an optional `.field` suffix (QMD-69). There is no Kind segment, so any
+    // qualified target classifies as `namespace`; the uppercase-first-segment
+    // heuristic that used to tell `Kind:id` from `namespace:id` is gone.
     if content.contains(':') || content.contains('.') {
         let sep = if content.contains(':') { ':' } else { '.' };
         let parts: Vec<&str> = content.splitn(2, sep).collect();
         if parts.len() == 2 {
-            let first = parts[0];
-            // If first char is uppercase, assume Kind
-            if first
-                .chars()
-                .next()
-                .map(|c| c.is_uppercase())
-                .unwrap_or(false)
-            {
-                return "kind";
-            } else {
-                return "namespace";
-            }
+            return "namespace";
         }
     }
 
@@ -125,7 +117,8 @@ mod tests {
     fn test_classify_reference() {
         assert_eq!(classify_reference("#local_id"), "hash_local");
         assert_eq!(classify_reference("local_id"), "local");
-        assert_eq!(classify_reference("#Kind.field"), "kind");
+        // QMD-69: no Kind segment — an uppercase first segment no longer means Kind.
+        assert_eq!(classify_reference("#Kind.field"), "namespace");
         assert_eq!(classify_reference("#ns:id"), "namespace");
         assert_eq!(classify_reference("#file/path#id"), "crossfile");
     }
@@ -137,7 +130,7 @@ mod tests {
         assert_eq!(refs[0].target, "#task1");
         assert_eq!(refs[0].ref_type, "hash_local");
         assert_eq!(refs[1].target, "#User.name");
-        assert_eq!(refs[1].ref_type, "kind");
+        assert_eq!(refs[1].ref_type, "namespace");
     }
 
     #[test]

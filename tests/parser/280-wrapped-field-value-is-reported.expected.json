@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "s",
+    "__label": "Session",
+    "__kind": "Session",
+    "note": "first line",
+    "status": "ok",
+    "__types": {
+      "note": "string",
+      "status": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "wrapped_field_value",
+    "field": "note",
+    "object": "[[#s]]",
+    "line": 4
+  }
+]

@@ -26,7 +26,7 @@ Every object may contain these system fields:
 | `__syntax` | Field syntax metadata for round-trip |
 | `__level` | Heading level (1–6+) for lossless rebuild |
 | `__has_explicit_id` | `false` if `[[id]]` was auto-generated (absent when explicit) |
-| `__file` | Relative file path in workspace (workspace parsing only) |
+| `__file` | File path relative to the base of the workspace parse; under `-w`, prefixed by the workspace id (workspace parsing only) |
 | `__line` | Line number where the object is defined (for LSP) |
 
 Notes:
@@ -46,13 +46,26 @@ QMD.md documents can contain free text between objects. For lossless rebuild, th
 
 `__Document` — created when the document contains text blocks outside objects. Contains a `content` field with an array of references to objects and text blocks in order of appearance.
 
-`__TextBlock` — created for headings without `[[id]]` and without fields. Contains `content` (the text block including heading) and optionally `__code_fences` (metadata about fenced code blocks).
+`__TextBlock` — created for headings without `[[id]]` and without fields, and for the content above a document's first heading. Contains `content` and optionally `__code_fences` (metadata about fenced code blocks). `content` is the block's source text verbatim: from its first line — the heading, or the first non-blank line above the first heading — to the line before the heading that ends it, with blank lines at either end dropped and a trailing `\r` removed from each line. Every construct in that range is kept as written: a blockquote with its `>`, a list with its bullets, an HTML block, the underline of a setext heading, the markup inside the heading. Any content above the first heading opens the leading block, except HTML comments alone, which are ignored. A `__code_fences` entry's `offset_line` is the 0-based line of the opening fence within `content`; an indented code block is not a code fence.
 
 `__Object` — fallback kind for objects with `[[id]]` but no explicit Kind.
 
 `__Workspace` and `__Namespace` — created from anchor files (`readme.qmd.md`) with explicit `[[id: __Workspace]]` or `[[id: __Namespace]]` declarations.
 
 Explicit declaration of `[[id: __Document]]`, `[[id: __TextBlock]]`, or `[[id: __Object]]` in a heading is an error (`explicit_system_type`). Only `__Workspace` and `__Namespace` allow explicit declaration.
+
+The id of a synthesised `__Document` or `__TextBlock` is derived from the file it belongs to, so that two files in one namespace never carry the same one. The stem is the file's path relative to the directory that declared its namespace — relative to the workspace root when the file has no namespace — lowercased, with every run of other characters folded to a single `_` and the `.qmd.md` suffix dropped; a name with no ASCII letter or digit folds to `file`. A `__Document` becomes `doc_<stem>` and a `__TextBlock` keeps the ordinal that separates several blocks in one file: `text_<stem>_<n>`.
+
+Folding is not one-to-one — `a-b`, `a_b` and `a/b` share the stem `a_b` — so uniqueness is assigned, the way a heading-anchor slugger assigns it: the files of one namespace are taken in path byte order, the first keeps the plain stem, and a file whose ids are already taken, by an earlier file or by an id an author wrote anywhere in that namespace, takes the smallest free suffix `_1`, `_2`, … for all of its ids. Renaming, moving or adding a file can change synthesised ids; nothing may be referenced by them from another file, and a `__Document` names its own blocks in `content` while each block and each top-level object names the document in `__container`.
+
+A single-file `parse` has no workspace and no namespace, and one document cannot collide with itself, so there the ids keep the file-local counter form (`doc_<random>`, `text_<n>`). Only a workspace result, where two files meet and where the graph key `<workspace>:<namespace>:<id>` is formed, qualifies them.
+
+```markdown
+notes/alpha.qmd.md, no namespace  ->  doc_notes_alpha    text_notes_alpha_0
+format/deep/commands.qmd.md       ->  doc_deep_commands  text_deep_commands_0
+  (namespace `format` declared in format/readme.qmd.md)
+a-b.qmd.md, a_b.qmd.md            ->  doc_a_b, doc_a_b_1  (same stem; path byte order decides)
+```
 
 Heading type determination:
 

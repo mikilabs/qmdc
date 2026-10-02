@@ -1,0 +1,66 @@
+[
+  {
+    "__id": "dup",
+    "__label": "One",
+    "__kind": "Session",
+    "status": "a",
+    "c": "[[#dup.c]]",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "dup.c",
+    "__local_id": "c",
+    "__label": "Child",
+    "__kind": "Task",
+    "__parent": "[[#dup]]",
+    "__parent_field": "c",
+    "x": 1,
+    "__types": {
+      "x": "number"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "dup",
+    "__label": "Two",
+    "__kind": "Session",
+    "status": "b",
+    "c": "[[#dup.c]]",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "dup.c",
+    "__local_id": "c",
+    "__label": "Child",
+    "__kind": "Task",
+    "__parent": "[[#dup]]",
+    "__parent_field": "c",
+    "x": 2,
+    "__types": {
+      "x": "number"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "__error_dup_dup",
+    "__kind": "__ParsingError",
+    "type": "duplicate_id",
+    "message": "Duplicate ID 'dup' (first defined on line 1)",
+    "object": "[[#dup]]",
+    "line": 9
+  },
+  {
+    "__id": "__error_dup_dup.c",
+    "__kind": "__ParsingError",
+    "type": "duplicate_id",
+    "message": "Duplicate ID 'dup.c' (first defined on line 5)",
+    "object": "[[#dup.c]]",
+    "line": 13
+  }
+]

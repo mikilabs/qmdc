@@ -2,8 +2,9 @@
 //!
 //! Provides three entry points:
 //! - [`resolve_root`]: bounded upward walk to find the nearest enclosing QMDC workspace root.
-//! - [`resolve_root_bidirectional`]: down-first (then up) single-root resolver used by the MCP
-//!   server (QMD-63); returns `ambiguous` when a container holds several workspaces.
+//! - [`resolve_root_bidirectional`]: down-first (then up) resolver used by the MCP server
+//!   (QMD-63); composes a container of sibling workspaces (QMD-72) and returns `ambiguous`
+//!   only when the set cannot be composed because two members share a workspace id.
 //! - [`get_index`]: reparse + DB sync to produce a [`ResolvedIndex`].
 //!
 //! Invariants enforced:
@@ -22,8 +23,8 @@ use serde_json::Value;
 use crate::db::QmdcDatabase;
 use crate::parser::OutputFormat;
 use crate::workspace::{
-    dir_is_workspace_root, find_nested_workspace_roots_bounded, find_workspace_root,
-    parse_all_workspaces, WORKSPACE_SCAN_MAX_DEPTH,
+    colliding_workspace_id, dir_is_workspace_root, find_nested_workspace_roots_bounded,
+    find_workspace_root, parse_all_workspaces, WORKSPACE_SCAN_MAX_DEPTH,
 };
 
 use super::error::{ErrorCode, ErrorEnvelope};
@@ -184,17 +185,17 @@ pub fn resolve_root(path: &Path) -> Result<PathBuf, Value> {
 // resolve_root_bidirectional — down-first, then up (QMD-63)
 // ---------------------------------------------------------------------------
 
-/// Resolve a single workspace root for an MCP `path`, searching **down first,
-/// then up** (QMD-63). Reuses the workspace-discovery primitives
-/// (`dir_is_workspace_root`, `find_nested_workspace_roots_bounded`,
-/// `find_workspace_root`) that the CLI resolver (`resolve_workspace`) also builds
-/// on — no MCP-specific discovery logic.
+/// Resolve the workspace root for an MCP `path`, searching **down first, then up**
+/// (QMD-63). Reuses the workspace-discovery primitives (`dir_is_workspace_root`,
+/// `find_nested_workspace_roots_bounded`, `find_workspace_root`) that the CLI resolver
+/// (`resolve_workspace`) also builds on — no MCP-specific discovery logic.
 ///
 /// 1. If `path` (or its parent, when a file) is itself a workspace root → it.
 /// 2. Else discover `__Workspace` roots below it:
 ///    - exactly one → that root,
-///    - more than one → [`ErrorCode::Ambiguous`] carrying the candidate paths
-///      (in a valid layout these are disjoint siblings, since nesting is illegal).
+///    - more than one → the CONTAINER, which `get_index` composes (QMD-72) — unless two
+///      candidates declare the same workspace id, which is the one case a composed graph
+///      cannot represent and so still returns [`ErrorCode::Ambiguous`] with the candidates.
 /// 3. Else walk upward to the enclosing workspace (`find_workspace_root`,
 ///    `__Workspace`-only, matching the QMD-59 walk-up contract). Note this walk
 ///    intentionally does NOT stop at a `.git` boundary — removing that false
@@ -255,23 +256,49 @@ pub fn resolve_root_bidirectional(path: &Path) -> Result<PathBuf, Value> {
             return Ok(root);
         }
         n if n > 1 => {
-            let candidates: Vec<String> = top.iter().map(|p| p.display().to_string()).collect();
+            // QMD-72: a container of sibling workspaces is COMPOSED, not refused. The CLI
+            // has always composed one; refusing it here was the whole MCP/CLI split — and
+            // neither candidate alone can see the other's objects, so picking one could not
+            // answer the question either. `get_index` composes via `parse_all_workspaces`,
+            // so returning the container is all that is needed.
+            //
+            // `ambiguous` survives with a sharper meaning: a set that cannot be composed
+            // because two members carry the same workspace id, where every id in one would
+            // collide with the other's and no reference could resolve to a single object.
+            if let Some(dup) = colliding_workspace_id(&top) {
+                let candidates: Vec<String> = top.iter().map(|p| p.display().to_string()).collect();
+                core_log(
+                    EventCategory::Resolution,
+                    Severity::Info,
+                    &format!(
+                        "ambiguous: {} workspaces under '{}' share id '{}'",
+                        n,
+                        start.display(),
+                        dup
+                    ),
+                );
+                return Err(ErrorEnvelope::error_with_candidates(
+                    ErrorCode::Ambiguous,
+                    format!(
+                        "path '{}' contains {} workspaces that cannot be composed: id '{}' is \
+                         declared more than once; re-call with one of `candidates` as `path`",
+                        start.display(),
+                        n,
+                        dup
+                    ),
+                    candidates,
+                ));
+            }
             core_log(
                 EventCategory::Resolution,
                 Severity::Info,
-                &format!("ambiguous: {} workspaces under '{}'", n, start.display()),
-            );
-            return Err(ErrorEnvelope::error_with_candidates(
-                ErrorCode::Ambiguous,
-                format!(
-                    "path '{}' contains {} workspaces (searched {} levels down); \
-                     re-call with one of `candidates` as `path`",
-                    start.display(),
+                &format!(
+                    "resolved root (down, composing {} workspaces): '{}'",
                     n,
-                    WORKSPACE_SCAN_MAX_DEPTH
+                    start.display()
                 ),
-                candidates,
-            ));
+            );
+            return Ok(start);
         }
         _ => {}
     }

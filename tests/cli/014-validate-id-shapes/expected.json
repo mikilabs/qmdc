@@ -1,0 +1,167 @@
+[
+  {
+    "type": "broken_link",
+    "message": "Object 'flat_store' not found. Did you mean [[#arch:flat_store]]?",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 15,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#flat_store]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'flat_store' not found. Did you mean [[#arch:flat_store]]?",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 16,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#arch:flat_store]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'flat_store' not found. Did you mean [[#arch:flat_store]]?",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 17,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#qmd69_no_such_ws:arch:flat_store]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'flat_store' not found. Did you mean [[#arch:flat_store]]?",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 18,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#qmd69_shapes_third:arch:flat_store]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'flat_store' not found. Did you mean [[#arch:flat_store]]?",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 19,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#qmd69_shapes_provider:no_such_ns:flat_store]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'system.data.postgres' not found. Did you mean [[#arch:system.data.postgres]]?",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 20,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#system.data.postgres]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'system.data.postgres' not found. Did you mean [[#arch:system.data.postgres]]?",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 21,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#qmd69_no_such_ws:arch:system.data.postgres]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'system.data.postgres' not found. Did you mean [[#arch:system.data.postgres]]?",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 22,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#qmd69_shapes_third:arch:system.data.postgres]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'system.data.postgres' not found. Did you mean [[#arch:system.data.postgres]]?",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 23,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#qmd69_shapes_provider:no_such_ns:system.data.postgres]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'postgres' not found. Did you mean [[#arch:system.data.postgres]]?",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 24,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#postgres]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'postgres' not found. Did you mean [[#arch:system.data.postgres]]?",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 25,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#qmd69_no_such_ws:arch:postgres]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'postgres' not found. Did you mean [[#arch:system.data.postgres]]?",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 26,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#qmd69_shapes_third:arch:postgres]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'postgres' not found. Did you mean [[#arch:system.data.postgres]]?",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 27,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#qmd69_shapes_provider:no_such_ns:postgres]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'system.data.postgres.engine' not found",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 28,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#qmd69_no_such_ws:arch:system.data.postgres.engine]]",
+    "candidates": null,
+    "severity": "error"
+  },
+  {
+    "type": "broken_link",
+    "message": "Object 'system.data.postgres.engine' not found",
+    "file": "consumer/negative_refs.qmd.md",
+    "line": 29,
+    "objectId": "negative_consumer",
+    "fieldName": null,
+    "reference": "[[#qmd69_shapes_third:arch:system.data.postgres.engine]]",
+    "candidates": null,
+    "severity": "error"
+  }
+]

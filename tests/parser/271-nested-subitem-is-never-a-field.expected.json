@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "Session",
+    "status": "ok",
+    "owner": "kiro",
+    "__types": {
+      "status": "string",
+      "owner": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "nested_subitems",
+    "field": "issues",
+    "object": "[[#s]]",
+    "line": 3
+  }
+]

@@ -98,6 +98,41 @@ Table syntax as compact alternative:
 
 First row = field names, each data row = one object. Supports primitives and references in cells. The `__syntax` field records `table`.
 
+The table must be the array container's **own** content — directly under the array heading, as
+above. A table written inside one of the array's ELEMENTS is that element's content, not more
+rows for the array:
+
+```markdown example
+### Members [[members: [User]]]
+
+#### Alice [[alice]]
+
+- role: admin
+
+| col_a | col_b |
+| ----- | ----- |
+| r1    | v1    |
+```
+
+Here the table belongs to `alice` and is carried as its comment content; `members` keeps exactly
+one element.
+
+Only the FIRST table under an array heading feeds the array. A second table under the same heading
+describes nothing — its rows cannot extend the array, since they would collide on the generated
+positional ids — so it produces an `extra_table_in_array` error. Its content is still preserved
+verbatim in the container's `__comments`.
+
+An array is written in ONE form, not both. Once it has been fed by a table, a following element
+heading cannot join it and produces a `mixed_array` error — it would otherwise become a plain field
+on the parent with its Kind silently dropped. To attach a table to an element deliberately and have it land in a named field,
+declare a text field for it (`#### Details [[details: text]]`) — text fields are covered in
+`docs/format/fields.qmd.md`.
+
+A PRIMITIVE array, `[[field: array]]`, holds list items, so a deeper heading inside it cannot be an
+element — and it does not become an object either, because a declared field kind decides what the
+section is (see `docs/format/headings.qmd.md`). Such a heading produces a `mixed_array` error at its
+own line and closes the array's content, exactly as prose between two lists does.
+
 ## Examples [[examples: text]]
 
 Primitive arrays — strings:
@@ -238,6 +273,7 @@ Table syntax with references in cells:
 ## Rules [[rules: text]]
 
 - Only bullet lists are allowed in heading-syntax primitive arrays. Numbered lists (`1. item`) produce an `ordered_list_in_array` error.
+- A Markdown table is not allowed under a primitive array field either — a primitive array holds scalars and a table has columns, so there is no mapping. It produces a `table_in_array` error. Tables ARE valid under an object array (`[[field: [Kind]]]`), where one row becomes one object.
 - Parent-child auto-links: objects inside array sections (`[[field: [Kind]]]` or `[[field: array]]`) automatically receive `__parent` (reference to the parent object) and `__parent_field` (field name in the parent). Independent objects outside array sections do not get `__parent`.
 - Syntax choice is preserved in `__syntax` for lossless round-trip: `yaml_array`, `yaml_multiline_array`, `markdown_list`, `headers`, `table`.
 - Table syntax is equivalent to subheading syntax but more compact. The same data can be expressed either way.

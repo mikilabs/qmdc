@@ -1,0 +1,1 @@
+workspace validate -w ./repo_a -w ./repo_b -w ./consumer

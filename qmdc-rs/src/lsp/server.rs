@@ -65,7 +65,7 @@ fn definition_span_utf16(line_content: &str, id: &str) -> (u32, u32) {
 }
 
 use crate::db::QmdcDatabase;
-use crate::workspace::{is_ignored, load_qmdcignore};
+use crate::ignore::{is_ignored, load_qmdcignore, IgnoreRules};
 use crate::{parse, OutputFormat, ParseOptions};
 
 use super::commands;
@@ -297,17 +297,17 @@ impl Backend {
         let mut readme_count = 0;
         let mut workspace_count = 0;
 
+        // `filter_entry` prunes descent into ignored dirs, matching the scans in workspace.rs;
+        // the result is unchanged, because `is_ignored` walks every ancestor (QMD-73).
         for entry in WalkDir::new(&folder_path)
             .follow_links(true)
             .into_iter()
+            .filter_entry(|e| {
+                !is_ignored(e.path(), &folder_path, &ignore_set, e.file_type().is_dir())
+            })
             .filter_map(|e| e.ok())
         {
             let path = entry.path();
-
-            // Check .qmdcignore before processing
-            if is_ignored(path, &folder_path, &ignore_set) {
-                continue;
-            }
 
             if path
                 .file_name()
@@ -383,7 +383,7 @@ impl Backend {
         folder_uri: &Url,
         _exclude: &[&PathBuf],
         project_root: &Path,
-        _ignore_set: &Option<globset::GlobSet>,
+        _ignore_set: &Option<IgnoreRules>,
     ) -> Option<WorkspaceInfo> {
         let folder_path = folder_uri.to_file_path().ok()?;
 
@@ -1276,7 +1276,8 @@ impl Backend {
         // diagnostics. These are single-document, workspace-independent (dangling_field,
         // mixed_field_keys, multiple_definitions, structured_in_textblock,
         // invalid_id_character, explicit_system_type, nested_subitems,
-        // ordered_list_in_array, invalid_map_*). `duplicate_id` is EXCLUDED here — the
+        // ordered_list_in_array, table_in_array, invalid_map_*). `duplicate_id` is EXCLUDED
+        // here — the
         // per-document `seen_ids` pass above already owns same-file duplicates, so we do
         // not double-report.
         for obj in &doc.objects {
@@ -1455,13 +1456,21 @@ impl Backend {
             // resolution index (indexed + freshly parsed) and any same-file
             // `[[#local_id]]` reference looks ambiguous (a false QMDC002).
 
-            // Resolution index = (whole workspace minus the open file's stale copy)
+            // Resolution index = (whole COMPOSED SET minus the open file's stale copy)
             //                     ∪ the open doc's freshly-parsed (namespace-backfilled) objects.
+            //
+            // QMD-72: the set is every workspace sharing the open file's `project_root`, not the
+            // owning workspace alone. Resolving against the owner only reported a valid
+            // cross-workspace reference as broken in the editor while the CLI resolved it — the
+            // LSP half of the MCP/CLI split. Identity stays workspace-scoped (QMD-67), so adding
+            // the siblings cannot make a bare local id resolve across a boundary; it only lets a
+            // QUALIFIED reference find the workspace it names.
             let mut index_objects: Vec<serde_json::Value> = ws_opt
                 .map(|ws| {
-                    ws.objects
-                        .values()
-                        .flatten()
+                    ws_index
+                        .siblings_of(&ws.project_root)
+                        .into_iter()
+                        .flat_map(|sibling| sibling.objects.values().flatten())
                         .filter(|o| match &open_file {
                             Some(f) => o.get("__file").and_then(|v| v.as_str()) != Some(f.as_str()),
                             None => true,
@@ -1855,8 +1864,11 @@ impl Backend {
                     meta_kind
                 };
 
-                // Skip system objects (auto-generated IDs like doc_xxx, text_xxx)
-                if id.starts_with("doc_") || id.starts_with("text_") {
+                // QMD-77: skip every object a reference cannot name. Filtering by the `doc_` /
+                // `text_` id prefix missed `__ParsingError`, so an `error_0` was offered as a
+                // completion the moment a document held a parse error — and none of these three
+                // kinds carries a `__global_id`, which is what makes them unreferenceable.
+                if matches!(meta_kind, "__ParsingError" | "__Document" | "__TextBlock") {
                     return None;
                 }
 
@@ -1912,8 +1924,9 @@ impl Backend {
                         .and_then(|v| v.as_str())
                         .unwrap_or("__Object");
 
-                    // Skip system objects (auto-generated IDs)
-                    if id.starts_with("doc_") || id.starts_with("text_") {
+                    // QMD-77: skip every object a reference cannot name — see the kind filter
+                    // above. The id-prefix form missed `__ParsingError`.
+                    if matches!(kind, "__ParsingError" | "__Document" | "__TextBlock") {
                         return None;
                     }
 

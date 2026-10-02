@@ -1,0 +1,36 @@
+[
+  {
+    "__id": "team",
+    "__label": "Team",
+    "__kind": "Group",
+    "lead": "Ann",
+    "members": [
+      "[[#team.members.members_0]]"
+    ],
+    "note": "something",
+    "__types": {
+      "lead": "string",
+      "members": "array",
+      "note": "string"
+    },
+    "__syntax": {
+      "members": "table"
+    },
+    "__level": 1,
+    "__labels": {
+      "members": "Members"
+    }
+  },
+  {
+    "__id": "team.members.members_0",
+    "__local_id": "members_0",
+    "__label": "Alice",
+    "__kind": "User",
+    "__parent": "[[#team]]",
+    "__parent_field": "members",
+    "name": "Alice",
+    "__types": {
+      "name": "string"
+    }
+  }
+]

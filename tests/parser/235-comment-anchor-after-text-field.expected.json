@@ -1,0 +1,40 @@
+[
+  {
+    "__id": "d",
+    "__label": "D",
+    "__kind": "HowTo",
+    "__comments": [
+      {
+        "after": "content",
+        "content": "## A plain heading\n\nBody under it."
+      }
+    ],
+    "goal": "g",
+    "gen": "[[#d.gen]]",
+    "content": "Intro line.",
+    "__types": {
+      "goal": "string",
+      "content": "string"
+    },
+    "__syntax": {
+      "content": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "content": "Content"
+    }
+  },
+  {
+    "__id": "d.gen",
+    "__local_id": "gen",
+    "__label": "Gen",
+    "__kind": "ContentGenerator",
+    "__parent": "[[#d]]",
+    "__parent_field": "gen",
+    "target": "[[#d.content]]",
+    "__types": {
+      "target": "string"
+    },
+    "__level": 2
+  }
+]

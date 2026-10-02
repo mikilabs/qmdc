@@ -23,24 +23,34 @@ A reference is defined via `[[#...]]` inside field values:
 Full format:
 
 ```markdown example
-[[#workspace:namespace:Kind:id]]
+[[#workspace:namespace:id]]
 ```
 
-Components (all optional except `id`):
+This is the `__global_id` grammar, so a reference and an identity are written the same way.
+A reference target is a right-aligned SUFFIX of it, with an optional `.field` on the id:
 
-- `workspace` — workspace name (defaults to current)
+- `workspace` — workspace name (defaults to the referring object's own workspace)
 - `namespace` — architectural slice (deliverables, storage, domain, etc.)
-- `Kind` — object type (for collision resolution)
 - `id` — object identifier (required)
+
+There is no `Kind` segment: ids are unique within a namespace, so a Kind could only ever
+disambiguate an already-invalid workspace.
 
 Short forms:
 
 ```markdown example
-[[#users]]                              # short form (current workspace/namespace)
-[[#Table:users]]                        # with Kind (current namespace)
-[[#storage:Table:users]]                # with namespace
-[[#myproject:storage:Table:users]]      # full form
+[[#users]]                         # this workspace: own namespace first, then any of it
+[[#storage:users]]                 # this workspace, that namespace
+[[#myproject:storage:users]]       # that workspace, that namespace
+[[#myproject::users]]              # that workspace, ANY namespace (namespace elided)
 ```
+
+Two rules follow, and both are enforced:
+
+- **A cross-workspace reference must name its workspace.** A bare `[[#id]]` never reaches
+  into a sibling workspace, not even when exactly one workspace holds that id.
+- **A qualifier matching more than one object is `ambiguous_reference` and builds no edge.**
+  `[[#myproject::users]]` is ambiguous when `myproject` holds `users` in two namespaces.
 
 Rules:
 
@@ -207,7 +217,9 @@ Problem handling — reference issues are reported with `severity: error` but ar
 - Object not found (by both `__id` and `__local_id`): `[[#missing]]` → reference remains a string, `broken_link` error reported
 - Object found via `__local_id` fallback (unambiguous): `[[#child]]` where `__id` is `parent.child` → resolves successfully
 - Multiple `__local_id` matches: `[[#name]]` where several objects have `__local_id: "name"` → unresolved reference, `ambiguous_reference` error reported
-- ID collision without Kind: `[[#users]]` (both Table:users and Entity:users exist) → unresolved reference, `ambiguous_reference` error reported
+- Same id in two namespaces of one workspace: `[[#users]]` → unresolved reference, `ambiguous_reference` error reported. Qualify it with the namespace (`[[#storage:users]]`).
+- Unqualified cross-workspace target: `[[#users]]` where `users` lives only in a SIBLING workspace → `broken_link`. Name the workspace (`[[#other_ws:storage:users]]`).
+- Elided namespace matching twice: `[[#other_ws::users]]` where `other_ws` holds `users` in two namespaces → `ambiguous_reference`, no edge.
 
 There is no filter or wildcard reference syntax — forms like `[[#items[key=value]]]` and `[[#*items[key=value]]]` are not part of the format and do not resolve.
 
@@ -399,6 +411,6 @@ Association (reference) — objects are independent, the link does not imply own
 - In YAML pipe blocks (`|`), references are not parsed at all — content remains plain text.
 - In inline code (`` `[[#ref]]` ``), references are not parsed.
 - In fenced code blocks with the `example` modifier, references are not parsed.
-- Kind-qualified references (`[[#Kind:id]]`) are required when two objects share the same ID but have different Kinds. Without Kind, the reference is ambiguous — a warning is produced.
-- Cross-namespace format: `[[#namespace:id]]` or `[[#namespace:Kind:id]]` for referencing objects in other namespaces.
-- Full cross-workspace format: `[[#workspace:namespace:Kind:id]]`.
+- When two objects share an id across namespaces of one workspace, qualify the reference with the namespace (`[[#storage:users]]`); unqualified, it is ambiguous and resolves to nothing.
+- Cross-namespace format: `[[#namespace:id]]`.
+- Cross-workspace format: `[[#workspace:namespace:id]]`, or `[[#workspace::id]]` to elide the namespace and match any namespace of that workspace.

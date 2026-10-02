@@ -6,7 +6,8 @@ use serde_json::{json, Value};
 // Import utilities from parser_modules
 use crate::parser_modules::{
     build_block_tree_from_events, build_from_map, extract_references_from_line, parse_field_value,
-    parse_header, re_double_brackets, re_field_check, re_field_kv, Reference, SimpleRng,
+    parse_header, re_double_brackets, re_field_check, re_field_kv, unsupported_number_hint,
+    Reference, SimpleRng,
 };
 
 // Re-export OutputFormat for backward compatibility
@@ -24,7 +25,7 @@ pub type QmdcObject = IndexMap<String, Value>;
 #[derive(Debug, Clone)]
 struct CodeFenceInfo {
     lang: String,
-    offset_line: usize,  // 0-based line offset within content
+    start_line: usize, // 1-based source line of the opening fence; offset_line = start_line - block line
     length_lines: usize, // number of lines including ``` markers
 }
 
@@ -113,6 +114,76 @@ fn raw_table_slice(source: &str, start: usize, end: usize) -> String {
     source.get(start..end).unwrap_or("").trim().to_string()
 }
 
+/// QMD-77: the `content` of a `__TextBlock` is the verbatim source of its region — lines
+/// `start..end` (1-based, `end` exclusive), each without a trailing `\r`, with leading and trailing
+/// blank lines dropped. Rebuilding the text from Markdown events lost constructs one by one (a
+/// blockquote, an HTML block, the second line of a setext heading, the markup inside a heading);
+/// a slice cannot lose any of them. Python and TypeScript implement the same function.
+fn text_block_source(lines: &[&str], start: usize, end: usize) -> String {
+    let end = end.min(lines.len() + 1);
+    if start == 0 || start >= end {
+        return String::new();
+    }
+    let region: Vec<&str> = lines[start - 1..end - 1]
+        .iter()
+        .map(|l| l.strip_suffix('\r').unwrap_or(l))
+        .collect();
+    let first = region.iter().position(|l| !l.trim().is_empty());
+    let last = region.iter().rposition(|l| !l.trim().is_empty());
+    match (first, last) {
+        (Some(first), Some(last)) => region[first..=last].join("\n"),
+        _ => String::new(),
+    }
+}
+
+/// QMD-77: the 1-based line the text above a document's first heading starts on, or `None` when it
+/// holds nothing but blank lines and HTML comments — an HTML comment is ignored and opens no block.
+/// Any other content opens the leading `__TextBlock`, whatever Markdown construct it is.
+fn leading_text_start(lines: &[&str], first_heading_line: usize) -> Option<usize> {
+    static HTML_COMMENT: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    let html_comment = HTML_COMMENT.get_or_init(|| Regex::new(r"(?s)<!--.*?-->").unwrap());
+    let above = &lines[..first_heading_line.saturating_sub(1).min(lines.len())];
+    if html_comment
+        .replace_all(&above.join("\n"), "")
+        .trim()
+        .is_empty()
+    {
+        return None;
+    }
+    above
+        .iter()
+        .position(|l| !l.trim().is_empty())
+        .map(|i| i + 1)
+}
+
+/// QMD-70: raw source of a block with its common leading indentation removed.
+///
+/// A block indented under a list item carries that indentation in the source. Stripping it
+/// uniformly is what lets the three parsers report identical content for the same input, since each
+/// one reaches the text by a different route.
+fn block_source_dedented(source: &str, start: usize, end: usize) -> String {
+    // Extend back to the start of the block's first line: the event's offset points at the first
+    // non-space character, so measuring indentation from it would read that line as having none and
+    // dedent nothing.
+    let line_start = source[..start.min(source.len())]
+        .rfind('\n')
+        .map(|p| p + 1)
+        .unwrap_or(0);
+    let raw = source.get(line_start..end).unwrap_or("");
+    let strip = raw
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| l.len() - l.trim_start().len())
+        .min()
+        .unwrap_or(0);
+    raw.lines()
+        .map(|l| if l.len() >= strip { &l[strip..] } else { l })
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string()
+}
+
 /// Create child objects from a markdown table inside an object array context.
 /// Returns the created objects as (id, element) pairs.
 fn create_table_child_objects(
@@ -130,29 +201,25 @@ fn create_table_child_objects(
     let data_rows = &table_rows[1..];
     let mut result = Vec::new();
 
-    // Get parent's full ID for hierarchical composition
+    // The parent's full ID, used for the child's `__parent` back-reference.
     let parent_full_id = objects_map
         .get(arr_parent_id)
         .and_then(|m| m.get("__id"))
         .and_then(|v| v.as_str())
         .unwrap_or(arr_parent_id);
 
-    // Check if parent is a system container
-    let parent_kind = objects_map
-        .get(arr_parent_id)
-        .and_then(|m| m.get("__kind"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    let is_system_parent = parent_kind == "__Workspace" || parent_kind == "__Namespace";
-
     for (row_idx, row) in data_rows.iter().enumerate() {
         let local_id = format!("{}_{}", arr_field, row_idx);
-        let (obj_id, local_id_out) = if is_system_parent {
-            (format!("{}_{}_{}", arr_parent_id, arr_field, row_idx), None)
-        } else {
-            let composed = format!("{}.{}.{}", parent_full_id, arr_field, local_id);
-            (composed, Some(local_id.clone()))
-        };
+        // QMD-70: compose the id through the shared `resolve_child_id` helper, the same way
+        // the array's HEADING elements do. This function used to re-implement the rule inline
+        // and the copy had drifted from the helper in two places: it composed
+        // `{parent}.{field}.{local}` unconditionally, doubling the segment when the array
+        // field name IS the parent's id (a top-level array), and it prefixed the parent id in
+        // the system-container case where the helper — and Python and TypeScript — use the
+        // bare local id. A table child and a heading element of the same array must agree,
+        // so there is only one rule and it lives in the helper.
+        let (obj_id, local_id_out) =
+            resolve_child_id(objects_map, arr_parent_id, &local_id, Some(arr_field));
         let mut element = IndexMap::new();
         element.insert("__id".to_string(), json!(&obj_id));
 
@@ -219,14 +286,18 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     // Track text blocks
     let mut text_blocks: Vec<(String, String, usize, Vec<CodeFenceInfo>)> = Vec::new(); // (id, content, line, code_fences)
     let mut text_block_counter = 0;
+    // `Some` while a text block is open. Only the structured_in_textblock gate reads the fragments
+    // (their count, and whether the first spans lines): the block's content is the verbatim source
+    // slice from `text_block_source` (QMD-77).
     let mut pending_text_block: Option<Vec<String>> = None;
     let mut pending_text_block_line: usize = 0;
     let mut pending_text_block_level: u8 = 0; // Track level of pending TextBlock for structured_in_textblock check
+                                              // QMD-77: the text above the first heading is decided once, when that heading (or EOF) arrives.
+    let mut leading_text_done = false;
     let mut pending_code_fences: Vec<CodeFenceInfo> = Vec::new();
 
     // Track parsing errors (structured_in_textblock, etc.)
     let mut parsing_errors: Vec<IndexMap<String, Value>> = Vec::new();
-    let mut parsing_error_counter = 0;
 
     // Track content order for __Document
     let mut content_order: Vec<String> = Vec::new();
@@ -240,6 +311,17 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     // Pending states
     let mut pending_text_field: Option<(String, String, u8, String)> = None; // (parent_id, field_name, level, field_type)
     let mut pending_object_array: Option<(String, String, String, u8)> = None; // (parent_id, field_name, kind, level)
+                                                                               // QMD-70: (parent_id, field_name) of an object array whose own table has already been consumed,
+                                                                               // so a SECOND table under the same heading can be reported instead of silently becoming prose.
+                                                                               // Cleared at the next heading: a heading either opens an element (the table then belongs to that
+                                                                               // element) or leaves the array altogether.
+    let mut array_table_consumed: Option<(String, String, u8)> = None;
+    // QMD-71: (parent_id, field_name) of a heading-declared field whose parent is NOT the in-flight
+    // object. `comment_anchor` lives on `CurrentObject`, so for a parent already finalized into
+    // `objects_map` there was nowhere to record it, and following content fell back to "the last
+    // field that references a child" — which picks the preceding OBJECT. Cleared as soon as an
+    // in-flight object takes over the anchoring again.
+    let mut map_parent_field_anchor: Option<(String, String)> = None;
 
     // Parser state
     let mut in_heading = false;
@@ -249,7 +331,22 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     let mut heading_start_offset: usize = 0;
 
     let mut in_list_item = false;
+    // QMD-70: an indented BLOCK inside a list item whose field already has a value. `(line,
+    // start_offset, end_offset)` of that block; set when it opens, consumed at the item's end once
+    // the field itself has been committed. While it is set, text is no longer collected into
+    // `list_item_text` — that is what used to glue a trailing paragraph onto the field's value
+    // (`something` + `quoted` = `somethingquoted`).
+    let mut list_item_block: Option<(u32, usize, usize)> = None;
+    let mut list_item_paragraph_done = false;
+    // QMD-70: the item declares a YAML multiline field (`- key: |` / `- key: >`), so every block
+    // inside it is that field's VALUE and none of them is stray content. Latched for the whole item,
+    // because the pipe's own value may contain fences and paragraphs of its own — checking the item
+    // text's tail alone stopped working once that value had been accumulated.
+    let mut list_item_pipe = false;
     let mut list_item_text = String::new();
+    // QMD-77 A2: the line a soft break inside the current list item continued onto, if any. A field
+    // value is one line, so a continuation is reported and the value cut back to the authored line.
+    let mut item_softbreak_line: Option<u32> = None;
     let mut list_item_start: Option<usize> = None; // Start offset of current list item
     let mut in_text_field_list = false; // Track if we're in a list inside text field
     let mut current_list_order: Option<u64> = None; // None = unordered, Some(n) = ordered starting at n
@@ -290,11 +387,17 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     let mut code_block_content = String::new(); // Content of current code block
     let mut code_block_lang = String::new(); // Language of current code block
     let mut code_block_start_line: usize = 0; // Line where code block starts (for __code_fences)
+    let mut code_block_is_fenced = false; // an indented code block is not a code fence
     let mut code_block_start_offset: usize = 0; // Byte offset where fenced code block starts
 
     // Track blockquote state
     let mut in_blockquote = false;
     let mut blockquote_lines: Vec<String> = Vec::new();
+    // QMD-70 follow-up: byte offset of the OUTERMOST open blockquote, so its comment content can
+    // be sliced from the source rather than reconstructed from text events, plus the nesting depth
+    // so a `> >` emits once for the whole quote instead of once per level.
+    let mut blockquote_start_offset: usize = 0;
+    let mut blockquote_depth: u32 = 0;
 
     // Track if last comment was a block element (blockquote, rule, code block, table)
     // Used to merge following paragraphs with the block
@@ -306,8 +409,20 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
 
     let field_re = re_field_kv();
 
-    // Use all options EXCEPT smart punctuation (which converts quotes to curly quotes)
-    let md_options = Options::all() - Options::ENABLE_SMART_PUNCTUATION;
+    // QMD-71 / QMD-77 C1: pin the extension set EXPLICITLY instead of taking `Options::all()` minus
+    // a few, which enabled every extension the library happens to ship -- a set that GROWS on a
+    // dependency bump, so Rust's idea of Markdown could change without a code change here. Footnotes
+    // were the first concrete harm: with them on, `[^1]: text` becomes a FootnoteDefinition whose
+    // inner paragraph starts AFTER the label, so a comment slice lost the `[^1]: ` prefix that
+    // Python and TypeScript keep. The metadata blocks were the second, found by C1: `---` / `+++`
+    // fences at the top of a file were swallowed whole and emitted no events at all, so a file that
+    // held nothing else produced NO objects, where the other two read it as ordinary Markdown (a
+    // thematic break and a setext heading) and synthesised a `__Document` and a `__TextBlock`.
+    // QMD.md defines no footnote and no front-matter syntax, so both constructs stay ordinary text.
+    let md_options = Options::ENABLE_TABLES
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_HEADING_ATTRIBUTES;
     let parser = MdParser::new_ext(markdown, md_options);
 
     // Collect events with source positions
@@ -320,22 +435,6 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     // Calculate line number from byte offset
     let get_line = |offset: usize| -> u32 { block_tree.offset_to_line(offset) };
 
-    // Helper to check if there's a table right after heading (for table fields)
-    let has_table_after = |start_idx: usize, events: &[(Event, std::ops::Range<usize>)]| -> bool {
-        for (event, _) in events.iter().skip(start_idx) {
-            match event {
-                Event::Start(Tag::Heading { .. }) => return false,
-                Event::Start(Tag::Table(_)) => return true,
-                Event::Start(Tag::List(_)) => return false,
-                Event::Start(Tag::Paragraph) => {} // Skip paragraphs
-                Event::End(TagEnd::Paragraph) => {}
-                Event::Text(_) => {}
-                _ => {}
-            }
-        }
-        false
-    };
-
     // Regex for field detection in has_fields_after (compiled once, outside the loop)
     let field_check_re = re_field_check();
 
@@ -344,6 +443,11 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     let bold_re_strip = Regex::new(r"\*\*([^*]*)\*\*").unwrap();
     let italic_re_strip = Regex::new(r"\*([^*]*)\*").unwrap();
     let strike_re_strip = Regex::new(r"~~([^~]*)~~").unwrap();
+
+    // QMD-77 A3: "this heading declares an identifier" — the same grammar the nested-declaration
+    // look-ahead uses (a leading `#` is a reference, not a declaration; code spans are stripped
+    // before the test).
+    let declares_re_a3 = Regex::new(r"\[\[\s*[^#\]][^\]]*\]\]").unwrap();
 
     // Helper: check if a list starting at `start_idx` contains ANY valid QMD.md field.
     // Scans all items (not just the first), used for boundary detection in comment scanning.
@@ -431,11 +535,18 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
     };
 
     // Helper to check if there are nested headings with [[...]] at a deeper level.
-    // Returns true if any heading at a deeper level contains [[...]] bracket syntax.
+    // Returns true if any heading at a deeper level DECLARES an identifier.
     // Stops at headings at same or higher level.
+    //
+    // QMD-75: "declares" is the format's own grammar, not "contains two brackets". The regex
+    // used to be `\[\[[^\]]+\]\]`, which counted a code span (`### Uses `[[x]]` syntax`) and a
+    // reference (`### See [[#s]]`) as declarations — so a comment heading that names a
+    // reference decided whether its PARENT is an object, and the parent then grew a field
+    // literally called `#s`. Code spans are stripped and a leading `#` is excluded, so only a
+    // real declaration counts.
     let has_nested_structured_headings =
         |start_idx: usize, current_level: u8, events: &[(Event, std::ops::Range<usize>)]| -> bool {
-            let bracket_re = Regex::new(r"\[\[[^\]]+\]\]").unwrap();
+            let declares_re = Regex::new(r"\[\[\s*[^#\]][^\]]*\]\]").unwrap();
 
             for (event, range) in events.iter().skip(start_idx) {
                 if let Event::Start(Tag::Heading { level, .. }) = event {
@@ -444,7 +555,8 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         return false;
                     }
                     let heading_text = block_tree.source.get(range.clone()).unwrap_or("");
-                    if bracket_re.is_match(heading_text) {
+                    let stripped = backtick_re_strip.replace_all(heading_text, "");
+                    if declares_re.is_match(&stripped) {
                         return true;
                     }
                 }
@@ -453,26 +565,181 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
         };
 
     let mut i = 0;
+    // QMD-77 E1 (issue 12): an inline construct inside a list item is taken as a SOURCE SLICE, so a
+    // field value is the text the author wrote. Rebuilding it from events rewrote every construct
+    // whose canonical form differs from the written one (`__x__` -> `**x**`) and dropped the ones
+    // with no arm at all (inline HTML). The slice already covers the construct's inner events, so
+    // they are skipped here instead of being appended a second time in canonical form. Depth,
+    // not a flag: emphasis nests inside strong.
+    let mut inline_raw_depth: usize = 0;
     while i < events.len() {
         let (event, range) = &events[i];
 
+        if inline_raw_depth > 0 {
+            match event {
+                Event::Start(Tag::Strong)
+                | Event::Start(Tag::Emphasis)
+                | Event::Start(Tag::Strikethrough)
+                | Event::Start(Tag::Link { .. })
+                | Event::Start(Tag::Image { .. }) => inline_raw_depth += 1,
+                Event::End(TagEnd::Strong)
+                | Event::End(TagEnd::Emphasis)
+                | Event::End(TagEnd::Strikethrough)
+                | Event::End(TagEnd::Link)
+                | Event::End(TagEnd::Image) => inline_raw_depth -= 1,
+                _ => {}
+            }
+            i += 1;
+            continue;
+        }
+
         match event {
+            // QMD-70: a BLOCK opening inside a list item, after that item's own text. An inline
+            // field holds a scalar and has no content of its own, so such a block belongs to
+            // nothing. Recorded here and turned into a comment plus a `block_in_inline_field` error
+            // at `TagEnd::Item`, once the field itself has been committed.
+            //
+            // This arm must come FIRST: the ordinary Table / BlockQuote / CodeBlock / List /
+            // Paragraph arms below would otherwise claim the event and apply whichever nearby rule
+            // they implement — which is exactly how the three parsers came to mangle this shape
+            // three different ways.
+            Event::Rule
+                if in_list_item
+                    && list_nesting_level == 1
+                    && list_item_block.is_none()
+                    && !list_item_text.trim_end().is_empty()
+                    && !list_item_pipe
+                    && !list_item_text.trim_end().ends_with(':') =>
+            {
+                // A thematic break (`---`) is a block like any other. It is `Event::Rule` rather
+                // than a `Tag`, so it cannot join the arm below; Python and TypeScript list `hr`
+                // among their openers, and omitting it here made the same input error there and
+                // pass silently in Rust.
+                list_item_block = Some((get_line(range.start), range.start, range.end));
+                i += 1;
+                continue;
+            }
+
+            Event::Start(
+                tag @ (Tag::Table(_)
+                | Tag::BlockQuote
+                | Tag::CodeBlock(_)
+                | Tag::List(_)
+                | Tag::Paragraph),
+            ) if in_list_item
+                // Top-level list items only. Python and TypeScript do not descend into a nested
+                // item to extract its fields, so they never reach this check there; firing in Rust
+                // alone would add a second axis of divergence on top of that pre-existing reach
+                // difference rather than removing one.
+                && list_nesting_level == 1
+                && list_item_block.is_none()
+                && !list_item_text.trim().is_empty()
+                // A PARAGRAPH is only offending once the item's own text is complete — the item's
+                // first paragraph IS that text. The other block kinds can never be the item's own
+                // text, so they need no such check; requiring it there missed a nested list, whose
+                // item emits no separate paragraph end before the list opens.
+                && (!matches!(tag, Tag::Paragraph) || list_item_paragraph_done)
+                // `- key: |` is YAML multiline: the indented block IS the field's value, not stray
+                // content, and it may itself contain fences and paragraphs. `pending_…_pipe_field`
+                // stays set for the whole of it, so it is the reliable signal — checking the item
+                // text's tail only worked until the pipe's own content had been accumulated.
+                // An empty value (`- key:`) is the `nested_subitems` shape, handled elsewhere.
+                && !list_item_pipe
+                && !list_item_text.trim_end().ends_with(':') =>
+            {
+                // Skip the block's events WHOLE. Letting them flow on is not harmless: a nested
+                // list's own items overwrite `list_item_text`, so by the time the outer item ended
+                // its field text was gone and the field disappeared from the object.
+                let mut depth = 0usize;
+                let mut end_offset = range.end;
+                let mut j = i;
+                while j < events.len() {
+                    match &events[j].0 {
+                        Event::Start(_) => depth += 1,
+                        Event::End(_) => {
+                            depth -= 1;
+                            if depth == 0 {
+                                end_offset = events[j].1.end;
+                                j += 1;
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                    j += 1;
+                }
+                list_item_block = Some((get_line(range.start), range.start, end_offset));
+                i = j;
+                continue;
+            }
+
             Event::Start(Tag::Heading { level, .. }) => {
                 in_heading = true;
                 heading_text.clear();
                 heading_start_offset = range.start;
                 heading_level = heading_level_to_u8(level);
                 heading_line = get_line(range.start);
+                if !leading_text_done {
+                    leading_text_done = true;
+                    if let Some(start) = leading_text_start(&lines, heading_line as usize) {
+                        if pending_text_block.is_none() {
+                            pending_text_block = Some(Vec::new());
+                            pending_text_block_level = 0;
+                        }
+                        pending_text_block_line = start;
+                    }
+                }
             }
 
             Event::End(TagEnd::Heading(_)) => {
                 in_heading = false;
 
                 // Check if this heading is inside a text field
-                if let Some((ref parent_id, ref field_name, text_field_level, _)) =
+                if let Some((ref parent_id, ref field_name, text_field_level, ref field_type)) =
                     pending_text_field.clone()
                 {
                     if heading_level > text_field_level {
+                        // QMD-77 A3: a heading deeper than a field declared `array` or `map` does
+                        // NOT create an object — the DECLARED KIND decides what the section is, the
+                        // same rule QMD-75 settled for `text`. But a collection's value is its list
+                        // items, and a heading is not one, so the declaration it carries is lost:
+                        // report it instead of dropping it in silence. The list items BELOW the
+                        // heading keep feeding the collection, because the offending heading does
+                        // not end the field either.
+                        let is_collection = field_type == "array" || field_type == "map";
+                        if is_collection {
+                            let stripped = backtick_re_strip.replace_all(&heading_text, "");
+                            if declares_re_a3.is_match(&stripped) {
+                                let mut error = IndexMap::new();
+                                error.insert(
+                                    "__id".to_string(),
+                                    json!(format!("error_{}", parsing_errors.len())),
+                                );
+                                error.insert("__kind".to_string(), json!("__ParsingError"));
+                                error.insert(
+                                    "type".to_string(),
+                                    json!(if field_type == "array" {
+                                        "mixed_array"
+                                    } else {
+                                        "invalid_map_content"
+                                    }),
+                                );
+                                error.insert("field".to_string(), json!(field_name));
+                                error.insert(
+                                    "object".to_string(),
+                                    json!(format!("[[#{}]]", parent_id)),
+                                );
+                                error.insert("line".to_string(), json!(heading_line));
+                                parsing_errors.push(error);
+                            }
+                            // The offending heading CLOSES the collection's content, exactly as
+                            // prose between two lists does: a collection is fed by the first list
+                            // under its declaration, and nothing below this heading joins it.
+                            pending_text_field = None;
+                            i += 1;
+                            continue;
+                        }
+
                         // This heading is part of the text field content
                         let heading_md = format!(
                             "{} {}",
@@ -546,6 +813,36 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 }
 
                 let header = parse_header(&heading_text, &mut rng);
+
+                // QMD-70: an array fed by a TABLE cannot also take heading elements. A heading
+                // deeper than the array's own level would be such an element, but the array has
+                // already been built from the table, so the heading silently became a plain field on
+                // the parent and its declared Kind was dropped (`User` -> `__Object`). Report it.
+                //
+                // Only a heading that declares an OBJECT counts. One carrying a field type (`text`,
+                // `yaml`, `array`, ...) is a field on the parent, not an element, and is perfectly
+                // legal there — as is a heading at or above the array's own level, which is a
+                // sibling rather than an element.
+                //
+                // Checked here rather than at `Tag::Heading` because the header — and so its field
+                // type — is only known once the heading's text has been collected.
+                if let Some((ref pid, ref field, arr_level)) = array_table_consumed {
+                    if heading_level > arr_level && header.field_type.is_none() {
+                        let mut error = IndexMap::new();
+                        error.insert(
+                            "__id".to_string(),
+                            json!(format!("error_{}", parsing_errors.len())),
+                        );
+                        error.insert("__kind".to_string(), json!("__ParsingError"));
+                        error.insert("type".to_string(), json!("mixed_array"));
+                        error.insert("field".to_string(), json!(field));
+                        error.insert("object".to_string(), json!(format!("[[#{}]]", pid)));
+                        error.insert("line".to_string(), json!(heading_line));
+                        parsing_errors.push(error);
+                    }
+                }
+                // A heading ends the container's own content — see the declaration.
+                array_table_consumed = None;
 
                 // Pop objects from stack at same or deeper level
                 while !object_stack.is_empty() && object_stack.last().unwrap().1 >= heading_level {
@@ -671,19 +968,38 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     matches!(header.field_type.as_deref(), Some("json") | Some("yaml"));
                 if is_content_field {
                     if let Some(ref pid) = parent_id {
-                        // Finalize current object (the parent) before setting up text field
-                        if let Some(obj) = current_obj.take() {
-                            finalize_object(
-                                &mut objects_map,
-                                &mut duplicate_objects,
-                                &mut parsing_errors,
-                                &mut first_seen_lines,
-                                obj,
-                            );
+                        // QMD-70: a `json` / `yaml` field heading declares a FIELD on the parent, so
+                        // it must not close the parent — the same reasoning as the object-array
+                        // heading. Keeping the parent in flight is what lets content AFTER the fence
+                        // still find somewhere to go; it used to be dropped outright.
+                        //
+                        // This is only safe now that the field closes as soon as its fence is read
+                        // (see the fence handler): the write sites that consume `pending_text_field`
+                        // still address the map, and with the field closed none of them is reached
+                        // for a yaml/json field any more.
+                        if !objects_map.contains_key(pid) {
+                            let mut skeleton = IndexMap::new();
+                            skeleton.insert("__id".to_string(), json!(pid));
+                            if let Some(ref obj) = current_obj {
+                                if let Some(ref k) = obj.kind {
+                                    skeleton.insert("__kind".to_string(), json!(k));
+                                }
+                            }
+                            objects_map.insert(pid.clone(), skeleton);
                         }
 
-                        // Initialize empty string in parent
-                        if let Some(parent) = objects_map.get_mut(pid) {
+                        // Initialize the field on the parent, wherever it currently lives.
+                        if let Some(ref mut obj) = current_obj {
+                            obj.fields.insert(header.id.clone(), json!(""));
+                            let line_text = lines.get(heading_line as usize - 1).unwrap_or(&"");
+                            let col =
+                                line_text.find(&format!("[[{}", header.id)).unwrap_or(0) as u32;
+                            obj.positions.insert(header.id.clone(), (heading_line, col));
+                            text_field_labels
+                                .entry(pid.clone())
+                                .or_default()
+                                .insert(header.id.clone(), header.label.clone());
+                        } else if let Some(parent) = objects_map.get_mut(pid) {
                             parent.insert(header.id.clone(), json!(""));
 
                             // Save label for text field (for rebuild)
@@ -718,81 +1034,57 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     }
                 }
 
-                // Check if this is a table field: [[id]] (no Kind) followed by table
-                // This handles patterns like ### Statuses [[task_statuses]] with a table below
-                if header.has_explicit_id
-                    && header.kind.is_none()
-                    && header.field_type.is_none()
-                    && has_table_after(i + 1, &events)
-                {
-                    if let Some(ref pid) = parent_id {
-                        // This is a table field of the parent object
-                        // Finalize current object (the parent) before setting up table field
-                        if let Some(obj) = current_obj.take() {
-                            finalize_object(
-                                &mut objects_map,
-                                &mut duplicate_objects,
-                                &mut parsing_errors,
-                                &mut first_seen_lines,
-                                obj,
-                            );
-                        }
-
-                        // Initialize empty array in parent for table rows
-                        if let Some(parent) = objects_map.get_mut(pid) {
-                            parent.insert(header.id.clone(), json!([]));
-
-                            // Add __syntax for table
-                            let syntax = parent
-                                .entry("__syntax".to_string())
-                                .or_insert_with(|| json!({}));
-                            if let Some(obj) = syntax.as_object_mut() {
-                                obj.insert(header.id.clone(), json!("table"));
-                            }
-
-                            // Track field position for LSP (heading-defined table field)
-                            let positions = parent
-                                .entry("__positions".to_string())
-                                .or_insert_with(|| json!({}));
-                            if let Some(pos_obj) = positions.as_object_mut() {
-                                let line_text = lines.get(heading_line as usize - 1).unwrap_or(&"");
-                                let col =
-                                    line_text.find(&format!("[[{}", header.id)).unwrap_or(0) as u32;
-                                pos_obj.insert(
-                                    header.id.clone(),
-                                    json!({"line": heading_line, "col": col}),
-                                );
-                            }
-                        }
-
-                        // Set pending_text_field to collect table content
-                        pending_text_field = Some((
-                            pid.clone(),
-                            header.id.clone(),
-                            heading_level,
-                            "table".to_string(),
-                        ));
-                        i += 1;
-                        continue;
-                    }
-                }
+                // QMD-75: a table under a bare `[[id]]` is that heading's own content, not a
+                // table FIELD of the parent. The lookahead that used to claim it never filled
+                // any rows — it produced a string value labelled `__syntax: table` beside
+                // `__types: string`, a combination nothing consumes, while Python and
+                // TypeScript both reported `multiline_text` for the identical value. A bare
+                // `[[id]]` declares no array, so the body cannot turn it into one; the heading
+                // now falls through to the one structural rule — object when a field list of its
+                // own or a declaring deeper heading follows, implicit text field otherwise —
+                // like every other unrecognised body.
 
                 // Check if this is an object array header [[field: [Kind]]]
                 if header.field_type.as_deref() == Some("object_array") {
                     if let Some(ref pid) = parent_id {
-                        // Finalize current object (the parent) before setting up array
-                        if let Some(obj) = current_obj.take() {
-                            finalize_object(
-                                &mut objects_map,
-                                &mut duplicate_objects,
-                                &mut parsing_errors,
-                                &mut first_seen_lines,
-                                obj,
-                            );
+                        // QMD-70: the parent STAYS in `current_obj` here. It used to be finalized
+                        // at this point, which is why everything following the array's own table
+                        // was lost in Rust: the field, comment and reference paths all write to the
+                        // in-flight object, so once the parent was gone they had no target, and a
+                        // trailing `- note: value` silently vanished while Python and TypeScript
+                        // kept it.
+                        //
+                        // The parent's slot in `objects_map` is reserved with a skeleton entry so
+                        // the array's children, which are inserted as soon as the table converts,
+                        // still come after their parent in the output. `finalize_object` treats an
+                        // entry without `__line` as a skeleton and overwrites it IN PLACE without
+                        // reporting a duplicate, so the position survives and the parent is written
+                        // for real whenever it does get finalized — at the first element heading,
+                        // at the next heading of its own level, or at end of input.
+                        //
+                        // The skeleton carries `__kind` because `resolve_child_id` reads it to
+                        // recognise a `__Workspace` / `__Namespace` parent, whose children take a
+                        // bare local id.
+                        if !objects_map.contains_key(pid) {
+                            let mut skeleton = IndexMap::new();
+                            skeleton.insert("__id".to_string(), json!(pid));
+                            if let Some(ref obj) = current_obj {
+                                if let Some(ref k) = obj.kind {
+                                    skeleton.insert("__kind".to_string(), json!(k));
+                                }
+                            }
+                            objects_map.insert(pid.clone(), skeleton);
                         }
 
-                        // Initialize empty array in parent
-                        if let Some(parent) = objects_map.get_mut(pid) {
+                        // Initialize empty array on the parent, wherever it currently lives.
+                        if let Some(ref mut obj) = current_obj {
+                            obj.fields.insert(header.id.clone(), json!([]));
+                            obj.syntax.insert(header.id.clone(), "headers".to_string());
+                            let line_text = lines.get(heading_line as usize - 1).unwrap_or(&"");
+                            let col =
+                                line_text.find(&format!("[[{}", header.id)).unwrap_or(0) as u32;
+                            obj.positions.insert(header.id.clone(), (heading_line, col));
+                        } else if let Some(parent) = objects_map.get_mut(pid) {
                             parent.insert(header.id.clone(), json!([]));
 
                             // Add __syntax
@@ -1023,8 +1315,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                         if !ref_pattern.is_empty() {
                                             let nested_heading_line = get_line(evt_range.start);
                                             let error_id =
-                                                format!("parsing_error_{}", parsing_error_counter);
-                                            parsing_error_counter += 1;
+                                                format!("error_{}", parsing_errors.len());
 
                                             let mut error = IndexMap::new();
                                             error.insert("__id".to_string(), json!(error_id));
@@ -1073,6 +1364,15 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // Get the comment anchor from current_obj or determine from parent
                     let comment_anchor = if let Some(ref obj) = current_obj {
                         obj.comment_anchor.clone()
+                    } else if let Some((_, ref afield)) = map_parent_field_anchor
+                        .clone()
+                        .filter(|(apid, _)| Some(apid) == parent_id.as_ref())
+                    {
+                        // QMD-71: a heading declared a field on this parent, so content after it
+                        // belongs to that FIELD. Without this the fallback below picked the last
+                        // field referencing a child — the preceding OBJECT — which is what made 20
+                        // of the 32 divergent documents differ from Python and TypeScript.
+                        afield.clone()
                     } else if let Some(ref pid) = parent_id {
                         // current_obj was finalized (child popped from stack).
                         // Find which field on the parent references the last popped child
@@ -1184,11 +1484,91 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             && k.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
                     };
                     let mut idx = 0;
+                    // QMD-77 A3: the spec (`[[#err_invalid_map_content]]`) says a map is populated
+                    // only from the FIRST valid bullet list, and any other content between the map
+                    // heading and the next heading at the same or higher level is an error —
+                    // "additional bullet lists" included. This loop used to merge every list item
+                    // in the section, so an entry after an offending block silently joined the map.
+                    // A blank line does NOT close the list (a loose Markdown list is still one
+                    // list); a non-empty, non-item line does.
+                    let mut saw_first_list = false;
+                    let mut first_list_closed = false;
+                    let mut in_extra_list = false;
+                    // The entry an indented sub-item would belong to: (key, line).
+                    let mut map_entry_owner: Option<(String, u32, bool)> = None;
+                    let mut map_nested_reported = false;
                     while idx < raw_lines.len() {
                         let stripped = raw_lines[idx].trim();
+                        let is_indented =
+                            raw_lines[idx].starts_with(' ') || raw_lines[idx].starts_with('\t');
+                        // QMD-77 A3: a map is a FLAT `str -> str` dictionary, so an indented
+                        // sub-item is not an entry. This loop trimmed every line before looking at
+                        // it, so `  - deep: x` became a top-level entry the author never wrote —
+                        // the same class of invented field QMD-77 A4 removed from field lists.
+                        // Reported like A4 does: `nested_subitems`, once per owning entry, at the
+                        // owning entry's line.
+                        if is_indented && stripped.starts_with("- ") {
+                            if let Some((ref owner_key, owner_line, owner_empty)) =
+                                map_entry_owner.clone()
+                            {
+                                if !map_nested_reported {
+                                    map_nested_reported = true;
+                                    let (err_type, err_line) = if owner_empty {
+                                        map_data.shift_remove(owner_key.as_str());
+                                        ("nested_subitems", owner_line)
+                                    } else {
+                                        // The entry keeps its own value; the indented block under it
+                                        // is reported where an ordinary field list reports it — at
+                                        // the block's own line.
+                                        ("block_in_inline_field", base_line + idx as u32)
+                                    };
+                                    let error_id = format!("error_{}", parsing_errors.len());
+                                    let mut error = IndexMap::new();
+                                    error.insert("__id".to_string(), json!(error_id));
+                                    error.insert("__kind".to_string(), json!("__ParsingError"));
+                                    error.insert("type".to_string(), json!(err_type));
+                                    error.insert("field".to_string(), json!(owner_key));
+                                    error.insert(
+                                        "object".to_string(),
+                                        json!(format!("[[#{}]]", parent)),
+                                    );
+                                    error.insert("line".to_string(), json!(err_line));
+                                    parsing_errors.push(error);
+                                }
+                            }
+                            idx += 1;
+                            continue;
+                        }
                         if let Some(item) = stripped.strip_prefix("- ") {
+                            if first_list_closed {
+                                if !in_extra_list {
+                                    in_extra_list = true;
+                                    let line = base_line + idx as u32;
+                                    let error_id = format!("error_{}", parsing_errors.len());
+                                    let mut error = IndexMap::new();
+                                    error.insert("__id".to_string(), json!(error_id));
+                                    error.insert("__kind".to_string(), json!("__ParsingError"));
+                                    error.insert("type".to_string(), json!("invalid_map_content"));
+                                    error.insert("field".to_string(), json!(header.id));
+                                    error.insert(
+                                        "object".to_string(),
+                                        json!(format!("[[#{}]]", parent)),
+                                    );
+                                    error.insert("line".to_string(), json!(line));
+                                    parsing_errors.push(error);
+                                }
+                                idx += 1;
+                                continue;
+                            }
+                            saw_first_list = true;
                             if let Some(colon_pos) = item.find(':') {
                                 let k = item[..colon_pos].trim();
+                                map_entry_owner = Some((
+                                    k.to_string(),
+                                    base_line + idx as u32,
+                                    item[colon_pos + 1..].trim().is_empty(),
+                                ));
+                                map_nested_reported = false;
                                 if !is_valid_key(k) {
                                     // Invalid key (e.g. **bold**)
                                     let line = base_line + idx as u32;
@@ -1270,6 +1650,10 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             }
                         } else if !stripped.is_empty() {
                             // Non-list content (paragraph, code fence, numbered list, etc.)
+                            if saw_first_list {
+                                first_list_closed = true;
+                            }
+                            in_extra_list = false;
                             let line = base_line + idx as u32;
                             let error_id = format!("error_{}", parsing_errors.len());
                             let mut error = IndexMap::new();
@@ -1377,6 +1761,9 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         obj.syntax
                             .insert(header.id.clone(), "multiline_text".to_string());
                         obj.comment_anchor = header.id.clone();
+                        // QMD-71: the in-flight object carries the anchor itself now, so drop any
+                        // field remembered for a map-resident parent.
+                        map_parent_field_anchor = None;
 
                         // Add position for text field (for LSP outline)
                         let line_text = lines.get(heading_line as usize - 1).unwrap_or(&"");
@@ -1389,16 +1776,26 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             .or_default()
                             .insert(header.id.clone(), header.label.clone());
                     } else if let Some(parent_obj) = objects_map.get_mut(&parent) {
+                        // QMD-71: remember the field so content after this heading anchors on it.
+                        map_parent_field_anchor = Some((parent.clone(), header.id.clone()));
                         parent_obj.insert(header.id.clone(), json!(field_value));
-                        if let Some(types) = parent_obj.get_mut("__types") {
-                            if let Some(types_map) = types.as_object_mut() {
-                                types_map.insert(header.id.clone(), json!("string"));
-                            }
+                        // QMD-71: create `__types` / `__syntax` when absent. These used to be
+                        // written only if the maps ALREADY existed, so a text field declared on a
+                        // parent whose other fields are plain scalars got its value but no metadata
+                        // — Python and TypeScript always record `multiline_text` here. The
+                        // in-flight branch above never had the problem, because `obj.syntax` is a
+                        // map that is always present.
+                        let types = parent_obj
+                            .entry("__types".to_string())
+                            .or_insert_with(|| json!({}));
+                        if let Some(types_map) = types.as_object_mut() {
+                            types_map.insert(header.id.clone(), json!("string"));
                         }
-                        if let Some(syntax) = parent_obj.get_mut("__syntax") {
-                            if let Some(syntax_map) = syntax.as_object_mut() {
-                                syntax_map.insert(header.id.clone(), json!("multiline_text"));
-                            }
+                        let syntax = parent_obj
+                            .entry("__syntax".to_string())
+                            .or_insert_with(|| json!({}));
+                        if let Some(syntax_map) = syntax.as_object_mut() {
+                            syntax_map.insert(header.id.clone(), json!("multiline_text"));
                         }
 
                         // Add position for text field (for LSP outline)
@@ -1482,8 +1879,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     && textblock_is_level2_or_deeper
                 {
                     // Generate error
-                    let error_id = format!("parsing_error_{}", parsing_error_counter);
-                    parsing_error_counter += 1;
+                    let error_id = format!("error_{}", parsing_errors.len());
 
                     // Build reference pattern (e.g., "[[invalid_field: text]]" or "[[another_invalid]]")
                     let ref_pattern = if let Some(ref ft) = header.field_type {
@@ -1526,13 +1922,17 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
 
                 if is_text_block {
                     // Save any pending text block first
-                    if let Some(content_parts) = pending_text_block.take() {
+                    if pending_text_block.take().is_some() {
                         let tb_id = format!("text_{}", text_block_counter);
                         text_block_counter += 1;
                         let fences = std::mem::take(&mut pending_code_fences);
                         text_blocks.push((
                             tb_id.clone(),
-                            content_parts.join("\n\n"),
+                            text_block_source(
+                                &lines,
+                                pending_text_block_line,
+                                heading_line as usize,
+                            ),
                             pending_text_block_line,
                             fences,
                         ));
@@ -1558,13 +1958,17 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     }
                 } else {
                     // Save any pending text block
-                    if let Some(content_parts) = pending_text_block.take() {
+                    if pending_text_block.take().is_some() {
                         let tb_id = format!("text_{}", text_block_counter);
                         text_block_counter += 1;
                         let fences = std::mem::take(&mut pending_code_fences);
                         text_blocks.push((
                             tb_id.clone(),
-                            content_parts.join("\n\n"),
+                            text_block_source(
+                                &lines,
+                                pending_text_block_line,
+                                heading_line as usize,
+                            ),
                             pending_text_block_line,
                             fences,
                         ));
@@ -1807,7 +2211,40 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // Collect link text (will be formatted as [text](url) when link ends)
                     link_text.push_str(text);
                 } else if in_list_item {
-                    list_item_text.push_str(text);
+                    // Not while an offending block is open — see `list_item_block`.
+                    if list_item_block.is_none() {
+                        // Source slice, not the decoded text: `&amp;` came back as `&`, so a value
+                        // read here and written back changed meaning. An ESCAPE needs one more
+                        // byte: pulldown-cmark reports `\_` as the text `_` over the range of the
+                        // character alone, leaving the backslash inside no event's range at all, so
+                        // it is picked up here when the accumulated value does not already hold it.
+                        let mut slice_start = range.start;
+                        if slice_start > 0
+                            && markdown.as_bytes()[slice_start - 1] == b'\\'
+                            && !list_item_text.ends_with('\\')
+                        {
+                            slice_start -= 1;
+                        }
+                        list_item_text.push_str(&markdown[slice_start..range.end]);
+                        // Latch a YAML multiline declaration here rather than at the paragraph's
+                        // end: a TIGHT list item emits no paragraph events at all, so the latch
+                        // never ran there and the pipe's own fence was reported as stray content.
+                        // Any YAML BLOCK SCALAR header, not just a bare `|` or `>`: `|-`, `|+`,
+                        // `>-`, `>+`, and an optional indentation indicator (`|2`) all mean the
+                        // indented block IS the value. Matching only the bare forms reported a
+                        // valid `- key: |-` with a blank line inside as an error.
+                        let tail = list_item_text.trim_end();
+                        if let Some(marker) = tail.rsplit(": ").next() {
+                            let mut cs = marker.chars();
+                            if matches!(cs.next(), Some('|') | Some('>')) {
+                                let rest: String = cs.collect();
+                                let rest = rest.trim_start_matches(['+', '-']);
+                                if rest.chars().all(|c| c.is_ascii_digit()) {
+                                    list_item_pipe = true;
+                                }
+                            }
+                        }
+                    }
                 } else if in_paragraph {
                     paragraph_text.push_str(text);
                 } else if let Some(ref mut parts) = pending_text_block {
@@ -1841,17 +2278,15 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
             Event::Start(Tag::Strong) => {
                 // Check in_list_item FIRST (same order as Event::Text)
                 if in_list_item {
-                    list_item_text.push_str("**");
+                    list_item_text.push_str(&markdown[range.start..range.end]);
+                    inline_raw_depth = 1;
                 } else if in_paragraph {
                     paragraph_text.push_str("**");
                 }
             }
 
             Event::End(TagEnd::Strong) => {
-                // Check in_list_item FIRST (same order as Event::Text)
-                if in_list_item {
-                    list_item_text.push_str("**");
-                } else if in_paragraph {
+                if in_paragraph {
                     paragraph_text.push_str("**");
                 }
             }
@@ -1859,17 +2294,15 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
             Event::Start(Tag::Emphasis) => {
                 // Check in_list_item FIRST (same order as Event::Text)
                 if in_list_item {
-                    list_item_text.push('*');
+                    list_item_text.push_str(&markdown[range.start..range.end]);
+                    inline_raw_depth = 1;
                 } else if in_paragraph {
                     paragraph_text.push('*');
                 }
             }
 
             Event::End(TagEnd::Emphasis) => {
-                // Check in_list_item FIRST (same order as Event::Text)
-                if in_list_item {
-                    list_item_text.push('*');
-                } else if in_paragraph {
+                if in_paragraph {
                     paragraph_text.push('*');
                 }
             }
@@ -1877,43 +2310,64 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
             Event::Start(Tag::Strikethrough) => {
                 // Check in_list_item FIRST (same order as Event::Text)
                 if in_list_item {
-                    list_item_text.push_str("~~");
+                    list_item_text.push_str(&markdown[range.start..range.end]);
+                    inline_raw_depth = 1;
                 } else if in_paragraph {
                     paragraph_text.push_str("~~");
                 }
             }
 
             Event::End(TagEnd::Strikethrough) => {
-                // Check in_list_item FIRST (same order as Event::Text)
-                if in_list_item {
-                    list_item_text.push_str("~~");
-                } else if in_paragraph {
+                if in_paragraph {
                     paragraph_text.push_str("~~");
                 }
             }
 
             Event::Start(Tag::Link { dest_url, .. }) => {
-                in_link = true;
-                link_url = dest_url.to_string();
-                link_text.clear();
+                // Check in_list_item FIRST (same order as Event::Text). The rebuild below cannot
+                // carry a link title (`[t](url "T")`) and turns an autolink into a full link, so a
+                // field value takes the source slice instead.
+                if in_list_item {
+                    list_item_text.push_str(&markdown[range.start..range.end]);
+                    inline_raw_depth = 1;
+                } else {
+                    in_link = true;
+                    link_url = dest_url.to_string();
+                    link_text.clear();
+                }
             }
 
             Event::End(TagEnd::Link) => {
                 in_link = false;
                 let formatted = format!("[{}]({})", link_text, link_url);
-                // Check in_list_item FIRST (same order as Event::Text)
-                if in_list_item {
-                    list_item_text.push_str(&formatted);
-                } else if in_paragraph {
+                if in_paragraph {
                     paragraph_text.push_str(&formatted);
                 }
                 link_text.clear();
                 link_url.clear();
             }
 
+            Event::Start(Tag::Image { .. }) => {
+                // No arm existed, so an image in a field value was reduced to its alt text.
+                if in_list_item {
+                    list_item_text.push_str(&markdown[range.start..range.end]);
+                    inline_raw_depth = 1;
+                }
+            }
+
+            Event::InlineHtml(_) => {
+                // No arm existed, so `<b>bold</b>` lost its tags and `<br>` vanished outright.
+                if in_list_item {
+                    list_item_text.push_str(&markdown[range.start..range.end]);
+                }
+            }
+
             Event::SoftBreak | Event::HardBreak => {
                 if in_list_item {
                     list_item_text.push(' ');
+                    if item_softbreak_line.is_none() {
+                        item_softbreak_line = Some(get_line(range.end));
+                    }
                 } else if in_paragraph {
                     paragraph_text.push('\n');
                 }
@@ -1956,7 +2410,24 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // Ordered list items (1. 2. 3.) are always comment content.
                     // Items inside a yaml_multiline pipe field are raw content, not fields.
                     let first_line = trimmed.lines().next().unwrap_or(trimmed);
-                    if current_list_order.is_none()
+                    // QMD-71: top-level list items only. A NESTED item's `key: value` entries used
+                    // to become real fields on the object, which Python and TypeScript never do —
+                    // they treat the whole construct as comment content. The one real occurrence in
+                    // the corpus is `docs/tracking/workflow.sop.qmd.md`, where the SOP's own prose
+                    // describes what a Finding should contain; Rust turned that description into
+                    // `affected_files`, `affected_functions` and `solution` fields on the Step
+                    // object. Inventing fields out of documentation text settles which side is
+                    // right, so Rust now matches the other two.
+                    // Only when an ANCESTOR list is ordered. Nesting alone was too blunt: for a
+                    // bullet list nested under an EMPTY-valued bullet item (`- items:` then
+                    // `- product: x`) suppressing the field made Rust emit `nested_subitems` where
+                    // the other two emit nothing, trading one divergence for another. The real
+                    // divergence is an ordered item with an indented field-like list under it.
+                    if !list_order_stack
+                        .iter()
+                        .take(list_nesting_level.saturating_sub(1))
+                        .any(|o| o.is_some())
+                        && current_list_order.is_none()
                         && pending_yaml_multiline_pipe_field.is_none()
                         && field_re.is_match(first_line)
                     {
@@ -2101,7 +2572,14 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         } else {
                             String::new()
                         };
-                        comment_list_items.push(format!("{}{} {}", indent, item_prefix, trimmed));
+                        // QMD-71: a list INSIDE a blockquote is already carried by the blockquote's
+                        // own raw slice (see `Event::End(TagEnd::BlockQuote)`). Accumulating it here
+                        // too emitted the quoted list twice — once rebuilt from item text, with the
+                        // `>` prefixes stripped so the first line lost its marker, and once verbatim.
+                        if blockquote_depth == 0 {
+                            comment_list_items
+                                .push(format!("{}{} {}", indent, item_prefix, trimmed));
+                        }
                     }
                     list_item_text.clear();
                 }
@@ -2171,8 +2649,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             obj.positions.shift_remove(field_name);
 
                             // Generate nested_subitems parsing error
-                            let error_id = format!("error_{}", parsing_error_counter);
-                            parsing_error_counter += 1;
+                            let error_id = format!("error_{}", parsing_errors.len());
                             let mut error = IndexMap::new();
                             error.insert("__id".to_string(), json!(error_id));
                             error.insert("__kind".to_string(), json!("__ParsingError"));
@@ -2181,6 +2658,19 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             error.insert("object".to_string(), json!(format!("[[#{}]]", obj.id)));
                             error.insert("line".to_string(), json!(error_line));
                             parsing_errors.push(error);
+
+                            // QMD-77 C5: the field is gone, so an anchor naming it would dangle —
+                            // a comment's `after` must name a field the object actually has. Fall
+                            // back to the last surviving field, or to `__self` when this was the
+                            // object's only one.
+                            if obj.comment_anchor == *field_name {
+                                obj.comment_anchor = obj
+                                    .fields
+                                    .keys()
+                                    .next_back()
+                                    .cloned()
+                                    .unwrap_or_else(|| "__self".to_string());
+                            }
                         }
                     }
                     multiline_list_items.clear();
@@ -2258,8 +2748,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // Only emit error if this was a real error (not trailing comment after populated array)
                     if let Some(err_line) = ordered_list_error_line {
                         if let Some((ref parent_id, ref field_name, _, _)) = pending_text_field {
-                            let error_id = format!("error_{}", parsing_error_counter);
-                            parsing_error_counter += 1;
+                            let error_id = format!("error_{}", parsing_errors.len());
                             let mut error = IndexMap::new();
                             error.insert("__id".to_string(), json!(error_id));
                             error.insert("__kind".to_string(), json!("__ParsingError"));
@@ -2392,8 +2881,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         // Only emit if THIS list had valid fields (truly mixed list)
                         // or if the object has fields and this list had invalid field-like items
                         if current_list_had_valid_fields || !obj.fields.is_empty() {
-                            let error_id = format!("error_{}", parsing_error_counter);
-                            parsing_error_counter += 1;
+                            let error_id = format!("error_{}", parsing_errors.len());
                             let mut error = IndexMap::new();
                             error.insert("__id".to_string(), json!(error_id));
                             error.insert("__kind".to_string(), json!("__ParsingError"));
@@ -2422,6 +2910,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 code_block_content.clear();
                 code_block_start_line = get_line(range.start) as usize;
                 code_block_start_offset = range.start;
+                code_block_is_fenced = matches!(kind, pulldown_cmark::CodeBlockKind::Fenced(_));
                 code_block_lang = match kind {
                     pulldown_cmark::CodeBlockKind::Fenced(lang) => lang.to_string(),
                     pulldown_cmark::CodeBlockKind::Indented => String::new(),
@@ -2453,10 +2942,60 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         .join("\n");
                     list_item_text.push_str(&indented_code);
                 } else if let Some((ref parent_id, ref field_name, _, ref field_type)) =
-                    pending_text_field
+                    pending_text_field.clone()
                 {
+                    // QMD-70: a `yaml` / `json` field's value is COMPLETE once its fence is read, so
+                    // close the field here. Python does the same (it clears `pending_yaml_field`
+                    // straight after the fence). Rust kept the field open, so a paragraph following
+                    // the fence was appended into it as text and OVERWROTE the parsed object —
+                    // `conf: {a: 1}` became `conf: "Note after the yaml field."`, losing the data.
+                    // A `text` field is different: a fence there is just part of the content and more
+                    // content may legitimately follow, so it stays open.
+                    let closes_after_fence = field_type == "yaml" || field_type == "json";
+
+                    // The parent now stays in flight for a yaml/json field (see the heading
+                    // handler), so write the value there when that is where it lives. Only the
+                    // yaml/json shapes are handled here — a `text` field keeps the parent finalized
+                    // and falls through to the map path below unchanged.
+                    let parent_in_flight = current_obj
+                        .as_ref()
+                        .map(|o| o.id == *parent_id)
+                        .unwrap_or(false);
+                    if closes_after_fence && parent_in_flight {
+                        if let Some(ref mut obj) = current_obj {
+                            let parsed = if field_type == "yaml" {
+                                serde_yaml::from_str::<serde_json::Value>(&code_block_content).ok()
+                            } else {
+                                serde_json::from_str::<serde_json::Value>(&code_block_content).ok()
+                            };
+                            match parsed {
+                                Some(value) => {
+                                    obj.fields.insert(field_name.clone(), value);
+                                    obj.syntax.insert(
+                                        field_name.clone(),
+                                        if field_type == "yaml" {
+                                            "yaml_object".to_string()
+                                        } else {
+                                            "json_object".to_string()
+                                        },
+                                    );
+                                    // It is an object, not a string
+                                    obj.types.shift_remove(field_name);
+                                }
+                                None => {
+                                    // Fall back to the raw text, as the map path does
+                                    obj.fields
+                                        .insert(field_name.clone(), json!(code_text.clone()));
+                                }
+                            }
+                        }
+                        pending_text_field = None;
+                        i += 1;
+                        continue;
+                    }
+
                     // Code block inside text/yaml/json field
-                    if let Some(parent) = objects_map.get_mut(parent_id) {
+                    if let Some(parent) = objects_map.get_mut(parent_id.as_str()) {
                         // Check if this is an array field
                         let is_array_field = parent
                             .get(field_name)
@@ -2549,17 +3088,25 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             }
                         }
                     }
+                    if closes_after_fence {
+                        pending_text_field = None;
+                    }
                 } else if let Some(ref mut obj) = current_obj {
                     // Code block as comment content
-                    // Capture if object has fields, prior comments, or explicit Kind
+                    // Capture if object has fields, prior comments, or was DECLARED
                     let has_same_anchor_comment = obj
                         .comments
                         .last()
                         .map(|c| c.get("after") == Some(&obj.comment_anchor))
                         .unwrap_or(false);
-                    let has_explicit_kind = obj.kind.is_some();
+                    // QMD-75: an object whose heading declares an id keeps its fence content too.
+                    // Gating on `kind.is_some()` alone silently DROPPED the fence under a bare
+                    // `[[id]]` object that had no fields yet, while the same fence under
+                    // `[[id: Kind]]` was kept — the author's choice to spell a kind decided
+                    // whether content survived.
+                    let was_declared = obj.kind.is_some() || obj.has_explicit_id;
 
-                    if !obj.fields.is_empty() || has_same_anchor_comment || has_explicit_kind {
+                    if !obj.fields.is_empty() || has_same_anchor_comment || was_declared {
                         // Preserve original markdown fences (``` vs ```` etc.)
                         let raw_code_text = block_tree
                             .source
@@ -2588,29 +3135,24 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             comment.insert("after".to_string(), obj.comment_anchor.clone());
                             comment.insert("content".to_string(), raw_code_text);
                             obj.comments.push(comment);
+                            // QMD-71: a comment STARTED by a fence continues into the paragraph
+                            // that follows it, the way `---` and blockquotes already do. Only in
+                            // this branch: when the fence merely appends to a comment a PARAGRAPH
+                            // started, the next paragraph must still begin a new entry, which is
+                            // what the other two parsers do and what the flag already encoded.
+                            last_comment_was_block = true;
                         }
                     }
                 } else if pending_text_block.is_some() {
-                    // Add code block to text block (not inside QMD.md object)
-                    // Calculate offset within content (0-based line number)
-                    let offset_line = if let Some(ref parts) = pending_text_block {
-                        // Count lines in existing content + 1 for the blank line separator (\n\n)
-                        let existing_content = parts.join("\n\n");
-                        if existing_content.is_empty() {
-                            0
-                        } else {
-                            existing_content.lines().count() + 1
-                        }
-                    } else {
-                        0
-                    };
-
-                    // Add code fence metadata
-                    pending_code_fences.push(CodeFenceInfo {
-                        lang: code_block_lang.clone(),
-                        offset_line,
-                        length_lines: code_lines,
-                    });
+                    // Add code block to text block (not inside QMD.md object). Its offset is taken
+                    // when the block is emitted, against the block's first line (QMD-77).
+                    if code_block_is_fenced {
+                        pending_code_fences.push(CodeFenceInfo {
+                            lang: code_block_lang.clone(),
+                            start_line: code_block_start_line,
+                            length_lines: code_lines,
+                        });
+                    }
 
                     // Add code block text to pending text block
                     if let Some(ref mut parts) = pending_text_block {
@@ -2623,11 +3165,13 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     pending_text_block_level = 0;
 
                     // Add code fence metadata
-                    pending_code_fences.push(CodeFenceInfo {
-                        lang: code_block_lang.clone(),
-                        offset_line: 0,
-                        length_lines: code_lines,
-                    });
+                    if code_block_is_fenced {
+                        pending_code_fences.push(CodeFenceInfo {
+                            lang: code_block_lang.clone(),
+                            start_line: code_block_start_line,
+                            length_lines: code_lines,
+                        });
+                    }
                 }
                 code_block_content.clear();
                 code_block_lang.clear();
@@ -2660,13 +3204,55 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     continue;
                 }
 
-                // Table inside object array context — parse into child objects
+                // Table directly under an object-array heading — parse into child objects.
+                //
+                // QMD-70: the array context must be scoped to the array's OWN content.
+                // `pending_object_array` stays set for the whole array subtree, because each
+                // sibling element still needs it, so on its own it cannot tell "table under
+                // the array heading" from "table inside one of its elements". The CURRENT
+                // OBJECT makes that distinction: it is the array's parent while positioned in
+                // the container, and the element itself once an element heading has opened.
+                // Without the extra check a table written as ordinary content inside an element
+                // had its rows converted into sibling elements of the parent array — and in this
+                // implementation the element being built was dropped with them, taking its
+                // explicit id and its fields.
+                //
+                // This is the same predicate Python and TypeScript use
+                // (`get_current_object_id() == pending_object_array[0]`). It replaced a
+                // `current_obj.is_none()` check that held only while the parent was finalized at
+                // the array heading; the parent now stays in flight so that content following the
+                // array's own table still has somewhere to go.
+                // The innermost open object: the one in flight, or the stack top when a heading
+                // owns the array directly (a top-level array is inserted into the map and pushed
+                // on the stack rather than being held in flight).
+                let positioned_in_container = |pid: &String| -> bool {
+                    match current_obj.as_ref() {
+                        Some(o) => o.id == *pid,
+                        None => object_stack
+                            .last()
+                            .map(|(id, _)| id == pid)
+                            .unwrap_or(false),
+                    }
+                };
                 if let Some((ref arr_parent_id, ref arr_field, ref arr_kind, _arr_level)) =
                     pending_object_array
+                        .as_ref()
+                        .filter(|(pid, _, _, _)| positioned_in_container(pid))
                 {
                     if !table_rows.is_empty() {
-                        // Update parent syntax and types
-                        if let Some(parent) = objects_map.get_mut(arr_parent_id) {
+                        // Update parent syntax and types. QMD-70: the parent is normally still in
+                        // flight here (see the array-heading branch), so prefer it and fall back to
+                        // the map for the case where an element heading has already finalized it.
+                        if current_obj
+                            .as_ref()
+                            .map(|o| o.id == *arr_parent_id)
+                            .unwrap_or(false)
+                        {
+                            if let Some(ref mut obj) = current_obj {
+                                obj.syntax.insert(arr_field.clone(), "table".to_string());
+                                obj.types.insert(arr_field.clone(), "array".to_string());
+                            }
+                        } else if let Some(parent) = objects_map.get_mut(arr_parent_id) {
                             if let Some(syntax_obj) = parent.get_mut("__syntax") {
                                 if let Some(syntax_map) = syntax_obj.as_object_mut() {
                                     syntax_map.insert(arr_field.clone(), json!("table"));
@@ -2692,19 +3278,179 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             &objects_map,
                         );
                         for (obj_id, element) in children {
-                            if let Some(parent) = objects_map.get_mut(arr_parent_id) {
-                                if let Some(arr) = parent.get_mut(arr_field) {
-                                    if let Some(arr_vec) = arr.as_array_mut() {
-                                        arr_vec.push(json!(format!("[[#{}]]", obj_id)));
+                            // Wire the child to the parent wherever the parent lives.
+                            let wired = if let Some(ref mut obj) = current_obj {
+                                if obj.id == *arr_parent_id {
+                                    if let Some(arr) = obj.fields.get_mut(arr_field) {
+                                        if let Some(arr_vec) = arr.as_array_mut() {
+                                            arr_vec.push(json!(format!("[[#{}]]", obj_id)));
+                                        }
+                                    }
+                                    true
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            };
+                            if !wired {
+                                if let Some(parent) = objects_map.get_mut(arr_parent_id) {
+                                    if let Some(arr) = parent.get_mut(arr_field) {
+                                        if let Some(arr_vec) = arr.as_array_mut() {
+                                            arr_vec.push(json!(format!("[[#{}]]", obj_id)));
+                                        }
                                     }
                                 }
                             }
                             objects_map.insert(obj_id, element);
                         }
                     }
+                    // QMD-70: the array's own table has now been consumed, so close the array
+                    // context. Python and TypeScript both clear it here and Rust did not, which
+                    // made a SECOND table under the same array heading convert as well: both
+                    // children took the same `local_id`, the second overwrote the first, and the
+                    // array ended up holding the same reference twice. Clearing it lets any
+                    // following table fall through to the comment path and be preserved verbatim,
+                    // the same treatment a table gets in any other prose position.
+                    array_table_consumed =
+                        Some((arr_parent_id.clone(), arr_field.clone(), *_arr_level));
+                    pending_object_array = None;
                     table_rows.clear();
                     i += 1;
                     continue;
+                }
+
+                // A SECOND table under one object-array heading. The array's own table has already
+                // been consumed, so this one describes nothing: its rows cannot extend the array
+                // (they would collide on the generated local ids) and the heading declares an array,
+                // not prose. Until now it silently became the parent's comment, which also made the
+                // document impossible to rebuild faithfully — the comment anchors on the field
+                // BEFORE the array heading, so the table moved above that heading on rebuild.
+                //
+                // Same treatment as `table_in_array` and `ordered_list_in_array`: preserve the
+                // content verbatim in `__comments` for a lossless round trip and emit an error.
+                let extra_table_target = array_table_consumed.as_ref().filter(|(pid, _, _)| {
+                    current_obj
+                        .as_ref()
+                        .map(|o| o.id == *pid)
+                        .unwrap_or_else(|| {
+                            object_stack
+                                .last()
+                                .map(|(id, _)| id == pid)
+                                .unwrap_or(false)
+                        })
+                });
+                if let Some((ref err_parent, ref err_field, _)) = extra_table_target {
+                    if !table_rows.is_empty() {
+                        let table_md =
+                            raw_table_slice(&block_tree.source, table_start_offset, range.end);
+                        let error_line = get_line(table_start_offset);
+                        let parent = err_parent.clone();
+                        let field = err_field.clone();
+
+                        if let Some(ref mut obj) = current_obj {
+                            let anchor = obj.comment_anchor.clone();
+                            let should_append = obj
+                                .comments
+                                .last()
+                                .map(|c| c.get("after") == Some(&anchor))
+                                .unwrap_or(false);
+                            if should_append {
+                                if let Some(last) = obj.comments.last_mut() {
+                                    if let Some(existing) = last.get_mut("content") {
+                                        *existing = format!("{}\n\n{}", existing, table_md);
+                                    }
+                                }
+                            } else {
+                                let mut comment = IndexMap::new();
+                                comment.insert("after".to_string(), anchor);
+                                comment.insert("content".to_string(), table_md.clone());
+                                obj.comments.push(comment);
+                            }
+                        }
+
+                        let mut error = IndexMap::new();
+                        error.insert(
+                            "__id".to_string(),
+                            json!(format!("error_{}", parsing_errors.len())),
+                        );
+                        error.insert("__kind".to_string(), json!("__ParsingError"));
+                        error.insert("type".to_string(), json!("extra_table_in_array"));
+                        error.insert("field".to_string(), json!(field));
+                        error.insert("object".to_string(), json!(format!("[[#{}]]", parent)));
+                        error.insert("line".to_string(), json!(error_line));
+                        parsing_errors.push(error);
+                    }
+                    array_table_consumed = None;
+                    table_rows.clear();
+                    i += 1;
+                    continue;
+                }
+
+                // A table is forbidden under a PRIMITIVE array field. A primitive array holds
+                // scalars and a table has columns, so there is no defined mapping onto the field —
+                // unlike an OBJECT array (`[[field: [Kind]]]`), where one row becomes one object.
+                // An `[[field: array]]` heading arrives here as a `pending_text_field` of type
+                // "array", and the text branch below cannot write a string into an array, so the
+                // table used to be dropped without a word.
+                //
+                // Handled exactly like `ordered_list_in_array`, the other construct forbidden in
+                // an array field: keep the array empty, preserve the content verbatim in
+                // `__comments` so the round trip stays lossless, and emit a `__ParsingError`.
+                if let Some((ref parent_id, ref field_name, _, ref field_type)) = pending_text_field
+                {
+                    if field_type == "array" {
+                        if !table_rows.is_empty() {
+                            let table_md =
+                                raw_table_slice(&block_tree.source, table_start_offset, range.end);
+                            let error_line = get_line(table_start_offset);
+                            let anchor = field_name.clone();
+                            let parent = parent_id.clone();
+
+                            if let Some(ref mut obj) = current_obj {
+                                let should_append = obj
+                                    .comments
+                                    .last()
+                                    .map(|c| c.get("after") == Some(&anchor))
+                                    .unwrap_or(false);
+                                if should_append {
+                                    if let Some(last) = obj.comments.last_mut() {
+                                        if let Some(existing) = last.get_mut("content") {
+                                            *existing = format!("{}\n\n{}", existing, table_md);
+                                        }
+                                    }
+                                } else {
+                                    let mut comment = IndexMap::new();
+                                    comment.insert("after".to_string(), anchor.clone());
+                                    comment.insert("content".to_string(), table_md.clone());
+                                    obj.comments.push(comment);
+                                }
+                            } else if let Some(parent_map) = objects_map.get_mut(&parent) {
+                                let comments = parent_map
+                                    .entry("__comments".to_string())
+                                    .or_insert_with(|| json!([]));
+                                if let Some(arr) = comments.as_array_mut() {
+                                    arr.push(json!({"after": anchor, "content": table_md}));
+                                }
+                            }
+
+                            let mut error = IndexMap::new();
+                            error.insert(
+                                "__id".to_string(),
+                                json!(format!("error_{}", parsing_errors.len())),
+                            );
+                            error.insert("__kind".to_string(), json!("__ParsingError"));
+                            error.insert("type".to_string(), json!("table_in_array"));
+                            error.insert("field".to_string(), json!(field_name));
+                            error.insert("object".to_string(), json!(format!("[[#{}]]", parent)));
+                            error.insert("line".to_string(), json!(error_line));
+                            parsing_errors.push(error);
+                        }
+                        pending_text_field = None;
+                        table_rows.clear();
+                        i += 1;
+                        continue;
+                    }
                 }
 
                 // Convert table to markdown and add to text field
@@ -2732,21 +3478,32 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             parent.insert(field_name.clone(), json!(new_val));
                         }
                     }
-                } else if pending_object_array.is_none() {
-                    // Table as comment content (only if not in object array context)
+                } else {
+                    // Table as comment content.
+                    //
+                    // QMD-70: reached for a table inside an array ELEMENT as well, not only
+                    // outside any array. The guard used to be
+                    // `pending_object_array.is_none()`, which excluded the whole array
+                    // subtree; the branch above now claims only the container's own tables,
+                    // so everything else falls through here and is carried as the element's
+                    // comment content — the same treatment a table gets in any other prose
+                    // position (see tests/parser/089-comments-preserve-tables).
                     if let Some(ref mut obj) = current_obj {
                         // Add table to comments if:
                         // 1. Object has fields (table is supplementary content), OR
                         // 2. There's a comment with the same anchor (table follows text), OR
-                        // 3. Object has explicit Kind (like Section) — table is always content
+                        // 3. Object was DECLARED — a table is always its content
                         let has_same_anchor_comment = obj
                             .comments
                             .last()
                             .map(|c| c.get("after") == Some(&obj.comment_anchor))
                             .unwrap_or(false);
-                        let has_explicit_kind = obj.kind.is_some();
+                        // QMD-75: same as the fence path — gating on `kind.is_some()` dropped a
+                        // table under a bare `[[id]]` object with no fields, while keeping it
+                        // under `[[id: Kind]]`.
+                        let was_declared = obj.kind.is_some() || obj.has_explicit_id;
 
-                        if (!obj.fields.is_empty() || has_same_anchor_comment || has_explicit_kind)
+                        if (!obj.fields.is_empty() || has_same_anchor_comment || was_declared)
                             && !table_rows.is_empty()
                         {
                             // Preserve original markdown separators and spacing
@@ -2813,8 +3570,12 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
 
             Event::Start(Tag::Item) => {
                 in_list_item = true;
+                item_softbreak_line = None;
                 list_item_text.clear();
                 list_item_start = Some(range.start);
+                list_item_block = None;
+                list_item_paragraph_done = false;
+                list_item_pipe = false;
             }
 
             Event::End(TagEnd::Item) => {
@@ -2888,11 +3649,46 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     if is_array_on_current {
                         // Skip pushing items if this is an ordered list in array (forbidden)
                         if !ordered_list_in_array_error {
+                            // QMD-77 A2: an array ELEMENT is a value, so it is written on one line
+                            // too. A soft break was joined with a space here and kept with a newline
+                            // by the other two; the element is now the authored line and the
+                            // continuation is reported.
+                            let element: String = match item_softbreak_line {
+                                Some(_) if !trimmed.starts_with('[') => list_item_start
+                                    .and_then(|start| {
+                                        block_tree.source.get(start..range.end)?.lines().next()
+                                    })
+                                    .map(|raw_first| {
+                                        raw_first
+                                            .trim_start()
+                                            .trim_start_matches("- ")
+                                            .trim()
+                                            .to_string()
+                                    })
+                                    .unwrap_or_else(|| trimmed.to_string()),
+                                _ => trimmed.to_string(),
+                            };
+                            if let Some(break_line) = item_softbreak_line {
+                                if !trimmed.starts_with('[') {
+                                    let error_id = format!("error_{}", parsing_errors.len());
+                                    let mut error = IndexMap::new();
+                                    error.insert("__id".to_string(), json!(error_id));
+                                    error.insert("__kind".to_string(), json!("__ParsingError"));
+                                    error.insert("type".to_string(), json!("wrapped_field_value"));
+                                    error.insert("field".to_string(), json!(field_name));
+                                    error.insert(
+                                        "object".to_string(),
+                                        json!(format!("[[#{}]]", parent_id)),
+                                    );
+                                    error.insert("line".to_string(), json!(break_line));
+                                    parsing_errors.push(error);
+                                }
+                            }
                             // Write array items directly to current_obj
                             if let Some(ref mut obj) = current_obj {
                                 if let Some(arr) = obj.fields.get_mut(field_name) {
                                     if let Some(arr_vec) = arr.as_array_mut() {
-                                        arr_vec.push(json!(trimmed));
+                                        arr_vec.push(json!(element));
 
                                         // Extract references from list item
                                         if let Some(start_offset) = list_item_start {
@@ -3006,13 +3802,74 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     // Ordered list items (1. 2. 3.) are always comment content.
                     // Items inside a yaml_multiline pipe field are raw content, not fields.
                     let first_line = trimmed.lines().next().unwrap_or(trimmed);
-                    if current_list_order.is_none()
+                    // QMD-77 A4 (Q3): only a TOP-LEVEL list item can be a field. An indented
+                    // sub-item is content, always — `docs/format/fields.qmd.md` forbids the
+                    // construct and the parent reports `nested_subitems`. Rust used to promote a
+                    // sub-item whose text happened to parse as `key: value` to a real field of the
+                    // parent object, keyed by whatever preceded the colon, and reported nothing;
+                    // the parent's own field was lost either way. That invented a field out of
+                    // prose — in `docs/tracking/workflow.sop.qmd.md` the SOP's description of what
+                    // a Finding should contain became `affected_files`, `affected_functions` and
+                    // `solution` fields on the Step object.
+                    //
+                    // QMD-71 kept the reading for a bullet sub-item because suppressing it made
+                    // Rust report `nested_subitems` where the other two reported nothing. That is
+                    // no longer what they do: measured on this build, `- items:` with an indented
+                    // `- product: x` gives `nested_subitems` on `items` in both, so the guard that
+                    // traded one divergence for another now closes it.
+                    if list_nesting_level <= 1
+                        && current_list_order.is_none()
                         && pending_yaml_multiline_pipe_field.is_none()
                         && field_re.is_match(first_line)
                     {
                         let caps = field_re.captures(first_line).unwrap();
                         let field_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-                        let field_value_str = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                        let mut field_value_str = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+
+                        // QMD-77 A2: a field value is written on ONE line. A soft break inside the
+                        // item was joined with a space here, so the value silently absorbed the
+                        // continuation — Python kept it with a newline, TypeScript dropped it, and
+                        // the same document carried three different values. The value is now the
+                        // authored first line and the continuation is reported. The legal multiline
+                        // forms are excluded: YAML pipe (`key: |`, handled below) and a multiline
+                        // YAML array, which opens with `[`.
+                        let value_trimmed = field_value_str.trim_start();
+                        let cut_value: Option<String> = if let Some(break_line) =
+                            item_softbreak_line
+                        {
+                            if !value_trimmed.starts_with('|') && !value_trimmed.starts_with('[') {
+                                let error_id = format!("error_{}", parsing_errors.len());
+                                let mut error = IndexMap::new();
+                                error.insert("__id".to_string(), json!(error_id));
+                                error.insert("__kind".to_string(), json!("__ParsingError"));
+                                error.insert("type".to_string(), json!("wrapped_field_value"));
+                                error.insert("field".to_string(), json!(field_name));
+                                error.insert(
+                                    "object".to_string(),
+                                    json!(format!("[[#{}]]", obj.id)),
+                                );
+                                error.insert("line".to_string(), json!(break_line));
+                                parsing_errors.push(error);
+
+                                list_item_start
+                                    .and_then(|start| {
+                                        block_tree.source.get(start..range.end)?.lines().next()
+                                    })
+                                    .and_then(|raw_first| {
+                                        let after_marker =
+                                            raw_first.trim_start().trim_start_matches("- ");
+                                        let colon = after_marker.find(':')?;
+                                        Some(after_marker[colon + 1..].trim().to_string())
+                                    })
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+                        if let Some(ref cut) = cut_value {
+                            field_value_str = cut.as_str();
+                        }
 
                         // Check if this field key already exists in the object,
                         // OR if a duplicate was already found in this list.
@@ -3085,6 +3942,33 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             if yaml_multiline_value.is_some() {
                                 obj.syntax
                                     .insert(field_name.to_string(), "yaml_multiline".to_string());
+                            }
+
+                            // QMD-71: a value that looks like a number QMD.md cannot carry. The
+                            // authored text is kept as the field's value, so nothing is lost; the
+                            // error names it instead of letting it become a string in silence.
+                            if yaml_multiline_value.is_none() {
+                                if let Some(hint) = unsupported_number_hint(field_value_str) {
+                                    let error_id = format!("error_{}", parsing_errors.len());
+                                    let mut error = IndexMap::new();
+                                    error.insert("__id".to_string(), json!(error_id));
+                                    error.insert("__kind".to_string(), json!("__ParsingError"));
+                                    error.insert(
+                                        "type".to_string(),
+                                        json!("unsupported_number_format"),
+                                    );
+                                    error.insert("field".to_string(), json!(field_name));
+                                    error.insert(
+                                        "object".to_string(),
+                                        json!(format!("[[#{}]]", obj.id)),
+                                    );
+                                    error.insert(
+                                        "line".to_string(),
+                                        json!(get_line(list_item_start.unwrap_or(range.start))),
+                                    );
+                                    error.insert("hint".to_string(), json!(hint));
+                                    parsing_errors.push(error);
+                                }
                             }
 
                             // Check if it's a YAML array (but not a single reference [[#...]])
@@ -3278,8 +4162,51 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                 obj.positions
                                     .insert(field_name.to_string(), (item_line, col));
                             }
+
+                            // QMD-70: the offending block recorded while this item was open. The
+                            // field above is kept; the block is preserved verbatim (dedented, so
+                            // the three parsers agree regardless of how each reaches the text) as a
+                            // comment anchored on that field, and the error names it.
+                            if let Some((block_line, block_start, block_end)) =
+                                list_item_block.take()
+                            {
+                                let raw = block_source_dedented(
+                                    &block_tree.source,
+                                    block_start,
+                                    block_end,
+                                );
+                                if !raw.is_empty() {
+                                    let mut comment = IndexMap::new();
+                                    comment.insert("after".to_string(), field_name.to_string());
+                                    comment.insert("content".to_string(), raw);
+                                    obj.comments.push(comment);
+                                }
+                                let error_id = format!("error_{}", parsing_errors.len());
+                                let mut error = IndexMap::new();
+                                error.insert("__id".to_string(), json!(error_id));
+                                error.insert("__kind".to_string(), json!("__ParsingError"));
+                                error.insert("type".to_string(), json!("block_in_inline_field"));
+                                error.insert("field".to_string(), json!(field_name));
+                                error.insert(
+                                    "object".to_string(),
+                                    json!(format!("[[#{}]]", obj.id)),
+                                );
+                                error.insert("line".to_string(), json!(block_line));
+                                parsing_errors.push(error);
+                            }
                         } // end else (not duplicate key)
-                    } else if !trimmed.is_empty() && pending_object_array.is_none() {
+                    } else if !trimmed.is_empty()
+                        && (pending_object_array.is_none() || obj.is_array_element)
+                    {
+                        // QMD-75: `pending_object_array` stays set for the whole array SUBTREE, so
+                        // gating on it alone switched this branch off inside every array ELEMENT
+                        // too — and with it the sub-item accumulation that `nested_subitems` is
+                        // reported from. An element's own `- issues:` plus an indented item was
+                        // therefore silent in Rust while Python and TypeScript both reported it
+                        // (148 times on one real repository). Inside an element the ordinary field
+                        // rules apply, exactly as they do on a plain subobject; only the array's
+                        // OWN content is special. Same over-broad scoping QMD-70 had to narrow for
+                        // the element-vs-table reading.
                         // Check if this is a nested sub-item for a yaml_multiline_list field
                         if list_nesting_level > 1 && pending_multiline_list_field.is_some() {
                             multiline_list_items.push(trimmed.to_string());
@@ -3378,9 +4305,16 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                 } else {
                                     String::new()
                                 };
-                                comment_list_items
-                                    .push(format!("{}{} {}", indent, item_prefix, trimmed));
-                                current_list_item_num += 1;
+                                // QMD-71: a list INSIDE a blockquote is already carried by the
+                                // blockquote's own raw slice, so accumulating it here emitted the
+                                // quoted list TWICE. `comment_list_raw_start` points at the first
+                                // item's content, past the `> ` prefix, so the duplicate also lost
+                                // that line's quote marker.
+                                if blockquote_depth == 0 {
+                                    comment_list_items
+                                        .push(format!("{}{} {}", indent, item_prefix, trimmed));
+                                    current_list_item_num += 1;
+                                }
                             }
                         } // end else (not yaml_multiline_list sub-item)
                     }
@@ -3434,8 +4368,37 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
             }
 
             Event::End(TagEnd::Paragraph) => {
+                if in_list_item {
+                    // QMD-70: the item's own text is complete; any block-level content after this
+                    // belongs to no field — see `list_item_block`.
+                    list_item_paragraph_done = true;
+                }
                 in_paragraph = false;
                 let text = paragraph_text.trim().to_string();
+                // QMD-71: comment content is "the raw markdown fragment between structural
+                // boundaries" and the parser "does not interpret" it (docs/format/comments.qmd.md).
+                // `paragraph_text` is REBUILT from inline events, which handles text, code spans,
+                // strong, em, strikethrough and links — and nothing else. So an image collapsed to
+                // its alt text (its markup lost outright) and an autolink `<url>` was rewritten as
+                // `[url](url)`. Slice the source instead, as the text-field and blockquote paths
+                // already do; `text` stays for the non-comment uses below.
+                //
+                // The slice runs to the NEXT EVENT's start, not to this paragraph's end, because
+                // some constructs produce no events at all: `pulldown-cmark` consumes a link
+                // reference definition (`[d]: https://…`) into its link map, so slicing to
+                // `range.end` dropped those lines and left the `[d]` labels in the text pointing at
+                // nothing. Anything the event stream does not account for is content Python keeps,
+                // and the `trim` means a gap that holds only a blank line changes nothing.
+                let next_event_start = events
+                    .get(i + 1)
+                    .map(|(_, r)| r.start)
+                    .unwrap_or(markdown.len())
+                    .max(range.end);
+                let raw_text = markdown
+                    .get(paragraph_start_offset..next_event_start)
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
 
                 if !text.is_empty() {
                     // Handle blockquote - collect lines for later formatting
@@ -3461,7 +4424,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             if let Some(ref mut obj) = current_obj {
                                 let mut cm = IndexMap::new();
                                 cm.insert("after".to_string(), field_name.clone());
-                                cm.insert("content".to_string(), text.clone());
+                                cm.insert("content".to_string(), raw_text.clone());
                                 obj.comments.push(cm);
                                 obj.comment_anchor = field_name.clone();
                             }
@@ -3492,7 +4455,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                                 if let Some(arr) = comments.as_array_mut() {
                                     arr.push(json!({
                                         "after": field_name.clone(),
-                                        "content": text.clone()
+                                        "content": raw_text.clone()
                                     }));
                                 }
                                 // Can't restore current_obj here (parent already finalized),
@@ -3520,7 +4483,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             // Merge with previous block comment
                             if let Some(last_comment) = obj.comments.last_mut() {
                                 if let Some(existing) = last_comment.get_mut("content") {
-                                    *existing = format!("{}\n\n{}", existing, text);
+                                    *existing = format!("{}\n\n{}", existing, raw_text);
                                 }
                             }
                             // Keep last_comment_was_block = true to continue merging
@@ -3528,7 +4491,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             // Create new comment
                             let mut comment = IndexMap::new();
                             comment.insert("after".to_string(), obj.comment_anchor.clone());
-                            comment.insert("content".to_string(), text.clone());
+                            comment.insert("content".to_string(), raw_text.clone());
                             obj.comments.push(comment);
                             // Reset block flag for new comment
                             last_comment_was_block = false;
@@ -3567,13 +4530,32 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                             line_offset += line_text.len() + 1;
                         }
                     }
+                    // QMD-77 B1 (Q4): prose above the FIRST heading is the document's own text
+                    // block. Nothing claimed it here — no blockquote, no text field, no pending
+                    // text block, no object yet — so it was dropped outright, where Python and
+                    // TypeScript open a `__TextBlock` for it. Only before the first object: after
+                    // one, unclaimed prose is that object's comment, which the branch above owns.
+                    else if object_stack.is_empty() && objects_map.is_empty() {
+                        pending_text_block = Some(vec![raw_text.clone()]);
+                        pending_text_block_line = get_line(paragraph_start_offset) as usize;
+                        pending_text_block_level = 0;
+                    }
                 }
 
                 paragraph_text.clear();
             }
 
             Event::Rule => {
-                // Horizontal rule (---) - add to current object's comments
+                // Horizontal rule - add to current object's comments
+                // QMD-71: slice the source instead of writing a literal `---`. A thematic break is
+                // spelled `***`, `___`, `- - -` and several other ways, and comment content is
+                // "the raw markdown fragment" the parser "does not interpret" -- normalising the
+                // spelling rewrote the author's document.
+                let rule_text = markdown
+                    .get(range.start..range.end)
+                    .unwrap_or("---")
+                    .trim()
+                    .to_string();
                 if let Some(ref mut obj) = current_obj {
                     // Check if we can append to the last comment with the same anchor
                     let should_append = obj
@@ -3583,41 +4565,60 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                         .unwrap_or(false);
 
                     if should_append {
-                        // Append --- to existing comment
+                        // Append the rule to existing comment
                         if let Some(last_comment) = obj.comments.last_mut() {
                             if let Some(existing) = last_comment.get_mut("content") {
-                                *existing = format!("{}\n\n---", existing);
+                                *existing = format!("{}\n\n{}", existing, rule_text);
                             }
                         }
                     } else {
-                        // Create new comment with just ---
+                        // Create new comment with just the rule
                         let mut comment = IndexMap::new();
                         comment.insert("after".to_string(), obj.comment_anchor.clone());
-                        comment.insert("content".to_string(), "---".to_string());
+                        comment.insert("content".to_string(), rule_text);
                         obj.comments.push(comment);
+                        // QMD-71: only a comment STARTED by the rule continues into the paragraph
+                        // after it. When the rule merely appends to a comment a paragraph started,
+                        // the next paragraph begins a new entry — same distinction as the fence
+                        // path, and the same overshoot when the flag was set unconditionally.
+                        last_comment_was_block = true;
                     }
-                    // Mark that last comment was a block element
-                    last_comment_was_block = true;
+                }
+                // QMD-77 B1 (Q4): a thematic break inside a text block is content. This arm only
+                // ever knew about an object's comments, so `---` above the first heading was
+                // dropped — by all three, in fact; none had a branch for it here.
+                else if let Some(ref mut parts) = pending_text_block {
+                    parts.push(rule_text);
                 }
             }
 
             Event::Start(Tag::BlockQuote) => {
                 in_blockquote = true;
-                blockquote_lines.clear();
+                if blockquote_depth == 0 {
+                    blockquote_lines.clear();
+                    blockquote_start_offset = range.start;
+                }
+                blockquote_depth += 1;
             }
 
             Event::End(TagEnd::BlockQuote) => {
+                blockquote_depth = blockquote_depth.saturating_sub(1);
+                if blockquote_depth > 0 {
+                    // Inner level of a nested quote — the outermost one carries the whole slice.
+                    i += 1;
+                    continue;
+                }
                 in_blockquote = false;
 
-                if !blockquote_lines.is_empty() {
-                    // Format blockquote with > prefix for each line
-                    let blockquote_content = blockquote_lines
-                        .iter()
-                        .flat_map(|para| para.lines())
-                        .map(|line| format!("> {}", line))
-                        .collect::<Vec<_>>()
-                        .join("\n");
+                // QMD-70 follow-up: preserve the blockquote verbatim by slicing the source, the
+                // same way tables already are (see `raw_table_slice`). Rebuilding the `>` prefixes
+                // from text events lost three things Python and TypeScript keep: an empty
+                // blockquote produced no text events at all and was dropped outright, a leading
+                // `>` line with no content vanished, and a nested `> >` collapsed to one level.
+                let blockquote_content =
+                    raw_table_slice(&block_tree.source, blockquote_start_offset, range.end);
 
+                if !blockquote_content.is_empty() {
                     if let Some(ref mut obj) = current_obj {
                         // Check if we can append to the last comment with the same anchor
                         let should_append = obj
@@ -3721,13 +4722,23 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
         }
     }
 
+    // A document with no heading: all of it is the text above the first heading.
+    if !leading_text_done {
+        if let Some(start) = leading_text_start(&lines, lines.len() + 1) {
+            if pending_text_block.is_none() {
+                pending_text_block = Some(Vec::new());
+            }
+            pending_text_block_line = start;
+        }
+    }
+
     // Finalize pending text block
-    if let Some(content_parts) = pending_text_block.take() {
+    if pending_text_block.take().is_some() {
         let tb_id = format!("text_{}", text_block_counter);
         let fences = std::mem::take(&mut pending_code_fences);
         text_blocks.push((
             tb_id.clone(),
-            content_parts.join("\n\n"),
+            text_block_source(&lines, pending_text_block_line, lines.len() + 1),
             pending_text_block_line,
             fences,
         ));
@@ -3797,7 +4808,7 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     .map(|f| {
                         json!({
                             "lang": f.lang,
-                            "offset_line": f.offset_line,
+                            "offset_line": f.start_line.saturating_sub(*tb_line),
                             "length_lines": f.length_lines
                         })
                     })
@@ -4226,10 +5237,12 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
             } else if kind == "__Document" {
                 (-1, 0) // __Document always first
             } else {
-                // Try __line first (Full format), then look up from line_by_label, then line_map
+                // Try __line (Full format), then the private `__sort_line` the builder carries for
+                // the formats that strip it, then the legacy (id, label) / id look-ups.
                 let line = obj
                     .get("__line")
                     .and_then(|v| v.as_i64())
+                    .or_else(|| obj.get("__sort_line").and_then(|v| v.as_i64()))
                     .unwrap_or_else(|| {
                         let id = obj.get("__id").and_then(|v| v.as_str()).unwrap_or("");
                         let label = obj.get("__label").and_then(|v| v.as_str()).unwrap_or("");
@@ -4243,6 +5256,13 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 (0, line)
             }
         });
+    }
+
+    // QMD-77 A1: the private sort key never reaches the caller.
+    for obj in &mut all_objects {
+        if let Some(map) = obj.as_object_mut() {
+            map.shift_remove("__sort_line");
+        }
     }
 
     all_objects

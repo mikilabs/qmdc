@@ -1,7 +1,8 @@
 """QMDC Parser - Convert QMD.md to structured JSON."""
 
-__version__ = "1.0.6"
+__version__ = "2.0.0"
 
+from .db import QmdcDatabase, execute_query
 from .parser import parse, rebuild
 from .workspace import (
     WorkspaceError,
@@ -32,4 +33,7 @@ __all__ = [
     "resolve_reference",
     "validate_workspace",
     "workspace_to_json",
+    # Query
+    "QmdcDatabase",
+    "execute_query",
 ]

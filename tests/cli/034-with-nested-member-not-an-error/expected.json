@@ -1,0 +1,13 @@
+[
+  {
+    "type": "broken_link",
+    "message": "Object 'absent_in_runtime' not found",
+    "file": "cli72_nest_runtime/readme.qmd.md",
+    "line": 5,
+    "objectId": "model",
+    "fieldName": null,
+    "reference": "[[#absent_in_runtime]]",
+    "candidates": null,
+    "severity": "error"
+  }
+]

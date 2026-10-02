@@ -1,0 +1,1 @@
+error: --with paths declare the same workspace id 'cli72_a2_same'; ids must be distinct to compose

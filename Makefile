@@ -1,4 +1,4 @@
-.PHONY: init help build test test-fast lint format clean install check speedtest validate-compare
+.PHONY: init help build test test-fast lint format clean install check speedtest validate-compare parse-parity-baseline
 .PHONY: py-build py-test py-lint py-format py-install py-bump qmdc-py
 .PHONY: ts-build ts-test ts-lint ts-format ts-install ts-bump qmdc-ts
 .PHONY: rs-build rs-test rs-lint rs-format rs-bump qmdc-rs
@@ -8,7 +8,7 @@
 .PHONY: semantic-index semantic-audit semantic-test semantic-hints semantic-refresh
 .PHONY: bump bump-major bump-minor bump-patch
 .PHONY: binary-bump binary-bump-major binary-bump-minor binary-bump-patch
-.PHONY: semantic-bump semantic-bump-major semantic-bump-minor semantic-bump-patch semantic-release publish publish-check dist
+.PHONY: semantic-bump semantic-bump-major semantic-bump-minor semantic-bump-patch semantic-release publish publish-check dist package-e2e
 .PHONY: md-lint test-report reports-clean
 
 # ============================================================================
@@ -194,6 +194,14 @@ check: test
 validate-compare: py-build ts-build rs-build-debug
 	@echo "=== Comparing validation errors across parsers ==="
 	./scripts/compare_validate_errors.sh docs
+	@echo ""
+	@echo "=== Comparing full parse output across parsers ==="
+	@uv run --no-project python scripts/compare_parse_output.py
+
+# Re-record the parse-parity baseline after fixing (or knowingly accepting) a
+# divergence. The count may go DOWN but never up — see the script's docstring.
+parse-parity-baseline: py-build ts-build rs-build-debug
+	@uv run --no-project python scripts/compare_parse_output.py --update-baseline
 
 # ============================================================================
 # VERSION BUMPING (ALL)
@@ -213,7 +221,7 @@ bump-major:
 	@echo ""
 	@$(MAKE) ts-bump-major
 	@echo ""
-	@$(MAKE) ext-bump
+	@$(MAKE) ext-bump PART=major
 	@echo ""
 	@$(MAKE) mkdocs-bump-major
 	@echo ""
@@ -232,7 +240,7 @@ bump-minor:
 	@echo ""
 	@$(MAKE) ts-bump-minor
 	@echo ""
-	@$(MAKE) ext-bump
+	@$(MAKE) ext-bump PART=minor
 	@echo ""
 	@$(MAKE) mkdocs-bump-minor
 	@echo ""
@@ -251,7 +259,7 @@ bump-patch:
 	@echo ""
 	@$(MAKE) ts-bump-patch
 	@echo ""
-	@$(MAKE) ext-bump
+	@$(MAKE) ext-bump PART=patch
 	@echo ""
 	@$(MAKE) mkdocs-bump-patch
 	@echo ""
@@ -282,7 +290,7 @@ binary-bump-major:
 	@echo ""
 	@$(MAKE) ts-bump-major
 	@echo ""
-	@$(MAKE) ext-bump
+	@$(MAKE) ext-bump PART=major
 	@echo ""
 	@echo "✅ Binary cascade bumped (MAJOR): rs, py, ts, vscode. semantic/mkdocs untouched."
 	@echo ""
@@ -299,7 +307,7 @@ binary-bump-minor:
 	@echo ""
 	@$(MAKE) ts-bump-minor
 	@echo ""
-	@$(MAKE) ext-bump
+	@$(MAKE) ext-bump PART=minor
 	@echo ""
 	@echo "✅ Binary cascade bumped (MINOR): rs, py, ts, vscode. semantic/mkdocs untouched."
 	@echo ""
@@ -316,7 +324,7 @@ binary-bump-patch:
 	@echo ""
 	@$(MAKE) ts-bump-patch
 	@echo ""
-	@$(MAKE) ext-bump
+	@$(MAKE) ext-bump PART=patch
 	@echo ""
 	@echo "✅ Binary cascade bumped (PATCH): rs, py, ts, vscode. semantic/mkdocs untouched."
 	@echo ""
@@ -554,13 +562,22 @@ dist:
 	@echo "=== Building full release matrix ==="
 	bash scripts/release-build.sh
 
+# Release preparation: run the shared conformance harnesses (parser, workspace,
+# sql) against each library PACKED and installed into a clean directory, through
+# its public entry point only. Catches what `make test` cannot see, since that
+# runs the in-tree sources: an unimportable package, a missing `exports` entry,
+# a file left out of the tarball. Needs network for dependencies. Not part of
+# `make test`. PKG="ts py rs" (default: all three) narrows it.
+package-e2e:
+	bash scripts/package-e2e.sh $(PKG)
+
 # ============================================================================
 # VS CODE EXTENSION
 # ============================================================================
 
 ext-bump:
 	@echo "=== VS Code Extension: bump version ==="
-	cd qmdc-vscode && npm run bump-version
+	cd qmdc-vscode && npm run bump-version -- $(PART)
 
 ext-build:
 	@echo "=== VS Code Extension: build ==="

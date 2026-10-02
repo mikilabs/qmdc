@@ -7,13 +7,13 @@
   ],
   "objects": [
     {
-      "__id": "doc_ry4ljv",
+      "__id": "doc_readme",
       "__kind": "__Document",
       "__file": "readme.qmd.md",
       "__line": 1
     },
     {
-      "__id": "text_0",
+      "__id": "text_readme_0",
       "__kind": "__TextBlock",
       "__line": 1,
       "__file": "readme.qmd.md"

@@ -56,12 +56,6 @@ When a broken reference matches exactly one object's `__local_id`, the quick fix
 [[#users]] → [[#storage:users]]
 ```
 
-**Add Kind qualifier** — for ambiguous reference:
-
-```markdown example
-[[#users]] → [[#Table:users]]
-```
-
 **Create missing object** — for broken link:
 
 ```markdown example

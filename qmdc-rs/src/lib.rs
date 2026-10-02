@@ -1,5 +1,6 @@
 pub mod core;
 pub mod db;
+pub mod ignore;
 pub mod lsp;
 pub mod mcp;
 pub mod parser;
@@ -17,6 +18,8 @@ pub use mcp::run_mcp_server;
 pub use parser::{parse, OutputFormat, ParseOptions, QmdcObject};
 pub use rebuild::rebuild;
 pub use workspace::{
-    dir_is_workspace_root, find_nested_workspace_roots, find_workspace_root, parse_all_workspaces,
-    parse_workspace, resolve_workspace, scan_workspace, WorkspaceError, WorkspaceResult,
+    compose_with_paths, compose_workspace_roots, dir_is_workspace_root,
+    find_nested_workspace_roots, find_workspace_root, parse_all_workspaces, parse_workspace,
+    rescan_composed_references, resolve_workspace, resolve_workspace_input, scan_workspace,
+    Composition, Mount, WorkspaceEntry, WorkspaceError, WorkspaceResult,
 };

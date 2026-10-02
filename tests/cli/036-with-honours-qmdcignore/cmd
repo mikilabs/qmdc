@@ -1,0 +1,1 @@
+query -w ./container #cli73_loaded --format json

@@ -50,7 +50,7 @@ make binary-bump-minor    # same cascade at minor
 make binary-bump-major    # same cascade at major
 ```
 
-`qmdc-semantic` / `qmdc-mkdocs` depend on `qmdc` at runtime (`qmdc>=1.0.0`), resolved from
+`qmdc-semantic` / `qmdc-mkdocs` depend on `qmdc` at runtime (`qmdc>=2.0.0`), resolved from
 PyPI at install time, so the cascade deliberately leaves them untouched.
 
 ### Releasing a Component [[release_steps: text]]

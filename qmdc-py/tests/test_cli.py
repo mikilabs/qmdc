@@ -156,7 +156,11 @@ def test_cli_workspace_parse_spaced_kind():
             f"spaced __Workspace should be detected, got exit {result.returncode}: {result.stderr}"
         )
         output = json.loads(result.stdout)
-        assert output["workspace"] == "spaced_proj"
+        # QMD-72: one envelope shape. A single workspace is one entry sitting AT the base.
+        canonical = Path(tmpdir).resolve().as_posix()
+        assert output["workspaces"] == [{"id": "spaced_proj", "root": canonical, "path": ""}]
+        assert output["root"] == canonical
+        assert "workspace" not in output, "the QMD-59 singular key is gone"
 
 
 if __name__ == "__main__":

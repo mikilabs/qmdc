@@ -1,0 +1,1 @@
+error: --with path is not a workspace: ./host (no readme.qmd.md declaring [[id: __Workspace]])

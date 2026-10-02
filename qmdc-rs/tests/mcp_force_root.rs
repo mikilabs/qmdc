@@ -103,4 +103,42 @@ async fn force_root_allows_inside_and_rejects_outside() {
     );
 
     let _ = client.cancel().await;
+
+    // QMD-72: a CONTAINER of sibling workspaces is now composed rather than refused as
+    // ambiguous, which changed what gets handed to the boundary check — previously a single
+    // resolved workspace root, now the container itself. The boundary must still hold, and it
+    // holds by construction: every composed member lives under the container, so a container
+    // inside the force-root brings nothing outside it in.
+    let container = inside_root.join("container");
+    std::fs::create_dir_all(container.join("a")).unwrap();
+    std::fs::create_dir_all(container.join("b")).unwrap();
+    std::fs::write(
+        container.join("a/readme.qmd.md"),
+        "# A [[force_ws_a: __Workspace]]\n\n## Alpha [[alpha:Note]]\n- text: a\n",
+    )
+    .unwrap();
+    std::fs::write(
+        container.join("b/readme.qmd.md"),
+        "# B [[force_ws_b: __Workspace]]\n\n## Beta [[beta:Note]]\n- text: b\n",
+    )
+    .unwrap();
+
+    let client = connect().await;
+
+    let (payload, is_err) = call_tool(
+        &client,
+        "qmdc_get_tree",
+        json!({ "path": container.to_string_lossy() }),
+    )
+    .await;
+    assert!(
+        !is_err,
+        "a composed container inside the force-root must succeed: {payload}"
+    );
+    assert_eq!(
+        payload["success"], true,
+        "a composed container inside the force-root must succeed: {payload}"
+    );
+
+    let _ = client.cancel().await;
 }

@@ -2,6 +2,7 @@
 
 import json
 import sys
+from pathlib import Path
 
 import click
 
@@ -9,8 +10,23 @@ from .db import execute_query
 from .parser import parse as qmdc_parse
 from .parser import rebuild as qmdc_rebuild
 from .workspace import (
-    resolve_workspace,
+    WorkspaceUsageError,
+    resolve_workspace_input,
     workspace_to_json,
+)
+
+# QMD-72: `-w` / `--with` composes explicitly-named workspaces. Declared once and reused so
+# the three workspace-aware commands cannot drift in spelling or help text.
+WITH_OPTION = click.option(
+    "-w",
+    "--with",
+    "with_paths",
+    multiple=True,
+    # Deliberately NOT click.Path(exists=True): click would reject a missing path with its
+    # own phrasing before the resolver runs, which made the resolver's
+    # "--with path does not exist" branch unreachable here and left py the only
+    # implementation with a different message for the same refusal.
+    help="Compose this workspace explicitly; repeatable. Mutually exclusive with PATH.",
 )
 
 
@@ -123,7 +139,8 @@ def workspace():
 
 
 @workspace.command("parse")
-@click.argument("path", type=click.Path(exists=True), default=".")
+@click.argument("path", type=click.Path(exists=True), required=False, default=None)
+@WITH_OPTION
 @click.option(
     "-o",
     "--output",
@@ -135,18 +152,24 @@ def workspace():
 @click.option("-v", "--verbose", count=True, help="Increase verbosity")
 @click.option("--pretty/--no-pretty", default=True, help="Format JSON with indents")
 @click.option("--errors-only", is_flag=True, help="Output only errors (for CI)")
-def workspace_parse(path, output_file, verbose, pretty, errors_only):
+def workspace_parse(path, with_paths, output_file, verbose, pretty, errors_only):
     """Parse workspace directory to JSON.
 
     Examples:
         qmdc workspace parse .
         qmdc workspace parse ./spec -o workspace.json
+        qmdc workspace parse -w ../repo_a -w ../repo_b
         qmdc workspace parse . --errors-only
     """
     try:
         # QMD-59: unified resolver — walk-up to an ancestor workspace, else
         # walk-down into contained sub-workspaces. No "No workspace found" bail.
-        result = resolve_workspace(path)
+        # QMD-72: or compose the explicitly-supplied `--with` workspaces.
+        try:
+            result = resolve_workspace_input(path, list(with_paths))
+        except WorkspaceUsageError as e:
+            click.echo(f"error: {e}", err=True)
+            sys.exit(2)
 
         if verbose:
             click.echo(f"Root: {result.root}", err=True)
@@ -190,8 +213,9 @@ def workspace_parse(path, output_file, verbose, pretty, errors_only):
 
 
 @workspace.command("validate")
-@click.argument("path", type=click.Path(exists=True), default=".")
-def workspace_validate(path):
+@click.argument("path", type=click.Path(exists=True), required=False, default=None)
+@WITH_OPTION
+def workspace_validate(path, with_paths):
     """Validate workspace for errors.
 
     Returns JSON array of errors (empty array if no errors).
@@ -204,10 +228,16 @@ def workspace_validate(path):
     Examples:
         qmdc workspace validate .
         qmdc workspace validate ./spec
+        qmdc workspace validate -w ../repo_a -w ../repo_b
     """
     try:
         # QMD-59: unified resolver — walk-up then walk-down (see resolve_workspace).
-        result = resolve_workspace(path)
+        # QMD-72: or compose the explicitly-supplied `--with` workspaces.
+        try:
+            result = resolve_workspace_input(path, list(with_paths))
+        except WorkspaceUsageError as e:
+            click.echo(f"error: {e}", err=True)
+            sys.exit(2)
 
         # Output only errors array as JSON
         errors_array = [
@@ -237,17 +267,24 @@ def workspace_validate(path):
 
 
 @workspace.command("files")
-@click.argument("path", type=click.Path(exists=True), default=".")
-def workspace_files(path):
+@click.argument("path", type=click.Path(exists=True), required=False, default=None)
+@WITH_OPTION
+def workspace_files(path, with_paths):
     """List all QMD.md files in workspace.
 
     Examples:
         qmdc workspace files .
         qmdc workspace files ./spec
+        qmdc workspace files -w ../repo_a -w ../repo_b
     """
     try:
         # QMD-59: unified resolver — walk-up then walk-down.
-        result = resolve_workspace(path)
+        # QMD-72: or compose the explicitly-supplied `--with` workspaces.
+        try:
+            result = resolve_workspace_input(path, list(with_paths))
+        except WorkspaceUsageError as e:
+            click.echo(f"error: {e}", err=True)
+            sys.exit(2)
         for f in result.files:
             click.echo(f)
 
@@ -260,8 +297,18 @@ def workspace_files(path):
 
 
 @cli.command()
-@click.argument("workspace_path", type=click.Path(exists=True))
-@click.argument("query")
+@click.argument("workspace_path", required=False, default=None)
+@click.argument("query", required=False, default=None)
+# query's positional is WORKSPACE_PATH, not PATH, so it cannot share WITH_OPTION's help
+# text — naming a placeholder this command's own --help does not show would send the
+# reader looking for it. rs and ts special-case the same string for the same reason.
+@click.option(
+    "-w",
+    "--with",
+    "with_paths",
+    multiple=True,
+    help="Compose this workspace explicitly; repeatable. Mutually exclusive with WORKSPACE_PATH.",
+)
 @click.option(
     "-f",
     "--format",
@@ -270,7 +317,7 @@ def workspace_files(path):
     default="table",
     help="Output format (table or json)",
 )
-def query(workspace_path, query, output_format):
+def query(workspace_path, query, with_paths, output_format):
     """Execute SQL query against workspace.
 
     QUERY can be:
@@ -280,12 +327,43 @@ def query(workspace_path, query, output_format):
     Examples:
         qmdc query . "SELECT __id, __kind FROM objects LIMIT 5"
         qmdc query ./spec "#get_all_tables"
+        qmdc query -w ../repo_a -w ../repo_b "SELECT * FROM edges"
         qmdc query . "SELECT * FROM objects" --format json
     """
+    # QMD-72: with `--with`, the single remaining positional IS the query — a composed set
+    # has no one path, so there is nothing for a path positional to name. Both positionals
+    # alongside `--with` is the mutually-exclusive usage error, not a path to ignore.
+    with_list = list(with_paths)
+    if with_list:
+        if workspace_path is not None and query is not None:
+            click.echo(
+                "error: a positional WORKSPACE_PATH and --with are mutually exclusive; "
+                "pass every workspace as --with",
+                err=True,
+            )
+            sys.exit(2)
+        query = workspace_path if query is None else query
+        workspace_path = None
+    if query is None:
+        click.echo("error: a QUERY is required", err=True)
+        sys.exit(2)
+    # The positional path is no longer click-validated (with `--with` the first positional
+    # is the QUERY, which is not a path), so check it here to keep the old message.
+    if workspace_path is not None and not Path(workspace_path).exists():
+        click.echo(
+            f"error: Invalid value for 'WORKSPACE_PATH': Path '{workspace_path}' does not exist.",
+            err=True,
+        )
+        sys.exit(2)
+
     try:
         # QMD-59: unified resolver — walk-up to an ancestor workspace, else
         # walk-down into contained sub-workspaces (so query works from any dir).
-        ws = resolve_workspace(workspace_path)
+        try:
+            ws = resolve_workspace_input(workspace_path, with_list)
+        except WorkspaceUsageError as e:
+            click.echo(f"error: {e}", err=True)
+            sys.exit(2)
         ws_dict = {
             "objects": ws.objects,
         }

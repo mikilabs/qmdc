@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "u",
+    "__label": "Users",
+    "__kind": "Users",
+    "members": "| name  | age |\n|-------|-----|\n| Alice | 30  |",
+    "__types": {
+      "members": "string"
+    },
+    "__syntax": {
+      "members": "multiline_text"
+    },
+    "__level": 1,
+    "__labels": {
+      "members": "Members"
+    }
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "Session",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Prose right after the offending field."
+      }
+    ],
+    "__level": 1
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "nested_subitems",
+    "field": "issues",
+    "object": "[[#s]]",
+    "line": 3
+  }
+]

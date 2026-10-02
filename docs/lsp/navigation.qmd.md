@@ -17,7 +17,7 @@ Navigates to the definition of an object from a reference. Trigger: F12 or Ctrl+
 - `[[#id]]` — jump to the object with `__id: id`
 - `[[#id]]` via `__local_id` fallback — jump to the object where `__local_id: id` (when no direct `__id` match exists and the match is unambiguous)
 - `[[#namespace:id]]` — jump to the object in the specified namespace
-- `[[#Kind:id]]` — jump to the object with the specified Kind
+- `[[#workspace:namespace:id]]` — jump to the object in the specified workspace
 
 **Behavior:**
 

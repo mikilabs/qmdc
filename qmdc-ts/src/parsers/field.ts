@@ -77,6 +77,94 @@ function splitYamlArray(s: string): string[] {
   return result;
 }
 
+/** Absolute value of a BigInt -- there is no Math.abs for BigInt. */
+function bigAbs(n: bigint): bigint {
+  return n < 0n ? -n : n;
+}
+
+/** QMD.md's numeric grammar: an integer or a decimal, optionally negative. */
+const NUMBER_PATTERN = /^-?\d+(\.\d+)?$/;
+
+/**
+ * The smallest non-zero decimal magnitude every host writes WITHOUT an exponent. QMD.md's numeric
+ * grammar has no exponent form, so a smaller value could not be written back as a number at all --
+ * and the three hosts disagree on where they switch and how they pad the exponent.
+ */
+const MIN_PLAIN_DECIMAL = 1e-4;
+
+/**
+ * Numeric-looking shapes QMD.md does not define. Each was measured to be accepted by at least one
+ * host language and refused by another, which is how they diverged in the first place. Ordinary
+ * strings must not match: `2026-09-24`, `12:30:00`, `1.0.2` and `1 000` all fall through.
+ */
+const UNSUPPORTED_NUMBER_SHAPES =
+  /^(?:[+-]?\d+\.?\d*[eE][+-]?\d+|[+-]?\.\d+|[+-]?\d+\.|\+\d+(?:\.\d+)?|[+-]?0[xXoObB][0-9a-fA-F]+)$/;
+
+/** Digit separators, checked apart because the shape also matches a plain integer. */
+const SEPARATOR_NUMBER = /^[+-]?\d[\d_]*(\.[\d_]+)?$/;
+
+/**
+ * What to write instead, carried on the error so every surface that renders an error's detail fields
+ * shows it. Neither text contains a comma: the CLI, the workspace reporters and the LSP all join an
+ * error's fields with ", ", so a comma inside one would read as another field. Byte-identical in all
+ * three parsers, and the range hint cites the bounds rather than repeating their digits.
+ */
+const UNSUPPORTED_SHAPE_HINT =
+  'write a plain integer or decimal such as 42 or -1.5 (or quote the value to keep it as text)';
+const UNSUPPORTED_RANGE_HINT =
+  `magnitude outside ${MIN_PLAIN_DECIMAL}..${Number.MAX_SAFE_INTEGER}` +
+  ' (quote the value to keep it as text)';
+
+/**
+ * Parse a value as a number, or return undefined when QMD.md cannot carry it. The single place the
+ * numeric bounds live, so `unsupportedNumberHint` cannot drift from them.
+ */
+function parseSupportedNumber(value: string): number | undefined {
+  if (!NUMBER_PATTERN.test(value)) {
+    return undefined;
+  }
+  if (!value.includes('.')) {
+    // An integer is a number only while it survives a round trip through a double, which is all an
+    // interoperable JSON reader promises. Compared with BigInt rather than with the parsed value,
+    // because parseFloat has already rounded by then -- 9223372036854775807 arrives as
+    // 9223372036854776000, which would pass a test against itself.
+    return bigAbs(BigInt(value)) <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(value) : undefined;
+  }
+  // The upper bound applies to a decimal too, and it earns its place twice over: beyond it the three
+  // JSON writers disagree on the SPELLING of the same double. The lower bound is the same argument
+  // from the other end -- below it every host switches to exponent form.
+  const num = parseFloat(value);
+  if (!Number.isFinite(num) || Math.abs(num) > Number.MAX_SAFE_INTEGER) {
+    return undefined;
+  }
+  if (num !== 0 && Math.abs(num) < MIN_PLAIN_DECIMAL) {
+    return undefined;
+  }
+  return num;
+}
+
+/**
+ * What to write instead, when a value LOOKS like a number but QMD.md cannot carry it, so the caller
+ * reports `unsupported_number_format` instead of letting it become a string in silence. Undefined
+ * when the value is fine.
+ *
+ * Returns the hint rather than a bool because "is this unsupported" and "why" are the SAME decision:
+ * the branch that rejects a value is the branch that knows which of the two groups it fell into.
+ *
+ * Mirrors `unsupported_number_hint` in the Python and Rust parsers.
+ */
+export function unsupportedNumberHint(valueStr: string): string | undefined {
+  const value = valueStr.trim();
+  if (NUMBER_PATTERN.test(value)) {
+    // A supported shape, so only the magnitude bounds can reject it.
+    return parseSupportedNumber(value) === undefined ? UNSUPPORTED_RANGE_HINT : undefined;
+  }
+  if (value.includes('_') && SEPARATOR_NUMBER.test(value)) {
+    return UNSUPPORTED_SHAPE_HINT;
+  }
+  return UNSUPPORTED_NUMBER_SHAPES.test(value) ? UNSUPPORTED_SHAPE_HINT : undefined;
+}
+
 /**
  * Parse field value and auto-detect type
  *
@@ -142,11 +230,22 @@ export function parseFieldValue(
     return [false, 'boolean', undefined];
   }
 
-  // number (int or float)
-  if (/^-?\d+(\.\d+)?$/.test(value)) {
-    const num = parseFloat(value);
-    const raw = value.includes('.') && Number.isInteger(num) ? value : undefined;
-    return [num, 'number', raw];
+  // number (int or float) -- an integer or a decimal only, within the representable range
+  const parsedNumber = parseSupportedNumber(value);
+  if (parsedNumber !== undefined) {
+    // When a DECIMAL's value is integral, JSON.stringify would drop the fraction and write `2`, so a
+    // spelling is carried for the writer. The `value.includes('.')` guard matters: without it a
+    // plain integer like `42` would also be given a `.0`, which the other two never write.
+    // Derive the spelling from the VALUE rather than echoing the author's text: `100.000` must come
+    // back as `100.0`, which is what the Python and Rust writers produce. `Object.is` is what
+    // distinguishes negative zero -- `${-0}` is "0", so a plain template would drop the sign.
+    const raw =
+      value.includes('.') && Number.isInteger(parsedNumber)
+        ? Object.is(parsedNumber, -0)
+          ? '-0.0'
+          : `${parsedNumber}.0`
+        : undefined;
+    return [parsedNumber, 'number', raw];
   }
 
   // string (default) - remove quotes if present
@@ -172,6 +271,21 @@ export interface NestedSubitemsError {
   line: number;
 }
 
+/** QMD-71: a field whose value looks like a number QMD.md cannot carry. */
+export interface UnsupportedNumberError {
+  key: string;
+  line: number;
+  /** What to write instead -- see `unsupportedNumberHint`. */
+  hint: string;
+}
+
+/** QMD-70: a field with a NON-empty value followed by an indented block. */
+export interface BlockInFieldError {
+  key: string;
+  line: number;
+  content: string;
+}
+
 /**
  * Parse fields from markdown list starting at start_idx
  *
@@ -190,12 +304,19 @@ export function parseFieldsFromList(
   number,
   Record<string, string>,
   NestedSubitemsError[],
+  BlockInFieldError[],
+  UnsupportedNumberError[],
+  NestedSubitemsError[],
 ] {
   const fields: Record<string, unknown> = {};
   const types: Record<string, string> = {};
   const syntax: Record<string, string> = {};
   const invalidItems: InvalidFieldItem[] = [];
   const nestedSubitemsErrors: NestedSubitemsError[] = [];
+  const blockInFieldErrors: BlockInFieldError[] = [];
+  const unsupportedNumberErrors: UnsupportedNumberError[] = [];
+  // QMD-77 A2: values continued on a second line. Same shape as NestedSubitemsError ({key, line}).
+  const wrappedValueErrors: NestedSubitemsError[] = [];
   const rawValues: Record<string, string> = {};
   let i = startIdx;
 
@@ -401,6 +522,17 @@ export function parseFieldsFromList(
             continue;
           }
 
+          // QMD-77 A2: a field value is written on ONE line. A continuation line was read three
+          // different ways — Rust joined with a space, Python with a newline, TypeScript kept only
+          // the first line and dropped the rest in silence — so the same document carried three
+          // different values. The value is now the authored first line in all three and the
+          // continuation is reported. The legal multiline forms are untouched: YAML pipe
+          // (`key: |`) returned above, and a multiline YAML array opens with `[`.
+          if (content.includes('\n') && !valueStr.trimStart().startsWith('[')) {
+            wrappedValueErrors.push({ key, line: token.map ? token.map[0] + 2 : 0 });
+            valueStr = (valueStr.split('\n', 1)[0] ?? '').replace(/\s+$/, '');
+          }
+
           if (options?.rawStrings) {
             fields[key] = valueStr;
             types[key] = 'string';
@@ -409,6 +541,17 @@ export function parseFieldsFromList(
             const [value, typeName, rawStr, arrayRawTokens] = parseFieldValue(valueStr);
             fields[key] = value;
             types[key] = typeName === 'ref_array' ? 'array' : typeName;
+            // QMD-71: a value that looks like a number QMD.md cannot carry. The authored text is
+            // kept as the field's value, so nothing is lost; the error names it instead of letting
+            // it become a string in silence.
+            const numberHint = unsupportedNumberHint(valueStr);
+            if (numberHint !== undefined) {
+              unsupportedNumberErrors.push({
+                key,
+                line: token.map ? token.map[0] + 1 : 0,
+                hint: numberHint,
+              });
+            }
             if (rawStr !== undefined) {
               rawValues[key] = rawStr;
             }
@@ -474,6 +617,86 @@ export function parseFieldsFromList(
               continue;
             }
           }
+
+          // QMD-70: a field with a NON-EMPTY value followed by an indented BLOCK.
+          //
+          // `nested_subitems` above covers the empty-value form (`- key:` then indented items).
+          // This is the other one: `- key: value`, a blank line, then an indented table / list /
+          // paragraph / quote / fence. An inline field holds a scalar and has no content of its own,
+          // so the block belongs to nothing — and all three parsers mangled it differently, each
+          // applying whichever nearby rule it had. TypeScript and Python turned every block into
+          // list items (a table became its cell texts, a paragraph gained a `- ` prefix); Rust
+          // appended prose straight into the field's value with no separator and lost the field
+          // entirely for an indented list.
+          //
+          // Keep the field, preserve the block verbatim (dedented) as a comment anchored on the
+          // field, and report it — the shape `table_in_array` and `ordered_list_in_array` use.
+          // A YAML BLOCK SCALAR header is not a value with a block after it — the block IS the
+          // value. Any of `|`, `|-`, `|+`, `>`, `>-`, `>+`, optionally with an indentation
+          // indicator (`|2`), counts. Recognising only bare `|` and `>` reported a valid
+          // `- key: |-` with a blank line inside as an error.
+          // The value may already carry the block's continuation lines, so match the header at
+          // the START rather than the whole string.
+          const isBlockScalar = /^[|>][+-]?\d*(\n|$)/.test(valueStr.trim());
+          if (valueStr !== '' && !isBlockScalar && i + 1 < tokens.length) {
+            let lookahead = i + 1;
+            while (lookahead < tokens.length && tokens[lookahead]?.type === 'paragraph_close') {
+              lookahead++;
+            }
+            const blockType = tokens[lookahead]?.type;
+            const blockOpeners = [
+              'table_open',
+              'bullet_list_open',
+              'ordered_list_open',
+              'blockquote_open',
+              'paragraph_open',
+              'fence',
+              'hr',
+            ];
+            if (lookahead < tokens.length && blockType && blockOpeners.includes(blockType)) {
+              const blockTok = tokens[lookahead]!;
+              const blockLine = blockTok.map ? blockTok.map[0] + 1 : 0;
+              // Raw slice of the block, with the list indentation removed so the three parsers
+              // agree regardless of how each one reaches the text.
+              let rawBlock = '';
+              if (blockTree && blockTok.map) {
+                const blockLines = blockTree
+                  .getLinesRaw(blockTok.map[0], blockTok.map[1])
+                  .split('\n');
+                const indents = blockLines
+                  .filter((ln) => ln.trim())
+                  .map((ln) => ln.length - ln.trimStart().length);
+                const stripN = indents.length > 0 ? Math.min(...indents) : 0;
+                rawBlock = blockLines
+                  .map((ln) => (ln.length >= stripN ? ln.slice(stripN) : ln))
+                  .join('\n')
+                  .trim();
+              }
+              // Skip past the whole block
+              if (blockType.endsWith('_open')) {
+                const closer = blockType.replace('_open', '_close');
+                let depth = 0;
+                while (lookahead < tokens.length) {
+                  const tt = tokens[lookahead]?.type;
+                  if (tt === blockType) {
+                    depth++;
+                  } else if (tt === closer) {
+                    depth--;
+                    if (depth === 0) {
+                      lookahead++;
+                      break;
+                    }
+                  }
+                  lookahead++;
+                }
+              } else {
+                lookahead++;
+              }
+              blockInFieldErrors.push({ key, line: blockLine, content: rawBlock });
+              i = lookahead;
+              continue;
+            }
+          }
         }
       } else {
         // Not a valid field - check if it looks like a field with invalid key
@@ -511,7 +734,18 @@ export function parseFieldsFromList(
     i++;
   }
 
-  return [fields, types, syntax, invalidItems, i, rawValues, nestedSubitemsErrors];
+  return [
+    fields,
+    types,
+    syntax,
+    invalidItems,
+    i,
+    rawValues,
+    nestedSubitemsErrors,
+    blockInFieldErrors,
+    unsupportedNumberErrors,
+    wrappedValueErrors,
+  ];
 }
 
 /**
@@ -521,8 +755,15 @@ export function parseFieldsFromList(
  *
  * Returns: [items_list, next_index]
  */
-export function parseArrayItemsFromList(tokens: Token[], startIdx: number): [unknown[], number] {
+export function parseArrayItemsFromList(
+  tokens: Token[],
+  startIdx: number
+): [unknown[], number, { line: number }[]] {
+  // QMD-77 A2: an array ELEMENT is a value, so it is written on one line too. A continuation was
+  // joined with a space by Rust and kept with a newline by the other two; it is now cut back to the
+  // authored line and reported.
   const items: unknown[] = [];
+  const wrappedValueErrors: { line: number }[] = [];
   let i = startIdx;
   let nesting = 0;
 
@@ -569,7 +810,11 @@ export function parseArrayItemsFromList(tokens: Token[], startIdx: number): [unk
     }
 
     if (token.type === 'inline') {
-      const content = token.content?.trim() ?? '';
+      let content = token.content?.trim() ?? '';
+      if (content.includes('\n') && !content.trimStart().startsWith('[')) {
+        wrappedValueErrors.push({ line: token.map ? token.map[0] + 2 : 0 });
+        content = (content.split('\n', 1)[0] ?? '').replace(/\s+$/, '');
+      }
       const [value] = parseFieldValue(content);
       items.push(value);
       i++;
@@ -580,5 +825,5 @@ export function parseArrayItemsFromList(tokens: Token[], startIdx: number): [unk
     i++;
   }
 
-  return [items, i];
+  return [items, i, wrappedValueErrors];
 }

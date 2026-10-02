@@ -1,0 +1,23 @@
+[
+  {
+    "__id": "s",
+    "__label": "Session",
+    "__kind": "Session",
+    "tags": [
+      "first item",
+      "second"
+    ],
+    "__syntax": {
+      "tags": "markdown_list"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "wrapped_field_value",
+    "field": "tags",
+    "object": "[[#s]]",
+    "line": 6
+  }
+]

@@ -1,0 +1,43 @@
+[
+  {
+    "__id": "w",
+    "__label": "W",
+    "__kind": "Thing",
+    "__comments": [
+      {
+        "after": "status",
+        "content": "## Documentation Section\n\nThis starts a TextBlock.\n\n### Some Object [[my_obj]]\n\nInside."
+      }
+    ],
+    "note": "first line",
+    "status": "ok",
+    "__types": {
+      "note": "string",
+      "status": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "wrapped_field_value",
+    "field": "note",
+    "object": "[[#w]]",
+    "line": 4
+  },
+  {
+    "__id": "error_1",
+    "__kind": "__ParsingError",
+    "type": "nested_subitems",
+    "field": "arr",
+    "object": "[[#w]]",
+    "line": 5
+  },
+  {
+    "__id": "error_2",
+    "__kind": "__ParsingError",
+    "type": "structured_in_textblock",
+    "reference": "[[my_obj]]",
+    "line": 13
+  }
+]

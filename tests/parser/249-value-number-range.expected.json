@@ -1,0 +1,82 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "S",
+    "safe_max": 9007199254740991,
+    "over_safe": "9007199254740992",
+    "i64_max": "9223372036854775807",
+    "huge": "123456789012345678901234567890",
+    "neg_safe": -9007199254740991,
+    "neg_over": "-9007199254740992",
+    "dec_small": 0.125,
+    "dec_big_int": "12345678901234567890.5",
+    "dec_overflow": "1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.5",
+    "__types": {
+      "safe_max": "number",
+      "over_safe": "string",
+      "i64_max": "string",
+      "huge": "string",
+      "neg_safe": "number",
+      "neg_over": "string",
+      "dec_small": "number",
+      "dec_big_int": "string",
+      "dec_overflow": "string"
+    },
+    "__level": 2
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "over_safe",
+    "object": "[[#s]]",
+    "line": 4,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
+  },
+  {
+    "__id": "error_1",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "i64_max",
+    "object": "[[#s]]",
+    "line": 5,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
+  },
+  {
+    "__id": "error_2",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "huge",
+    "object": "[[#s]]",
+    "line": 6,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
+  },
+  {
+    "__id": "error_3",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "neg_over",
+    "object": "[[#s]]",
+    "line": 8,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
+  },
+  {
+    "__id": "error_4",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "dec_big_int",
+    "object": "[[#s]]",
+    "line": 10,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
+  },
+  {
+    "__id": "error_5",
+    "__kind": "__ParsingError",
+    "type": "unsupported_number_format",
+    "field": "dec_overflow",
+    "object": "[[#s]]",
+    "line": 11,
+    "hint": "magnitude outside 0.0001..9007199254740991 (quote the value to keep it as text)"
+  }
+]

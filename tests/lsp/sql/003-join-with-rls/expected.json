@@ -2,10 +2,10 @@
   "success": true,
   "columns": ["__id", "__kind", "edge_count"],
   "rows": [
-    ["doc_ry4ljv", "__Document", 3],
+    ["doc_data", "__Document", 3],
     ["task1", "Feature", 0],
     ["task2", "Task", 1],
-    ["text_0", "__TextBlock", 0],
+    ["text_data_0", "__TextBlock", 0],
     ["ws1", "__Workspace", 0]
   ]
 }

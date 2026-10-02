@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "s",
+    "__label": "S",
+    "__kind": "Session",
+    "__comments": [
+      {
+        "after": "status",
+        "content": "Trailing prose after the offending field."
+      }
+    ],
+    "status": "ok",
+    "__types": {
+      "status": "string"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "nested_subitems",
+    "field": "issues",
+    "object": "[[#s]]",
+    "line": 3
+  }
+]
