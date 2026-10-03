@@ -31,6 +31,13 @@ fn build_notification(method: &'static str, params: Value) -> tower_lsp::jsonrpc
         .finish()
 }
 
+/// `p` as the server reports it. Windows `canonicalize` returns a verbatim `\\?\C:\...` path,
+/// while the server derives `projectRoot` from the editor's folder URI, which has no prefix.
+fn plain(p: &std::path::Path) -> String {
+    let s = p.to_string_lossy();
+    s.strip_prefix(r"\\?\").unwrap_or(&s).to_string()
+}
+
 async fn tree(service: &mut LspService<Backend>, mode: &str, id: i64) -> Value {
     let response = service
         .call(build_request(
@@ -105,7 +112,7 @@ async fn duplicate_workspace_id_entry_still_gets_a_project_root() {
             full.display()
         );
         assert!(
-            root == first.to_string_lossy() || root == second.to_string_lossy(),
+            root == plain(&first) || root == plain(&second),
             "projectRoot {root} is not an editor folder"
         );
     }
@@ -172,11 +179,7 @@ async fn every_tree_workspace_carries_its_own_project_root() {
                 .get("projectRoot")
                 .and_then(|v| v.as_str())
                 .unwrap_or_else(|| panic!("mode {mode}: {id} has no projectRoot: {ws}"));
-            assert_eq!(
-                project_root,
-                root.to_string_lossy(),
-                "mode {mode}: {id} projectRoot"
-            );
+            assert_eq!(project_root, plain(root), "mode {mode}: {id} projectRoot");
             assert_eq!(
                 ws.get("file").and_then(|v| v.as_str()),
                 Some(file),
