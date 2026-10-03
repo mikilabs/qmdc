@@ -10,6 +10,12 @@ file is maintained by hand.
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-10-03
+
+Fixes for GitHub #6, #7 and #11, plus the MCP half of #10 (`qmdc mcp -w`). Every package ships as
+2.0.1. Note that `qmdc parse` now exits 1 on a document with parsing errors (#11): a script that
+treated any non-zero exit as a crash should read the JSON, which is still written in full.
+
 ### Added
 
 - **`qmdc mcp -w` / `--with`: serve an explicit composition.** `qmdc mcp -w <A> -w <B>` answers
@@ -430,7 +436,8 @@ ships as 2.0.0: `qmdc` (crates, PyPI, npm), `qmdc-vscode`, `qmdc-mkdocs` and
 
 Initial release.
 
-[Unreleased]: https://github.com/mikilabs/qmdc/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/mikilabs/qmdc/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/mikilabs/qmdc/releases/tag/v2.0.1
 [2.0.0]: https://github.com/mikilabs/qmdc/releases/tag/v2.0.0
 [1.0.2]: https://github.com/mikilabs/qmdc/releases/tag/v1.0.2
 [1.0.1]: https://github.com/mikilabs/qmdc/releases/tag/v1.0.1
