@@ -24,6 +24,11 @@ heading-declared array's own table is re-anchored on the field before that headi
 above the array heading on rebuild, and a top-level array is rebuilt as a wrapper heading plus a
 nested array heading. The graph is unchanged in both cases; only the layout is.
 
+**Exit code:** 0 if the document parsed cleanly, 1 if the result holds any `__ParsingError`
+object. The JSON is written in full either way, errors included, so the exit code only says
+whether something was rejected; `qmdc parse -i file.qmd.md > /dev/null || exit 1` is a syntax
+check.
+
 ### Syntax [[syntax: text]]
 
 ```bash

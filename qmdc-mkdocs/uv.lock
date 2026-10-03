@@ -518,7 +518,7 @@ wheels = [
 
 [[package]]
 name = "qmdc"
-version = "2.0.0"
+version = "2.0.1"
 source = { editable = "../qmdc-py" }
 dependencies = [
     { name = "click" },
@@ -537,7 +537,7 @@ requires-dist = [
 
 [[package]]
 name = "qmdc-mkdocs"
-version = "2.0.0"
+version = "2.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "click" },

@@ -1,6 +1,6 @@
 """QMDC Parser - Convert QMD.md to structured JSON."""
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 from .db import QmdcDatabase, execute_query
 from .parser import parse, rebuild

@@ -91,6 +91,18 @@ program
       } else {
         console.log(json);
       }
+
+      // #11: a document that produced __ParsingError objects is not a clean parse, so the
+      // exit code says so (the output above is still complete). The minimal format drops
+      // system kinds, so it cannot be counted from its own output.
+      const counted = options.format === 'minimal' ? parse(markdown) : result;
+      const errors = counted.filter((obj) => obj.__kind === '__ParsingError').length;
+      if (errors > 0) {
+        console.error(
+          `error: document has ${errors} parsing error(s); see the __ParsingError objects in the output`
+        );
+        process.exitCode = 1;
+      }
     } catch (error) {
       console.error('Error:', error instanceof Error ? error.message : error);
       process.exit(1);

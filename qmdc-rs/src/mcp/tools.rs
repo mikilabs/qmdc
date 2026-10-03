@@ -13,7 +13,7 @@ use rmcp::model::{CallToolResult, Content};
 use rmcp::{tool, tool_router, ErrorData as McpError};
 use serde_json::Value;
 
-use crate::core::index_seam::{enforce_force_root, get_index, resolve_root_bidirectional};
+use crate::core::index_seam::index_for_path;
 use crate::core::ops;
 use crate::core::resolved_index::ResolvedIndex;
 
@@ -89,14 +89,10 @@ impl QmdcServer {
             )])));
         }
         let p = Path::new(path);
-        let to_err = |e: Value| {
+        index_for_path(p).map_err(|e| {
             let text = serde_json::to_string(&e).unwrap_or_default();
             Box::new(CallToolResult::error(vec![Content::text(text)]))
-        };
-        enforce_force_root(p).map_err(to_err)?;
-        let root = resolve_root_bidirectional(p).map_err(to_err)?;
-        enforce_force_root(&root).map_err(to_err)?;
-        get_index(&root).map_err(to_err)
+        })
     }
 
     #[tool(

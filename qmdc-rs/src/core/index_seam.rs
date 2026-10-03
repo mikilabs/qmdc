@@ -356,6 +356,112 @@ fn build_index(root: &Path, max_files: usize) -> Result<ResolvedIndex, Value> {
     })?;
 
     let ws_result = parse_all_workspaces(&canon_root, OutputFormat::Full);
+    index_from_result(canon_root, ws_result, max_files)
+}
+
+// ---------------------------------------------------------------------------
+// Explicit composition (`qmdc mcp -w`, GitHub #10)
+// ---------------------------------------------------------------------------
+
+/// The `-w` paths the MCP server was started with. When set, every tool answers over the
+/// composition of exactly these workspaces — the same graph `qmdc query -w …` sees.
+static COMPOSE_WITH: OnceLock<Vec<PathBuf>> = OnceLock::new();
+
+/// Check `paths` the way `qmdc query -w` does (each one exactly one workspace, no path or
+/// workspace id twice) and, when a force-root is configured, that every path and every
+/// workspace it resolves to lies inside it. Returns the usage-error message on refusal.
+pub fn check_compose_with(paths: &[PathBuf]) -> Result<(), String> {
+    for p in paths {
+        if let Err(e) = enforce_force_root(p) {
+            return Err(force_root_refusal(p, &e));
+        }
+    }
+    let composed = crate::workspace::compose_with_paths(paths, OutputFormat::Minimal)?;
+    for w in &composed.workspaces {
+        let root = Path::new(&w.root);
+        if let Err(e) = enforce_force_root(root) {
+            return Err(force_root_refusal(root, &e));
+        }
+    }
+    Ok(())
+}
+
+fn force_root_refusal(p: &Path, e: &Value) -> String {
+    let why = e
+        .pointer("/error/message")
+        .and_then(|m| m.as_str())
+        .unwrap_or("outside the force-root");
+    format!(
+        "--with path {} is outside --force-root: {}",
+        p.display(),
+        why
+    )
+}
+
+/// Configure the server-wide `-w` set. Set once at startup, after [`check_compose_with`].
+pub fn set_compose_with(paths: Vec<PathBuf>) {
+    let _ = COMPOSE_WITH.set(paths);
+}
+
+/// The configured `-w` set, if any.
+pub fn compose_with() -> Option<&'static [PathBuf]> {
+    COMPOSE_WITH.get().map(|v| v.as_slice())
+}
+
+/// Materialise the index of the composed `-w` set. Its base is virtual
+/// ([`ResolvedIndex::is_composed`]), so `root` is empty and files are located with
+/// [`ResolvedIndex::disk_path`].
+pub fn get_composed_index(paths: &[PathBuf]) -> Result<ResolvedIndex, Value> {
+    let ws_result = crate::workspace::compose_with_paths(paths, OutputFormat::Full)
+        .map_err(|msg| ErrorEnvelope::error(ErrorCode::NotResolved, msg))?;
+    index_from_result(PathBuf::new(), ws_result, REPARSE_FILE_BOUND)
+}
+
+/// The workspace root of a composed index that holds `path`, or `out-of-root`. A tool call
+/// against a `-w` server still names a path, and it must be inside one of the composed
+/// workspaces: anything else would be answered from a graph it is not part of.
+pub fn assert_in_composition(index: &ResolvedIndex, path: &Path) -> Result<(), Value> {
+    let inside = index
+        .workspace
+        .workspaces
+        .iter()
+        .any(|w| assert_within_root(Path::new(&w.root), path).is_ok());
+    if inside {
+        Ok(())
+    } else {
+        Err(ErrorEnvelope::error(
+            ErrorCode::OutOfRoot,
+            format!(
+                "path '{}' is not inside any workspace this server was started with (-w)",
+                path.display()
+            ),
+        ))
+    }
+}
+
+/// The index an MCP tool or resource call naming `path` is answered from.
+///
+/// Without `-w`: the workspace found from `path` (down first, then up), with the force-root
+/// checked on both the path and the root it resolves to. With `-w`: the composed set the
+/// server was started with, and `path` must lie inside one of its workspaces.
+pub fn index_for_path(path: &Path) -> Result<ResolvedIndex, Value> {
+    enforce_force_root(path)?;
+    if let Some(paths) = compose_with() {
+        let index = get_composed_index(paths)?;
+        assert_in_composition(&index, path)?;
+        return Ok(index);
+    }
+    let root = resolve_root_bidirectional(path)?;
+    enforce_force_root(&root)?;
+    get_index(&root)
+}
+
+/// The NFR-2 bound check and in-memory DB sync shared by rooted and composed indexes.
+fn index_from_result(
+    canon_root: PathBuf,
+    ws_result: crate::workspace::WorkspaceResult,
+    max_files: usize,
+) -> Result<ResolvedIndex, Value> {
     let file_count = ws_result.files.len();
 
     // NFR-2: bounded reparse

@@ -124,6 +124,12 @@ impl Backend {
         path.to_lowercase().ends_with("readme.qmd.md")
     }
 
+    /// GitHub #6: a `.qmdcignore` (at the root or in any directory, git-style) decides
+    /// which workspaces exist, so any change to one is structural.
+    fn is_qmdcignore_file(path: &str) -> bool {
+        path == ".qmdcignore" || path.ends_with("/.qmdcignore") || path.ends_with("\\.qmdcignore")
+    }
+
     /// Check if filename is readme.qmd.md (case-insensitive)
     fn is_readme_filename(name: &std::ffi::OsStr) -> bool {
         name.to_string_lossy().to_lowercase() == "readme.qmd.md"
@@ -786,7 +792,7 @@ impl Backend {
     }
 
     /// Translate a batch of native `notify` events into LSP `FileEvent`s for
-    /// `*.qmd.md` files, de-duplicated per (path, change type). Non-QMD files and
+    /// `*.qmd.md` and `.qmdcignore` files, de-duplicated per (path, change type). Other files and
     /// event kinds we do not care about are dropped.
     fn fs_events_to_changes(events: Vec<notify::Event>) -> Vec<FileEvent> {
         use notify::event::{EventKind, ModifyKind};
@@ -807,7 +813,8 @@ impl Backend {
             };
 
             for path in event.paths {
-                if !path.to_string_lossy().ends_with(".qmd.md") {
+                let p = path.to_string_lossy();
+                if !p.ends_with(".qmd.md") && !Self::is_qmdcignore_file(&p) {
                     continue;
                 }
                 if let Ok(uri) = Url::from_file_path(&path) {
@@ -2208,18 +2215,23 @@ impl LanguageServer for Backend {
                     {
                         let ws_index = self.workspaces.read().await;
                         for ws in workspaces {
-                            if let Some(ws_id) = ws.get("id").and_then(|v| v.as_str()) {
-                                // Find WorkspaceInfo by ID and add project_root
-                                if let Some(ws_info) = ws_index.get_by_id(ws_id) {
-                                    if let Some(ws_obj) = ws.as_object_mut() {
-                                        ws_obj.insert(
-                                            "projectRoot".to_string(),
-                                            serde_json::json!(ws_info
-                                                .project_root
-                                                .to_string_lossy()),
-                                        );
-                                    }
+                            let ws_id = ws.get("id").and_then(|v| v.as_str()).unwrap_or("");
+                            let ws_file = ws.get("file").and_then(|v| v.as_str()).unwrap_or("");
+                            // GitHub #7: match by id AND the entry's own file. A lookup by id
+                            // alone is ambiguous when the id is declared in several places
+                            // (copies under `.tmp/`), and an entry without `projectRoot` made
+                            // the client resolve `file` against folder 0.
+                            if let Some(ws_info) = ws_index.get_for_entry(ws_id, ws_file) {
+                                if let Some(ws_obj) = ws.as_object_mut() {
+                                    ws_obj.insert(
+                                        "projectRoot".to_string(),
+                                        serde_json::json!(ws_info.project_root.to_string_lossy()),
+                                    );
                                 }
+                            } else {
+                                eprintln!(
+                                    "[LSP Tree] no workspace root for {ws_id} ({ws_file}); entry sent without projectRoot"
+                                );
                             }
                         }
                     }
@@ -2473,6 +2485,12 @@ impl LanguageServer for Backend {
             let uri = &change.uri;
             eprintln!("[LSP] File change: {:?} - {}", change.typ, uri);
 
+            if Self::is_qmdcignore_file(uri.path()) {
+                eprintln!("[LSP] .qmdcignore changed: {:?} - {}", change.typ, uri);
+                needs_rescan = true;
+                continue;
+            }
+
             // Only process .qmd.md files
             if !uri.path().ends_with(".qmd.md") {
                 continue;
@@ -2645,4 +2663,29 @@ pub async fn run_lsp() {
     Server::new(stdin, stdout, socket).serve(service).await;
 
     eprintln!("[qmdc] LSP server shutting down");
+}
+
+#[cfg(test)]
+mod qmdcignore_match_tests {
+    use super::Backend;
+
+    #[test]
+    fn matches_an_ignore_file_at_any_depth_and_nothing_else() {
+        for yes in [
+            ".qmdcignore",
+            "/repo/.qmdcignore",
+            "/repo/docs/sub/.qmdcignore",
+            r"C:\repo\sub\.qmdcignore",
+        ] {
+            assert!(Backend::is_qmdcignore_file(yes), "{yes}");
+        }
+        for no in [
+            "/repo/foo.qmdcignore",
+            "/repo/.qmdcignore.bak",
+            "/repo/.qmdcignore/readme.qmd.md",
+            "/repo/notes.qmd.md",
+        ] {
+            assert!(!Backend::is_qmdcignore_file(no), "{no}");
+        }
+    }
 }

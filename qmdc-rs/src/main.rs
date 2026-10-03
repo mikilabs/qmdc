@@ -160,6 +160,12 @@ enum Commands {
         /// (local single-user model).
         #[arg(long = "force-root")]
         force_root: Option<PathBuf>,
+
+        /// Serve the composition of these workspaces; repeatable (GitHub #10). Every tool
+        /// then answers over the same graph `qmdc query -w …` sees, and its `path` argument
+        /// must lie inside one of them.
+        #[arg(short = 'w', long = "with")]
+        with: Vec<PathBuf>,
     },
 
     /// Debug LSP commands (stateless, no server)
@@ -271,6 +277,21 @@ async fn main() {
                 None => {
                     println!("{}", json_output);
                 }
+            }
+
+            // #11: a document that produced __ParsingError objects is not a clean parse, so
+            // the exit code says so (the output above is still complete). Rust keeps
+            // `__kind` on errors in every format, so the output itself can be counted.
+            let errors = objects
+                .iter()
+                .filter(|obj| obj.get("__kind").and_then(|v| v.as_str()) == Some("__ParsingError"))
+                .count();
+            if errors > 0 {
+                eprintln!(
+                    "error: document has {} parsing error(s); see the __ParsingError objects in the output",
+                    errors
+                );
+                std::process::exit(1);
             }
         }
 
@@ -456,7 +477,11 @@ async fn main() {
             run_lsp().await;
         }
 
-        Commands::Mcp { force_root } => {
+        Commands::Mcp { force_root, with } => {
+            if let Err(msg) = qmdc::mcp::server::configure_compose_with(force_root.clone(), with) {
+                eprintln!("error: {}", msg);
+                std::process::exit(2);
+            }
             run_mcp_server(force_root).await;
         }
 

@@ -6,7 +6,7 @@ def roundtrip(qmdc_path, cli):
     """Parse then rebuild, return rebuilt text."""
     r = subprocess.run([cli, 'parse', '-i', qmdc_path],
                        capture_output=True, text=True, timeout=30)
-    if r.returncode != 0:
+    if r.returncode not in (0, 1):  # 1 = parsed, but the result holds __ParsingError objects
         return f"PARSE ERROR: {r.stderr[:200]}"
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
         tmp.write(r.stdout)

@@ -1,0 +1,28 @@
+[
+  {
+    "__id": "thing",
+    "__label": "Thing",
+    "__kind": "Thing",
+    "annotations": {
+      "valid_key": "kept"
+    },
+    "__types": {
+      "annotations": "map"
+    },
+    "__syntax": {
+      "annotations": "map"
+    },
+    "__level": 2,
+    "__labels": {
+      "annotations": "Annotations"
+    }
+  },
+  {
+    "__id": "error_0",
+    "__kind": "__ParsingError",
+    "type": "invalid_map_entry",
+    "field": "annotations",
+    "object": "[[#thing]]",
+    "line": 6
+  }
+]

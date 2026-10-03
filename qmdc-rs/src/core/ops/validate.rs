@@ -31,7 +31,16 @@ pub fn validate(index: &ResolvedIndex, path: Option<&str>) -> Result<Value, Valu
     // canonicalized within the workspace root is denied rather than silently ignored.
     if let Some(p) = path {
         let p = p.trim();
-        if !p.is_empty() {
+        if !p.is_empty() && index.is_composed() {
+            // A composed (`-w`) index has no single root to canonicalize against; its scope
+            // values are its own `__file` values, so containment is membership.
+            if !index.files().iter().any(|f| f == p) {
+                return Err(ErrorEnvelope::error(
+                    ErrorCode::OutOfRoot,
+                    format!("path '{}' is not a file of the composed workspaces", p),
+                ));
+            }
+        } else if !p.is_empty() {
             let canon_root = index.root.canonicalize().map_err(|_| {
                 ErrorEnvelope::error(ErrorCode::OutOfRoot, "workspace root is not accessible")
             })?;

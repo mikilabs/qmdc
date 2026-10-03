@@ -55,6 +55,29 @@ impl WorkspaceIndex {
             .and_then(|v| if v.len() == 1 { Some(&v[0]) } else { None })
     }
 
+    /// The workspace a tree entry `{id, file}` came from: the one with this id holding a
+    /// file whose `project_root`-relative, slash-separated path is `file`. Unlike
+    /// [`get_by_id`] this still answers when the id is declared in several places.
+    pub fn get_for_entry(&self, id: &str, file: &str) -> Option<&WorkspaceInfo> {
+        let candidates = self.by_id.get(id)?;
+        candidates
+            .iter()
+            .find(|w| {
+                w.files.iter().any(|f| {
+                    f.strip_prefix(&w.project_root)
+                        .map(|rel| {
+                            rel.components()
+                                .map(|c| c.as_os_str().to_string_lossy())
+                                .collect::<Vec<_>>()
+                                .join("/")
+                                == file
+                        })
+                        .unwrap_or(false)
+                })
+            })
+            .or_else(|| self.get_by_id(id))
+    }
+
     /// Get all duplicate workspace IDs
     pub fn get_duplicates(&self) -> Vec<(&str, &[WorkspaceInfo])> {
         self.by_id

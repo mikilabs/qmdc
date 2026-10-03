@@ -10,6 +10,39 @@ file is maintained by hand.
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-10-03
+
+Fixes for GitHub #6, #7 and #11, plus the MCP half of #10 (`qmdc mcp -w`). Every package ships as
+2.0.1. Note that `qmdc parse` now exits 1 on a document with parsing errors (#11): a script that
+treated any non-zero exit as a crash should read the JSON, which is still written in full.
+
+### Added
+
+- **`qmdc mcp -w` / `--with`: serve an explicit composition.** `qmdc mcp -w <A> -w <B>` answers
+  every tool and resource over the composition of exactly those workspaces — the graph
+  `qmdc query -w` sees — wherever they are on disk. A tool's `path` must lie inside one of them
+  (`out-of-root` otherwise); the base is virtual as in `workspace parse -w` (`__file` under each
+  workspace's id, `root: null` in `qmdc_dump_index`). The set is checked at startup with the CLI's
+  rules and a refused set exits 2: zero or several workspaces behind one path, a path twice, a
+  workspace id twice, and with `--force-root` any `-w` path or workspace outside the boundary
+  ([#10](https://github.com/mikilabs/qmdc/issues/10)).
+
+### Fixed
+
+- **`qmdc parse` exits 1 when the result holds a `__ParsingError`**, in all three parsers, and says
+  so on stderr. The JSON is still written in full. It used to exit 0, so the syntax check the agent
+  guide teaches (`qmdc parse -i f.qmd.md > /dev/null || exit 1`) passed on a document that had lost
+  a value ([#11](https://github.com/mikilabs/qmdc/issues/11)).
+- **The LSP reloads `.qmdcignore`.** A change to any `.qmdcignore` now rescans the workspaces, from
+  both the editor's file events and the server's own watcher, and the VS Code extension watches
+  `**/.qmdcignore`; before, the ignore rules read at start-up held until a restart
+  ([#6](https://github.com/mikilabs/qmdc/issues/6)).
+- **Explorer items in a multi-root window open the right file.** Every workspace in
+  `qmdc.getWorkspaceTree` carries `projectRoot` even when its id is declared in several places
+  (the lookup was by id alone and gave up on a duplicate), and the extension no longer falls back
+  to the first editor folder when it is missing — the guess that opened a nonexistent file
+  ([#7](https://github.com/mikilabs/qmdc/issues/7)).
+
 ## [2.0.0] - 2026-10-01
 
 Major release: four breaking changes below (`workspaces` envelope, `objectId`/`fieldName`
@@ -403,7 +436,8 @@ ships as 2.0.0: `qmdc` (crates, PyPI, npm), `qmdc-vscode`, `qmdc-mkdocs` and
 
 Initial release.
 
-[Unreleased]: https://github.com/mikilabs/qmdc/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/mikilabs/qmdc/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/mikilabs/qmdc/releases/tag/v2.0.1
 [2.0.0]: https://github.com/mikilabs/qmdc/releases/tag/v2.0.0
 [1.0.2]: https://github.com/mikilabs/qmdc/releases/tag/v1.0.2
 [1.0.1]: https://github.com/mikilabs/qmdc/releases/tag/v1.0.1

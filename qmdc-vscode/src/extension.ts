@@ -224,7 +224,13 @@ export async function activate(context: vscode.ExtensionContext) {
       { scheme: 'file', pattern: '**/*.qmd.md' },
     ],
     synchronize: {
-      fileEvents: vscode.workspace.createFileSystemWatcher('**/*.qmd.md'),
+      // GitHub #6: `.qmdcignore` decides which workspaces exist, so the server must hear
+      // about it too; it rescans and answers with `qmdc/workspaceUpdated`, which refreshes
+      // the explorer.
+      fileEvents: [
+        vscode.workspace.createFileSystemWatcher('**/*.qmd.md'),
+        vscode.workspace.createFileSystemWatcher('**/.qmdcignore'),
+      ],
     },
     outputChannelName: 'QMDC Language Server',
   };
