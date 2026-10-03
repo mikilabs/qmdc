@@ -14,7 +14,7 @@ use rmcp::model::{AnnotateAble, RawResource, ReadResourceResult, Resource, Resou
 
 use crate::core::error::{ErrorCode, ErrorEnvelope};
 use crate::core::guide::GUIDE_CONTENT;
-use crate::core::index_seam::{enforce_force_root, get_index, resolve_root_bidirectional};
+use crate::core::index_seam::index_for_path;
 use crate::core::ops::{describe, tree, validate};
 
 /// Build the static resource catalogue for `resources/list`.
@@ -151,17 +151,7 @@ where
         }
     };
     let p = std::path::Path::new(path);
-    if let Err(e) = enforce_force_root(p) {
-        return error_json(uri, &e);
-    }
-    let root = match resolve_root_bidirectional(p) {
-        Ok(r) => r,
-        Err(e) => return error_json(uri, &e),
-    };
-    if let Err(e) = enforce_force_root(&root) {
-        return error_json(uri, &e);
-    }
-    let index = match get_index(&root) {
+    let index = match index_for_path(p) {
         Ok(idx) => idx,
         Err(e) => return error_json(uri, &e),
     };

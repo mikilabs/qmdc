@@ -53,4 +53,37 @@ impl ResolvedIndex {
     pub fn files(&self) -> &[String] {
         &self.workspace.files
     }
+
+    /// True for an index composed from `-w` paths (GitHub #10): its base is virtual, each
+    /// workspace's files sit under that workspace's id, and `root` is empty.
+    pub fn is_composed(&self) -> bool {
+        self.workspace.root.is_none()
+    }
+
+    /// Where the file a `__file` value names really is on disk.
+    ///
+    /// A rooted index joins `root`. A composed one applies the [`WorkspaceEntry`] rule: the
+    /// entry whose `path` is the longest prefix of `file`, joined with the rest. `None` when
+    /// no entry claims the file.
+    ///
+    /// [`WorkspaceEntry`]: crate::workspace::WorkspaceEntry
+    pub fn disk_path(&self, file: &str) -> Option<PathBuf> {
+        if !self.is_composed() {
+            return Some(self.root.join(file));
+        }
+        self.workspace
+            .workspaces
+            .iter()
+            .filter_map(|w| {
+                let rest = if w.path.is_empty() {
+                    Some(file)
+                } else {
+                    file.strip_prefix(w.path.as_str())
+                        .and_then(|r| r.strip_prefix('/'))
+                };
+                rest.map(|r| (w.path.len(), PathBuf::from(&w.root).join(r)))
+            })
+            .max_by_key(|(len, _)| *len)
+            .map(|(_, p)| p)
+    }
 }

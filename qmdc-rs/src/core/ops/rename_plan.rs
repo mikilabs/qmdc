@@ -155,12 +155,11 @@ where
 /// - `Ok(Value)` — `{ old_id, new_id, edits: [{file,line,old_text,new_text,kind}], edit_count, truncated }`.
 /// - `Err(Value)` — `invalid-argument` / `not-found`.
 pub fn rename_plan(index: &ResolvedIndex, old_id: &str, new_id: &str) -> Result<Value, Value> {
-    let root = index.root.clone();
-    let read_line = move |file: &str, line_1based: i64| -> Option<String> {
+    let read_line = |file: &str, line_1based: i64| -> Option<String> {
         if line_1based < 1 {
             return None;
         }
-        let content = std::fs::read_to_string(root.join(file)).ok()?;
+        let content = std::fs::read_to_string(index.disk_path(file)?).ok()?;
         content
             .lines()
             .nth((line_1based - 1) as usize)

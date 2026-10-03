@@ -33,7 +33,9 @@ impl ServerHandler for QmdcServer {
             instructions: Some(
                 "QMDC workspace tools: locate/describe/search objects, find references, \
                  rename (diff-only), validate, query SQL, traverse the reference graph, and \
-                 read qmdc:// resources. Every tool resolves the workspace from a `path` argument."
+                 read qmdc:// resources. Every tool resolves the workspace from a `path` argument; \
+                 a server started with -w answers over that composed set, and `path` must lie \
+                 inside one of its workspaces."
                     .to_string(),
             ),
             ..Default::default()
@@ -58,6 +60,25 @@ impl ServerHandler for QmdcServer {
     ) -> Result<ReadResourceResult, McpError> {
         Ok(read_resource(&request.uri))
     }
+}
+
+/// Configure the `-w` set for [`run_mcp_server`] (GitHub #10). Call it before the server
+/// starts, passing the same `force_root`: every `-w` path, and every workspace it resolves
+/// to, must lie inside it. An empty `with` configures nothing. On refusal the message is a
+/// usage error and nothing is configured.
+pub fn configure_compose_with(
+    force_root: Option<std::path::PathBuf>,
+    with: Vec<std::path::PathBuf>,
+) -> Result<(), String> {
+    if with.is_empty() {
+        return Ok(());
+    }
+    if let Some(root) = force_root {
+        crate::core::index_seam::set_force_root(root);
+    }
+    crate::core::index_seam::check_compose_with(&with)?;
+    crate::core::index_seam::set_compose_with(with);
+    Ok(())
 }
 
 /// Run the MCP server on stdio transport (production entry point).

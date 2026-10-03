@@ -227,12 +227,15 @@ export class QmdcExplorerProvider implements vscode.TreeDataProvider<QmdcTreeIte
 
     for (const ws of data.workspaces) {
       this.log(`[QMDC Tree] getWorkspaces: processing workspace ${ws.id}, namespaces=${ws.namespaces?.length || 0}, kindGroups=${ws.kindGroups?.length || 0}, fileGroups=${ws.fileGroups?.length || 0}`);
-      // Use projectRoot from LSP response (enriched from WorkspaceInfo)
-      // Fallback to first workspace folder for backward compatibility
-      const workspacePath = ws.projectRoot || workspaceFolders[0].uri.fsPath;
-      const wsFilePath = ws.projectRoot 
-        ? path.join(ws.projectRoot, ws.file)
-        : path.join(workspaceFolders[0].uri.fsPath, ws.file);
+      // GitHub #7: `file` is relative to the editor folder the server discovered the
+      // workspace in, sent as `projectRoot`. Without it there is no correct base: guessing
+      // folder 0 made every item of a second-folder workspace open a nonexistent file.
+      if (!ws.projectRoot) {
+        this.log(`[QMDC Tree] getWorkspaces: server sent ${ws.id} without projectRoot; skipping it`);
+        continue;
+      }
+      const workspacePath = ws.projectRoot;
+      const wsFilePath = path.join(ws.projectRoot, ws.file);
       const fileUri = vscode.Uri.file(wsFilePath).toString();
       
       // Determine child count based on mode

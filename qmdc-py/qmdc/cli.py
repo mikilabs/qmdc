@@ -88,6 +88,19 @@ def parse(input_file, output_file, verbose, strict, no_comments, no_syntax, pret
         if output_file == sys.stdout:
             output_file.write("\n")
 
+        # #11: a document that produced __ParsingError objects is not a clean parse, so the
+        # exit code says so (the output above is still complete). The minimal format drops
+        # system kinds, so it cannot be counted from its own output.
+        counted = result if output_format != "minimal" else qmdc_parse(markdown)
+        errors = sum(1 for obj in counted if obj.get("__kind") == "__ParsingError")
+        if errors:
+            click.echo(
+                f"error: document has {errors} parsing error(s); "
+                "see the __ParsingError objects in the output",
+                err=True,
+            )
+            sys.exit(1)
+
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)

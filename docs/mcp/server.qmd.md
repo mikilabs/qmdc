@@ -14,6 +14,12 @@ Production transport is stdio: requests on stdin, responses on stdout, one JSON 
 
 By default the server trusts the `path` each caller supplies (the local single-user stdio model). Start it with `qmdc mcp --force-root <DIR>` to install a fail-closed boundary (INV-1): both the request `path` and the resolved workspace root must canonicalize inside `<DIR>`, otherwise the call is rejected with `out-of-root`.
 
+## Explicit Composition [[mcp_compose_with: NarrativeDoc]]
+
+`qmdc mcp -w <A> -w <B> …` serves the composition of exactly those workspaces, wherever they are on disk — the same graph `qmdc query -w <A> -w <B>` and `qmdc workspace validate -w …` see. Every tool and resource then answers over that one graph, and its `path` argument must lie inside one of the composed workspaces; any other path is rejected with `out-of-root` rather than answered from a graph it is not part of. As in `workspace parse -w`, the base is virtual: each workspace's files appear in `__file` under its id (`w2/readme.qmd.md`), `qmdc_dump_index` reports `root: null`, and a `file` scope is one of those `__file` values.
+
+The `-w` set is checked once at startup with the CLI's rules, and a refused set exits with code 2 before the server starts: a path resolving to zero or several workspaces, the same path twice, two paths declaring the same workspace id, and — with `--force-root` — any `-w` path, or the workspace it resolves to, outside the boundary.
+
 SQL is read-only (INV-2, see [[#tool_query_sql]]). A panic while handling one request is caught and converted into an `internal-error` response, so a single bad request cannot take the server down.
 
 ## Bounded Output [[mcp_bounded: NarrativeDoc]]

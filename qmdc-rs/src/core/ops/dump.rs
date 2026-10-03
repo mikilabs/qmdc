@@ -57,7 +57,8 @@ pub fn dump(
     let page = cursor_page(keyed, limit, cursor);
 
     let mut body = json!({
-        "root": index.root.to_string_lossy(),
+        // A composed (`-w`) index has no single root: report null, as `workspace parse -w` does.
+        "root": if index.is_composed() { Value::Null } else { json!(index.root.to_string_lossy()) },
         "workspace_id": workspace_id,
         "file_count": file_count,
         "object_count": total_objects,
