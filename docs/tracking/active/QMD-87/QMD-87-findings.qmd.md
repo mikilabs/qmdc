@@ -6,7 +6,7 @@
 (QMD-86) then compares targets with `__id` by string equality. On the fixture workspace,
 `traverse` from `part.a` returns only `part.a`, with edges to `b`, `svc:gateway`, `lib::util` and
 `nowhere`. `find_path part.a -> part.b` returns `part.a -> part -> part.b` through the parent's
-structural fields, and `find_path util -> gateway` finds no path at all.
+structural fields, and `find_path gateway -> util` finds no path at all.
 
 - category: bug
 - related_to: [[#qmd87_graph_unresolved]]
@@ -59,9 +59,16 @@ and a dangling one; their expectations change with this fix.
 New fixtures, all on one container (`app` workspace with a `svc` namespace, sibling `lib`
 workspace): `qmd87-traverse-outgoing` and `qmd87-traverse-incoming` from `part.a`,
 `qmd87-find-path-hierarchical` (`part.a -> part.b`, length 1), `qmd87-find-path-cross-workspace`
-(`util -> gateway` through `part.a`), and `qmd87-query-edges`, which pins the `edges` table the
+(`gateway -> util` through `part.a`), and `qmd87-query-edges`, which pins the `edges` table the
 four graph fixtures are derived from. The four graph fixtures fail on the current code for the
 documented reason; the edges-table fixture passes before and after.
+
+The fixtures assert no order that depends on which workspace of the container is discovered
+first: container discovery follows the directory listing, which differs between hosts (Linux
+lists `lib` before `app` here, macOS the other way round), and object order, so edge order,
+follows it. So no graph fixture has `lib` edges adjacent to the start node, and the edges-table
+fixture sorts its rows. Verified by running all five against a copy laid out so that `lib` is
+discovered first.
 
 How to verify: `cargo test --test mcp` and `make test-fast`.
 

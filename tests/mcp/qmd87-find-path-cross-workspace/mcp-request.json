@@ -2,7 +2,7 @@
   "tool": "qmdc_find_path",
   "arguments": {
     "path": "{{workspace}}",
-    "from_id": "util",
-    "to_id": "gateway"
+    "from_id": "gateway",
+    "to_id": "util"
   }
 }
