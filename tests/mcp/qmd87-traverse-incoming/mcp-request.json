@@ -1,0 +1,9 @@
+{
+  "tool": "qmdc_traverse_graph",
+  "arguments": {
+    "path": "{{workspace}}",
+    "start_id": "part.a",
+    "direction": "incoming",
+    "depth": 1
+  }
+}

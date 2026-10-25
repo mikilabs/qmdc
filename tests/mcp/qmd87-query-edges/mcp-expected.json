@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "truncated": false,
+  "items": [
+    { "source": "part", "edge_type": "a", "target": "part.a" },
+    { "source": "part", "edge_type": "b", "target": "part.b" },
+    { "source": "part.a", "edge_type": "next", "target": "part.b" },
+    { "source": "part.a", "edge_type": "peer", "target": "gateway" },
+    { "source": "part.a", "edge_type": "remote", "target": "util" },
+    { "source": "part.b", "edge_type": "next", "target": "part.a" },
+    { "source": "svc", "edge_type": "gateway", "target": "gateway" },
+    { "source": "gateway", "edge_type": "back", "target": "part.a" },
+    { "source": "util", "edge_type": "user", "target": "part.a" }
+  ]
+}
