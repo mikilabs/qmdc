@@ -34,7 +34,10 @@ Measured on the fixture workspace and on a namespaced one: `find_references` bui
 parser `__references`, which do not include a parent's structural child fields (`part` -> `part.a`
 through field `a`, or a `__Namespace` -> its objects) nor the content of generated document
 objects. The edges table and now the graph include both. So `find_references(part.a)` is `part.b`,
-`gateway`, `util`, while the graph's incoming edges also have `part`.
+`gateway`, `util`, while the graph's incoming edges also have `part`. The other direction exists
+too: `find_references` counts references made from a `__Workspace` root object, which the table's
+resolver does not resolve: the root carries no `__workspace` of its own, so its references are
+looked up in an empty workspace. On `docs` the two disagree for 632 of 777 objects.
 
 - category: design
 - related_to: [[#qmd87_graph_unresolved]]

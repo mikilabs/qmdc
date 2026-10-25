@@ -66,7 +66,7 @@ pub fn traverse(
 
     // Build graph data once: node lookup and neighbour enumeration are O(1) per step
     // (QMD-86, GitHub #17).
-    let graph = GraphView::build(index);
+    let graph = GraphView::build(index)?;
     let direction = match direction {
         "outgoing" => Direction::Outgoing,
         "incoming" => Direction::Incoming,
@@ -91,7 +91,7 @@ pub fn traverse(
     queue.push_back((start_id, 0));
 
     while let Some((current_id, current_depth)) = queue.pop_front() {
-        // Add node to results (a dangling reference target has no node)
+        // Add node to results (every resolved target is an object, so this always finds one)
         if let Some(node) = graph.node(current_id) {
             result_nodes.push(node.clone());
         }

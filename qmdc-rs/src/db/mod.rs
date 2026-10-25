@@ -259,6 +259,26 @@ impl QmdcDatabase {
         Ok(())
     }
 
+    /// Every resolved edge as `(source __id, source_field, edge_type, target __id)`, in
+    /// insertion order — object order, then field order, then reference order within a field.
+    ///
+    /// These are the rows `qmdc query` exposes as the `edges` table: each target went through
+    /// the shared resolver (`resolve_target_global_id`), so an unresolvable or
+    /// ambiguous reference has no row. The graph tools read this instead of re-scanning field
+    /// text (QMD-87, GitHub #18).
+    pub fn resolved_edges(&self) -> SqliteResult<Vec<(String, String, String, String)>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT s.__id, e.source_field, e.edge_type, t.__id FROM edges e \
+             JOIN objects s ON s.__global_id = e.source_id \
+             JOIN objects t ON t.__global_id = e.target_id \
+             ORDER BY e.rowid",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?;
+        rows.collect()
+    }
+
     /// Execute a SQL query and return results as JSON
     /// Also supports dot-commands: .schema, .tables
     pub fn query(&self, sql: &str) -> Result<QueryResult, String> {
