@@ -1,0 +1,58 @@
+{
+  "nodes": [
+    {
+      "id": "d",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "d",
+      "file": "g.qmd.md",
+      "line": 18
+    },
+    {
+      "id": "e",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "e",
+      "file": "g.qmd.md",
+      "line": 22
+    },
+    {
+      "id": "a",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "a",
+      "file": "g.qmd.md",
+      "line": 1
+    },
+    {
+      "id": "b",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "b",
+      "file": "g.qmd.md",
+      "line": 7
+    }
+  ],
+  "edges": [
+    {
+      "source": "e",
+      "target": "d",
+      "edge_type": "links",
+      "source_field": "links"
+    },
+    {
+      "source": "e",
+      "target": "a",
+      "edge_type": "links",
+      "source_field": "links"
+    },
+    {
+      "source": "a",
+      "target": "b",
+      "edge_type": "links",
+      "source_field": "links"
+    }
+  ],
+  "length": 3,
+  "success": true
+}

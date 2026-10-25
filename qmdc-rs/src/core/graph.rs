@@ -7,6 +7,7 @@
 
 use regex::Regex;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use crate::core::envelope::BoundedEnvelope;
@@ -244,4 +245,133 @@ pub fn extract_nodes(index: &ResolvedIndex) -> Vec<GraphNode> {
         .iter()
         .filter_map(node_from_object)
         .collect()
+}
+
+// ---------------------------------------------------------------------------
+// Adjacency view (QMD-86, GitHub #17)
+// ---------------------------------------------------------------------------
+
+/// Which edges count as adjacent to a node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+    /// Edges whose `source` is the node; the neighbour is the `target`.
+    Outgoing,
+    /// Edges whose `target` is the node; the neighbour is the `source`.
+    Incoming,
+    /// Either; an edge from the node to itself is reported once.
+    Both,
+}
+
+/// Nodes and edges of the index plus id-keyed lookups, built once per operation so that
+/// node lookup and neighbour enumeration are O(1) per step instead of a scan of the whole
+/// graph. Neighbours come out in the order of `edges`, which is the order a full scan of the
+/// edge list produced, so results do not change.
+pub struct GraphView {
+    pub nodes: Vec<GraphNode>,
+    pub edges: Vec<GraphEdge>,
+    /// id -> index into `nodes`; the first node wins when two objects share an id.
+    node_by_id: HashMap<String, usize>,
+    /// source id -> ascending indices into `edges`.
+    outgoing: HashMap<String, Vec<usize>>,
+    /// target id -> ascending indices into `edges`. Includes targets that are not nodes.
+    incoming: HashMap<String, Vec<usize>>,
+}
+
+impl GraphView {
+    /// Extract nodes and edges from the index and index them by id. O(V + E).
+    pub fn build(index: &ResolvedIndex) -> Self {
+        let nodes = extract_nodes(index);
+        let edges = extract_edges(index);
+
+        let mut node_by_id: HashMap<String, usize> = HashMap::with_capacity(nodes.len());
+        for (i, node) in nodes.iter().enumerate() {
+            node_by_id.entry(node.id.clone()).or_insert(i);
+        }
+
+        let mut outgoing: HashMap<String, Vec<usize>> = HashMap::new();
+        let mut incoming: HashMap<String, Vec<usize>> = HashMap::new();
+        for (i, edge) in edges.iter().enumerate() {
+            outgoing.entry(edge.source.clone()).or_default().push(i);
+            incoming.entry(edge.target.clone()).or_default().push(i);
+        }
+
+        GraphView {
+            nodes,
+            edges,
+            node_by_id,
+            outgoing,
+            incoming,
+        }
+    }
+
+    /// The node with this id, if any.
+    pub fn node(&self, id: &str) -> Option<&GraphNode> {
+        self.node_by_id.get(id).map(|&i| &self.nodes[i])
+    }
+
+    /// True when an object with this id exists.
+    pub fn contains(&self, id: &str) -> bool {
+        self.node_by_id.contains_key(id)
+    }
+
+    /// Edges adjacent to `id` in `direction`, optionally only those of `edge_type`, each with
+    /// the neighbour at its other end. Ordered as in `edges`.
+    pub fn adjacent<'a>(
+        &'a self,
+        id: &str,
+        direction: Direction,
+        edge_type: Option<&str>,
+    ) -> Vec<(&'a GraphEdge, &'a str)> {
+        const NONE: &[usize] = &[];
+        let out = match direction {
+            Direction::Outgoing | Direction::Both => {
+                self.outgoing.get(id).map_or(NONE, |v| v.as_slice())
+            }
+            Direction::Incoming => NONE,
+        };
+        let inc = match direction {
+            Direction::Incoming | Direction::Both => {
+                self.incoming.get(id).map_or(NONE, |v| v.as_slice())
+            }
+            Direction::Outgoing => NONE,
+        };
+
+        // Merge the two ascending index lists; an index in both is a self-loop, kept once
+        // and reported from the outgoing side (neighbour = target), as a full scan did.
+        let mut result = Vec::with_capacity(out.len() + inc.len());
+        let (mut i, mut j) = (0, 0);
+        while i < out.len() || j < inc.len() {
+            let (idx, outgoing_side) = match (out.get(i), inc.get(j)) {
+                (Some(&o), Some(&n)) if o == n => {
+                    i += 1;
+                    j += 1;
+                    (o, true)
+                }
+                (Some(&o), Some(&n)) if o < n => {
+                    i += 1;
+                    (o, true)
+                }
+                (Some(&o), None) => {
+                    i += 1;
+                    (o, true)
+                }
+                (_, Some(&n)) => {
+                    j += 1;
+                    (n, false)
+                }
+                (None, None) => unreachable!(),
+            };
+            let edge = &self.edges[idx];
+            if edge_type.is_some_and(|et| edge.edge_type != et) {
+                continue;
+            }
+            let neighbour = if outgoing_side {
+                edge.target.as_str()
+            } else {
+                edge.source.as_str()
+            };
+            result.push((edge, neighbour));
+        }
+        result
+    }
 }
