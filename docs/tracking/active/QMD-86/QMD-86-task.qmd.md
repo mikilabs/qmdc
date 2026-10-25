@@ -11,7 +11,7 @@ that extrapolates to minutes for a traversal and an hour for a path.
 
 The fix must not change any output: same nodes, edges and order.
 
-- status: triage_review
+- status: done_review
 - priority: high
 - category: mcp
 - findings: [[#qmd86_finding_cause]], [[#qmd86_finding_order]], [[#qmd86_finding_scope]], [[#qmd86_finding_tests]], [[#qmd86_finding_questions]]
@@ -43,4 +43,4 @@ references and a dangling reference. No such fixture existed.
 use them for every BFS step. Output is unchanged.
 
 - group: B_fix
-- done: false
+- done: true
