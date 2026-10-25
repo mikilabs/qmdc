@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "items": [
+    { "id": "part.a" },
+    { "id": "part" },
+    { "id": "part.b" },
+    { "id": "gateway" },
+    { "id": "util" }
+  ],
+  "edges": [
+    { "source": "part", "target": "part.a", "edge_type": "a" },
+    { "source": "part.b", "target": "part.a", "edge_type": "next" },
+    { "source": "gateway", "target": "part.a", "edge_type": "back" },
+    { "source": "util", "target": "part.a", "edge_type": "user" }
+  ],
+  "edges_truncated": false
+}
