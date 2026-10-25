@@ -26,6 +26,9 @@ Not changed: `find_references` ([[#qmd87_finding_find_references]]).
 
 - The four qmd87 graph fixtures fail on the QMD-86 code (items 1 instead of 4, path length 2
   instead of 1, no path) and pass after; `qmd87-query-edges` passes both times.
+- The fixtures do not depend on workspace discovery order, which follows the host's directory
+  listing: all five pass on the container as checked in and on a copy where `lib` is discovered
+  before `app`. A first version pinned rowid order and failed on Linux CI for exactly that reason.
 - The two QMD-86 fixtures with a repeated reference and a dangling one were re-derived. The new
   expected edges and nodes were written out by hand from the edges table first, then checked
   against the tool output: identical.
