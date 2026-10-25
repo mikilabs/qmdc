@@ -65,12 +65,6 @@
     },
     {
       "source": "a",
-      "target": "b",
-      "edge_type": "links",
-      "source_field": "links"
-    },
-    {
-      "source": "a",
       "target": "c",
       "edge_type": "see",
       "source_field": "see"
@@ -108,12 +102,6 @@
     {
       "source": "a",
       "target": "b",
-      "edge_type": "links",
-      "source_field": "links"
-    },
-    {
-      "source": "a",
-      "target": "b",
       "edge_type": "see",
       "source_field": "see"
     },
@@ -128,12 +116,6 @@
       "target": "a",
       "edge_type": "back",
       "source_field": "back"
-    },
-    {
-      "source": "b",
-      "target": "nowhere",
-      "edge_type": "dangling",
-      "source_field": "dangling"
     },
     {
       "source": "a",

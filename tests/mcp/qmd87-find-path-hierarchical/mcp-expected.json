@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "length": 1,
+  "nodes": [
+    { "id": "part.a" },
+    { "id": "part.b" }
+  ],
+  "edges": [
+    { "source": "part.a", "target": "part.b", "edge_type": "next" }
+  ]
+}
