@@ -1,9 +1,10 @@
 //! D2 graph read-view types — read-only projections over the resolved index.
 //!
 //! Graph nodes are derived from objects: id, kind, namespace, label (= name field or id),
-//! file, line. Graph edges are derived by scanning all objects' non-`__` fields for
-//! `[[#target]]` patterns — each match creates an edge: source=object.__id, target=matched_id,
-//! edge_type=field_name.
+//! file, line. The graph tools take their edges from the index's resolved `edges` table
+//! ([`resolved_edges`]): source and target are resolved `__id`s, edge_type is the field name
+//! (or a text preamble key). [`extract_edges`] is the older text scan of `[[#target]]`
+//! patterns, still used for the metamodel's edge-type inventory.
 
 use regex::Regex;
 use serde_json::{json, Value};
@@ -11,6 +12,7 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use crate::core::envelope::BoundedEnvelope;
+use crate::core::error::{ErrorCode, ErrorEnvelope};
 use crate::core::fields::QmdcObject;
 use crate::core::resolved_index::ResolvedIndex;
 
@@ -262,10 +264,9 @@ pub enum Direction {
     Both,
 }
 
-/// Nodes and edges of the index plus id-keyed lookups, built once per operation so that
-/// node lookup and neighbour enumeration are O(1) per step instead of a scan of the whole
-/// graph. Neighbours come out in the order of `edges`, which is the order a full scan of the
-/// edge list produced, so results do not change.
+/// Nodes and resolved edges of the index plus id-keyed lookups, built once per operation so
+/// that node lookup and neighbour enumeration are O(1) per step instead of a scan of the
+/// whole graph (QMD-86). Neighbours come out in the order of `edges`.
 pub struct GraphView {
     pub nodes: Vec<GraphNode>,
     pub edges: Vec<GraphEdge>,
@@ -273,15 +274,40 @@ pub struct GraphView {
     node_by_id: HashMap<String, usize>,
     /// source id -> ascending indices into `edges`.
     outgoing: HashMap<String, Vec<usize>>,
-    /// target id -> ascending indices into `edges`. Includes targets that are not nodes.
+    /// target id -> ascending indices into `edges`.
     incoming: HashMap<String, Vec<usize>>,
 }
 
+/// Edges as the index resolved them: the `edges` table `qmdc query` exposes, in insertion
+/// order (QMD-87, GitHub #18). Each target is the resolved `__id`, through the same resolver
+/// `workspace validate` agrees with, so `[[#b]]` for `part.b`, `[[#svc:gateway]]` and
+/// `[[#lib::util]]` are followed, and an unresolvable or ambiguous reference is no edge.
+pub fn resolved_edges(index: &ResolvedIndex) -> Result<Vec<GraphEdge>, Value> {
+    let rows = index.db.resolved_edges().map_err(|e| {
+        ErrorEnvelope::error(
+            ErrorCode::InternalError,
+            format!("reading resolved edges failed: {}", e),
+        )
+    })?;
+    Ok(rows
+        .into_iter()
+        .map(|(source, source_field, edge_type, target)| GraphEdge {
+            source,
+            target,
+            edge_type,
+            source_field,
+        })
+        .collect())
+}
+
 impl GraphView {
-    /// Extract nodes and edges from the index and index them by id. O(V + E).
-    pub fn build(index: &ResolvedIndex) -> Self {
+    /// Extract nodes and resolved edges from the index and index them by id. O(V + E).
+    ///
+    /// Fails with an `internal-error` envelope only if the index's in-memory database
+    /// cannot be read.
+    pub fn build(index: &ResolvedIndex) -> Result<Self, Value> {
         let nodes = extract_nodes(index);
-        let edges = extract_edges(index);
+        let edges = resolved_edges(index)?;
 
         let mut node_by_id: HashMap<String, usize> = HashMap::with_capacity(nodes.len());
         for (i, node) in nodes.iter().enumerate() {
@@ -295,13 +321,13 @@ impl GraphView {
             incoming.entry(edge.target.clone()).or_default().push(i);
         }
 
-        GraphView {
+        Ok(GraphView {
             nodes,
             edges,
             node_by_id,
             outgoing,
             incoming,
-        }
+        })
     }
 
     /// The node with this id, if any.

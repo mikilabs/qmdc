@@ -10,7 +10,7 @@ namespaced reference (`[[#svc:gateway]]`) and a cross-workspace reference (`[[#l
 unresolvable reference (`[[#nowhere]]`) becomes an edge to a node that does not exist.
 `workspace validate` and the SQL `edges` table resolve all of these, so the tools disagree with both.
 
-- status: triage_review
+- status: done_review
 - priority: high
 - category: mcp
 - related_task: [[#qmd86_graph_quadratic]]
@@ -34,4 +34,4 @@ a `qmdc_query_sql` fixture that pins the `edges` table the graph must match.
 the resolved `__id`, and an unresolvable or ambiguous reference is not an edge.
 
 - group: B_fix
-- done: false
+- done: true
