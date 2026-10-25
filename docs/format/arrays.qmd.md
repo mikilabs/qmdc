@@ -17,7 +17,7 @@ YAML inline notation:
 - mixed: [1, "two", true, null]
 ```
 
-Values are wrapped in `[...]`, elements separated by commas. Strings with spaces, commas, or special characters require quotes: `"hello world"`. The `__syntax` field records `yaml_array`.
+Values are wrapped in `[...]`, elements separated by commas. Strings with spaces, commas, or special characters require quotes: `"hello world"`. A quoted element ends at the next occurrence of its own quote character and there is no escape, so an element that contains `"` is quoted with `'`: `['say "hi"', x]`. Quote `true`, `false`, `null` and numbers to keep them strings: `["42", "true"]`. The `__syntax` field records `yaml_array`.
 
 YAML multiline notation (for long values):
 

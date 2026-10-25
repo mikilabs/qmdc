@@ -6,7 +6,7 @@ from typing import Any, Literal, TypedDict
 
 from markdown_it.token import Token
 
-from .parsers.field import parse_array_items_from_list, parse_fields_from_list
+from .parsers.field import _NUMBER_PATTERN, parse_array_items_from_list, parse_fields_from_list
 from .parsers.header import HeaderResult, generate_fallback_id, parse_header, set_random_seed
 from .tokenizer import tokenize
 
@@ -3568,7 +3568,7 @@ def _format_primitive_field(key: str, value: Any, syntax: dict[str, str]) -> lis
     if syntax.get(key) == "yaml_multiline_array" and isinstance(value, list):
         lines = [f"- {key}: ["]
         for idx, item in enumerate(value):
-            formatted = _format_value(item)
+            formatted = _format_value(item, in_array=True)
             if idx < len(value) - 1:
                 lines.append(f"    {formatted},")
             else:
@@ -3582,23 +3582,83 @@ def _format_primitive_field(key: str, value: Any, syntax: dict[str, str]) -> lis
     return [f"- {key}: {_format_value(value)}"]
 
 
-def _format_value(value: Any) -> str:
-    """Format a value for output in QMD.md."""
+def _format_value(value: Any, in_array: bool = False) -> str:
+    """Format a value for output in QMD.md.
+
+    `in_array` is true for an item of an inline or multiline YAML array, where the reader also
+    splits on commas and quote characters (see `_string_needs_quotes`).
+    """
     if isinstance(value, bool):
         return "true" if value else "false"
     if value is None:
         return "null"
     if isinstance(value, list):
         # Format as YAML array
-        formatted_items = [_format_value(item) for item in value]
+        formatted_items = [_format_value(item, in_array=True) for item in value]
         return "[" + ", ".join(formatted_items) + "]"
     if isinstance(value, str):
-        # Quote strings with leading/trailing whitespace to preserve them
-        if value != value.strip():
-            escaped = value.replace('"', '\\"')
-            return f'"{escaped}"'
-        return value
+        return _quote_string(value) if _string_needs_quotes(value, in_array) else value
     return str(value)
+
+
+# QMD-85: characters that end or open something inside an inline array item -- the item separator,
+# a quoted run (opened by either quote character wherever it appears), and a nested array.
+_ARRAY_ITEM_SPECIAL = (" ", ",", '"', "'", "[", "]")
+# A multiline array puts each item at the start of its own line, where a leading `>` opens a
+# blockquote. Every other Markdown block opener (`# `, `* `, `+ `, `1. `) needs a space after it,
+# which the array rule above already quotes.
+_ARRAY_ITEM_LEADING = (">",)
+
+
+def _string_needs_quotes(value: str, in_array: bool) -> bool:
+    """Whether the reader would read `value` written bare as anything other than `value`.
+
+    QMD-85: the rule is derived from the value reader (`parse_field_value`, which scalar fields,
+    Markdown-list items and table cells share) and, for `in_array`, from the array splitter
+    (`_split_yaml_array`). It is mirrored in qmdc-rs `string_needs_quotes` and qmdc-ts
+    `stringNeedsQuotes`; the three must stay identical so the writers produce the same text.
+    """
+    if value == "" or value != value.strip():
+        return True
+    # the reader turns these into a boolean, null or number
+    if value in ("true", "false", "null") or _NUMBER_PATTERN.match(value):
+        return True
+    # the reader strips a leading and trailing quote character; a lone one is read as "" by Python
+    # and TypeScript and kept by Rust, so any leading quote is quoted
+    if value[0] in ('"', "'"):
+        return True
+    # a list-item prefix, or the multiline marker
+    if value.startswith("- ") or value == "|":
+        return True
+    is_reference = value.startswith("[[") and not value.startswith("[[[")
+    if in_array:
+        # A single reference stays bare when nothing in it splits the array: Rust tracks bracket
+        # depth while splitting, so its brackets must balance.
+        if (
+            is_reference
+            and value.endswith("]]")
+            and value.count("[") == value.count("]")
+            and not any(c in value for c in (" ", ",", '"', "'"))
+        ):
+            return False
+        return value.startswith(_ARRAY_ITEM_LEADING) or any(c in value for c in _ARRAY_ITEM_SPECIAL)
+    # a leading bracket opens an array unless the value is a single reference (several
+    # comma-separated references become an array too)
+    if value.startswith("["):
+        return not is_reference or "]], [[" in value
+    return False
+
+
+def _quote_string(value: str) -> str:
+    """Wrap `value` in a quote character it does not contain, preferring `"`.
+
+    The reader has no escape character: a scalar loses exactly its first and last character, and a
+    quoted array item ends at the next occurrence of its own quote. A value holding both quote
+    characters has no inline-array spelling (QMD-85 finding `qmd85_finding_no_spelling`); it is
+    wrapped in `"` like any other.
+    """
+    quote = "'" if '"' in value and "'" not in value else '"'
+    return f"{quote}{value}{quote}"
 
 
 def _rebuild_heading(obj: dict[str, Any], level: int = 2) -> str:

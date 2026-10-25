@@ -11,7 +11,12 @@ import {
   generateFallbackId,
   type HeaderData,
 } from './parsers/header.js';
-import { parseArrayItemsFromList, parseFieldsFromList, parseFieldValue } from './parsers/field.js';
+import {
+  NUMBER_PATTERN,
+  parseArrayItemsFromList,
+  parseFieldsFromList,
+  parseFieldValue,
+} from './parsers/field.js';
 import { BlockTree } from './block_tree.js';
 
 // Output features
@@ -4421,7 +4426,7 @@ function formatPrimitiveField(
   }
   // yaml_multiline_array: multiline bracket format
   if (syntax[key] === 'yaml_multiline_array' && Array.isArray(value)) {
-    const items = value.map((item) => formatValue(item));
+    const items = value.map((item) => formatValue(item, true));
     const lines = [`- ${key}: [`];
     for (let idx = 0; idx < items.length; idx++) {
       const comma = idx < items.length - 1 ? ',' : '';
@@ -4445,7 +4450,7 @@ function formatPrimitiveField(
 /**
  * Format a value for output in QMD.md
  */
-function formatValue(value: unknown): string {
+function formatValue(value: unknown, inArray: boolean = false): string {
   if (typeof value === 'boolean') {
     return value ? 'true' : 'false';
   }
@@ -4454,18 +4459,91 @@ function formatValue(value: unknown): string {
   }
   if (Array.isArray(value)) {
     // Format as YAML array
-    const formattedItems = value.map((item) => formatValue(item));
+    const formattedItems = value.map((item) => formatValue(item, true));
     return '[' + formattedItems.join(', ') + ']';
   }
   if (typeof value === 'string') {
-    // Quote strings with leading/trailing whitespace to preserve them
-    if (value !== value.trim()) {
-      const escaped = value.replace(/"/g, '\\"');
-      return `"${escaped}"`;
-    }
-    return value;
+    return stringNeedsQuotes(value, inArray) ? quoteString(value) : value;
   }
   return String(value);
+}
+
+/**
+ * QMD-85: characters that end or open something inside an inline array item -- the item
+ * separator, a quoted run (opened by either quote character wherever it appears), and a nested
+ * array.
+ */
+const ARRAY_ITEM_SPECIAL = [' ', ',', '"', "'", '[', ']'];
+
+/**
+ * A multiline array puts each item at the start of its own line, where a leading `>` opens a
+ * blockquote. Every other Markdown block opener (`# `, `* `, `+ `, `1. `) needs a space after it,
+ * which the array rule above already quotes.
+ */
+const ARRAY_ITEM_LEADING = ['>'];
+
+/**
+ * Whether the reader would read `value` written bare as anything other than `value`.
+ *
+ * QMD-85: derived from the value reader (`parseFieldValue`, shared by scalar fields, Markdown-list
+ * items and table cells) and, for `inArray`, from the array splitter (`splitYamlArray`). Mirrors
+ * qmdc-py `_string_needs_quotes` and qmdc-rs `string_needs_quotes`; the three must stay identical
+ * so the writers produce the same text.
+ */
+function stringNeedsQuotes(value: string, inArray: boolean): boolean {
+  if (value === '' || value !== value.trim()) {
+    return true;
+  }
+  // the reader turns these into a boolean, null or number
+  if (value === 'true' || value === 'false' || value === 'null' || NUMBER_PATTERN.test(value)) {
+    return true;
+  }
+  // the reader strips a leading and trailing quote character; a lone one is read as "" by Python
+  // and TypeScript and kept by Rust, so any leading quote is quoted
+  if (value[0] === '"' || value[0] === "'") {
+    return true;
+  }
+  // a list-item prefix, or the multiline marker
+  if (value.startsWith('- ') || value === '|') {
+    return true;
+  }
+  const isReference = value.startsWith('[[') && !value.startsWith('[[[');
+  if (inArray) {
+    // A single reference stays bare when nothing in it splits the array: Rust tracks bracket depth
+    // while splitting, so its brackets must balance.
+    const count = (ch: string) => value.split(ch).length - 1;
+    if (
+      isReference &&
+      value.endsWith(']]') &&
+      count('[') === count(']') &&
+      ![' ', ',', '"', "'"].some((c) => value.includes(c))
+    ) {
+      return false;
+    }
+    return (
+      ARRAY_ITEM_LEADING.some((c) => value.startsWith(c)) ||
+      ARRAY_ITEM_SPECIAL.some((c) => value.includes(c))
+    );
+  }
+  // a leading bracket opens an array unless the value is a single reference (several
+  // comma-separated references become an array too)
+  if (value.startsWith('[')) {
+    return !isReference || value.includes(']], [[');
+  }
+  return false;
+}
+
+/**
+ * Wrap `value` in a quote character it does not contain, preferring `"`.
+ *
+ * The reader has no escape character: a scalar loses exactly its first and last character, and a
+ * quoted array item ends at the next occurrence of its own quote. A value holding both quote
+ * characters has no inline-array spelling (QMD-85 finding `qmd85_finding_no_spelling`); it is
+ * wrapped in `"` like any other.
+ */
+function quoteString(value: string): string {
+  const quote = value.includes('"') && !value.includes("'") ? "'" : '"';
+  return `${quote}${value}${quote}`;
 }
 
 function rebuildHeading(obj: QmdcObject, level: number = 2): string {

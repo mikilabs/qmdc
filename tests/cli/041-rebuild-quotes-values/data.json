@@ -1,0 +1,1 @@
+[{"__id":"f1","__label":"F","__kind":"K","__level":2,"tags":["x, y","x y","z"],"quoted":["\"x, y\"","type(\"P\", (), {\"a\": 1})","it's"],"kinds":["true","42","null","[x]",true,42,null],"refs":["[[#a]]","[[#b]]"],"title":"\"q\"","flag":"true","count":"42","shape":"[x]","see":"[[#a]]","note":"Hello, World!","lines":["x, y","\"q\""],"__syntax":{"lines":"yaml_multiline_array"}}]

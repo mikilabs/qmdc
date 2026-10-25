@@ -1,0 +1,26 @@
+[
+  {
+    "__id": "note",
+    "__label": "Note",
+    "__kind": "Note",
+    "tags": [
+      "\"x, y\"",
+      "z"
+    ],
+    "calls": [
+      "type(\"P\", (), {\"a\": 1})",
+      "str"
+    ],
+    "title": "\"q\"",
+    "__types": {
+      "tags": "array",
+      "calls": "array",
+      "title": "string"
+    },
+    "__syntax": {
+      "tags": "yaml_array",
+      "calls": "yaml_array"
+    },
+    "__level": 2
+  }
+]

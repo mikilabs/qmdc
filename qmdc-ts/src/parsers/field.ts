@@ -83,7 +83,7 @@ function bigAbs(n: bigint): bigint {
 }
 
 /** QMD.md's numeric grammar: an integer or a decimal, optionally negative. */
-const NUMBER_PATTERN = /^-?\d+(\.\d+)?$/;
+export const NUMBER_PATTERN = /^-?\d+(\.\d+)?$/;
 
 /**
  * The smallest non-zero decimal magnitude every host writes WITHOUT an exponent. QMD.md's numeric

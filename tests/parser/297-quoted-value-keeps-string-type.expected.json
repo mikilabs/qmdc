@@ -1,0 +1,62 @@
+[
+  {
+    "__id": "note",
+    "__label": "Note",
+    "__kind": "Note",
+    "flag": "true",
+    "count": "42",
+    "shape": "[x]",
+    "tags": [
+      "true",
+      "42",
+      "null"
+    ],
+    "rows": [
+      "[[#note.rows.rows_0]]",
+      "[[#note.rows.rows_1]]"
+    ],
+    "__types": {
+      "flag": "string",
+      "count": "string",
+      "shape": "string",
+      "tags": "array",
+      "rows": "array"
+    },
+    "__syntax": {
+      "tags": "yaml_array",
+      "rows": "table"
+    },
+    "__level": 2,
+    "__labels": {
+      "rows": "Rows"
+    }
+  },
+  {
+    "__id": "note.rows.rows_0",
+    "__local_id": "rows_0",
+    "__label": "a",
+    "__kind": "Row",
+    "__parent": "[[#note]]",
+    "__parent_field": "rows",
+    "name": "a",
+    "value": "true",
+    "__types": {
+      "name": "string",
+      "value": "string"
+    }
+  },
+  {
+    "__id": "note.rows.rows_1",
+    "__local_id": "rows_1",
+    "__label": "b",
+    "__kind": "Row",
+    "__parent": "[[#note]]",
+    "__parent_field": "rows",
+    "name": "b",
+    "value": "42",
+    "__types": {
+      "name": "string",
+      "value": "string"
+    }
+  }
+]

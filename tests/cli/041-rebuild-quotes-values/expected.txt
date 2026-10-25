@@ -1,0 +1,16 @@
+## F [[f1: K]]
+
+- tags: ["x, y", "x y", z]
+- quoted: ['"x, y"', 'type("P", (), {"a": 1})', "it's"]
+- kinds: ["true", "42", "null", "[x]", true, 42, null]
+- refs: [[[#a]], [[#b]]]
+- title: '"q"'
+- flag: "true"
+- count: "42"
+- shape: "[x]"
+- see: [[#a]]
+- note: Hello, World!
+- lines: [
+    "x, y",
+    '"q"'
+  ]
