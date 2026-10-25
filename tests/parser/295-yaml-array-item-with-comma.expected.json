@@ -1,0 +1,25 @@
+[
+  {
+    "__id": "note",
+    "__label": "Note",
+    "__kind": "Note",
+    "tags": [
+      "x, y",
+      "z"
+    ],
+    "lines": [
+      "a, b",
+      ">quote",
+      "c"
+    ],
+    "__types": {
+      "tags": "array",
+      "lines": "array"
+    },
+    "__syntax": {
+      "tags": "yaml_array",
+      "lines": "yaml_multiline_array"
+    },
+    "__level": 2
+  }
+]

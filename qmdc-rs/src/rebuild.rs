@@ -1,5 +1,7 @@
 use serde_json::Value;
 
+use crate::parser_modules::is_integer_or_decimal;
+
 /// Rebuild QMD.md from JSON objects
 pub fn rebuild(objects: &[Value]) -> String {
     // Build object map by ID
@@ -489,6 +491,9 @@ pub fn rebuild(objects: &[Value]) -> String {
 
                         if let Value::Array(arr) = value {
                             for item in arr {
+                                // QMD-85: written raw, because this parser reads a Markdown-list
+                                // item as raw text (Python and TypeScript type it, so their
+                                // writers quote it); see finding `qmd85_finding_list_items`.
                                 let item_str = match item {
                                     Value::String(s) => s.clone(),
                                     Value::Null => "null".to_string(),
@@ -749,7 +754,7 @@ pub fn rebuild(objects: &[Value]) -> String {
                     if let Value::Array(arr) = value {
                         output.push_str(&format!("- {}: [\n", key));
                         for (idx, item) in arr.iter().enumerate() {
-                            let formatted = format_value(item);
+                            let formatted = format_value_inner(item, true);
                             if idx < arr.len() - 1 {
                                 output.push_str(&format!("    {},\n", formatted));
                             } else {
@@ -891,31 +896,9 @@ fn format_value_inner(value: &Value, in_array: bool) -> String {
         Value::Bool(b) => b.to_string(),
         Value::Number(n) => n.to_string(),
         Value::String(s) => {
-            // Empty strings must be quoted to distinguish from null
-            if s.is_empty() {
-                return "\"\"".to_string();
-            }
-            // Strings that look like incomplete references need quotes
-            if s.starts_with("[[") && !s.ends_with("]]") {
-                return format!("\"{}\"", s);
-            }
-            // Strings that look like list items need quotes
-            if s.starts_with("- ") {
-                return format!("\"{}\"", s);
-            }
-            // In YAML arrays, quote strings with spaces or special chars
-            if in_array {
-                let needs_quotes = s.contains(' ')
-                    || s.contains(',')
-                    || (s.starts_with('[') && !s.starts_with("[["));
-
-                if needs_quotes {
-                    format!("\"{}\"", s)
-                } else {
-                    s.clone()
-                }
+            if string_needs_quotes(s, in_array) {
+                quote_string(s)
             } else {
-                // For list items (- key: value), no quotes needed
                 s.clone()
             }
         }
@@ -925,6 +908,75 @@ fn format_value_inner(value: &Value, in_array: bool) -> String {
         }
         Value::Object(_) => serde_json::to_string(value).unwrap_or_default(),
     }
+}
+
+/// QMD-85: characters that end or open something inside an inline array item -- the item
+/// separator, a quoted run (opened by either quote character wherever it appears), and a nested
+/// array.
+const ARRAY_ITEM_SPECIAL: [char; 6] = [' ', ',', '"', '\'', '[', ']'];
+
+/// A multiline array puts each item at the start of its own line, where a leading `>` opens a
+/// blockquote. Every other Markdown block opener (`# `, `* `, `+ `, `1. `) needs a space after it,
+/// which the array rule above already quotes.
+const ARRAY_ITEM_LEADING: [char; 1] = ['>'];
+
+/// Whether the reader would read `s` written bare as anything other than `s`.
+///
+/// QMD-85: derived from the value reader (`parse_field_value`, shared by scalar fields,
+/// Markdown-list items and table cells) and, for `in_array`, from the array splitter
+/// (`parse_yaml_array_items`). Mirrors qmdc-py `_string_needs_quotes` and qmdc-ts
+/// `stringNeedsQuotes`; the three must stay identical so the writers produce the same text.
+fn string_needs_quotes(s: &str, in_array: bool) -> bool {
+    if s.is_empty() || s != s.trim() {
+        return true;
+    }
+    // the reader turns these into a boolean, null or number
+    if s == "true" || s == "false" || s == "null" || is_integer_or_decimal(s) {
+        return true;
+    }
+    // the reader strips a leading and trailing quote character; a lone one is read as "" by Python
+    // and TypeScript and kept by Rust, so any leading quote is quoted
+    if s.starts_with('"') || s.starts_with('\'') {
+        return true;
+    }
+    // a list-item prefix, or the multiline marker
+    if s.starts_with("- ") || s == "|" {
+        return true;
+    }
+    let is_reference = s.starts_with("[[") && !s.starts_with("[[[");
+    if in_array {
+        // A single reference stays bare when nothing in it splits the array: this parser tracks
+        // bracket depth while splitting, so its brackets must balance.
+        if is_reference
+            && s.ends_with("]]")
+            && s.matches('[').count() == s.matches(']').count()
+            && !s.contains([' ', ',', '"', '\''])
+        {
+            return false;
+        }
+        return s.starts_with(ARRAY_ITEM_LEADING) || s.contains(ARRAY_ITEM_SPECIAL);
+    }
+    // a leading bracket opens an array unless the value is a single reference (several
+    // comma-separated references become an array too)
+    if s.starts_with('[') {
+        return !is_reference || s.contains("]], [[");
+    }
+    false
+}
+
+/// Wrap `s` in a quote character it does not contain, preferring `"`.
+///
+/// The reader has no escape character: a scalar loses exactly its first and last character, and a
+/// quoted array item ends at the next occurrence of its own quote. A value holding both quote
+/// characters has no inline-array spelling (QMD-85 finding `qmd85_finding_no_spelling`); it is
+/// wrapped in `"` like any other.
+fn quote_string(s: &str) -> String {
+    let quote = if s.contains('"') && !s.contains('\'') {
+        '\''
+    } else {
+        '"'
+    };
+    format!("{quote}{s}{quote}")
 }
 
 #[cfg(test)]

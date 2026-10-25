@@ -165,7 +165,7 @@ fn parse_supported_number(trimmed: &str) -> Option<Value> {
 ///
 /// Deliberately REJECTS forms the host languages would otherwise accept: `1e5`, `1.5e-3`, `.5`,
 /// `5.`, `+1`, `1_000`, `0x10`, `Infinity`, `NaN`. Those are strings.
-fn is_integer_or_decimal(s: &str) -> bool {
+pub fn is_integer_or_decimal(s: &str) -> bool {
     let body = s.strip_prefix('-').unwrap_or(s);
     let mut parts = body.splitn(2, '.');
     let int_part = parts.next().unwrap_or("");
