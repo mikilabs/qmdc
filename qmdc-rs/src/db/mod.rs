@@ -9,6 +9,31 @@ use std::collections::HashMap;
 
 use crate::workspace::WorkspaceResult;
 
+/// Source field and edge type of an edge from a reference written in an object's body
+/// text: the `__comments` system field that holds that text (QMD-87).
+pub const BODY_TEXT_FIELD: &str = "__comments";
+
+/// Count every `[[#target]]` in a field value (strings and arrays of them), keyed by the
+/// trimmed target. Used to tell which of an object's `__references` a field already holds.
+fn count_hash_references(value: &Value, counts: &mut HashMap<String, usize>) {
+    use std::sync::OnceLock;
+    static HASH_REF_RE: OnceLock<regex::Regex> = OnceLock::new();
+    let re = HASH_REF_RE.get_or_init(|| regex::Regex::new(r"\[\[#([^\]]+)\]\]").unwrap());
+    match value {
+        Value::String(s) => {
+            for cap in re.captures_iter(s) {
+                *counts.entry(cap[1].trim().to_string()).or_insert(0) += 1;
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                count_hash_references(item, counts);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Execute a query against a workspace result.
 ///
 /// The query can be:
@@ -259,6 +284,19 @@ impl QmdcDatabase {
         Ok(())
     }
 
+    /// The `__global_id` of every object with an edge to `target_global_id`, whether the
+    /// reference sits in a field, in body text, or in a field path into the target (QMD-87).
+    pub fn referrer_global_ids(
+        &self,
+        target_global_id: &str,
+    ) -> SqliteResult<std::collections::HashSet<String>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT DISTINCT source_id FROM edges WHERE target_id = ?1")?;
+        let rows = stmt.query_map(params![target_global_id], |row| row.get::<_, String>(0))?;
+        rows.collect()
+    }
+
     /// Every resolved edge as `(source __id, source_field, edge_type, target __id)`, in
     /// insertion order — object order, then field order, then reference order within a field.
     ///
@@ -490,6 +528,16 @@ impl QmdcDatabase {
             .unwrap_or("");
         let source_global_id = Self::compute_global_id(workspace, namespace, source_id);
 
+        // A `__Workspace` root carries no `__workspace` of its own: it IS the workspace. Its
+        // references (its child fields among them) therefore resolve inside the workspace it
+        // names, not in an empty one where nothing could be found (QMD-87).
+        let is_workspace_root = obj.get("__kind").and_then(|v| v.as_str()) == Some("__Workspace");
+        let resolve_workspace = if workspace.is_empty() && is_workspace_root {
+            source_id
+        } else {
+            workspace
+        };
+
         if let Some(map) = obj.as_object() {
             for (field, value) in map {
                 // Skip system fields
@@ -502,9 +550,46 @@ impl QmdcDatabase {
                     &source_global_id,
                     field,
                     value,
-                    workspace,
+                    resolve_workspace,
                     namespace,
                 )?;
+            }
+
+            // QMD-87: references written in the object's body text (`__comments`) are edges
+            // too. The parser already reports every reference of the object in
+            // `__references` (code spans and example fences excluded); the ones no field
+            // holds are the body-text ones. They take the source field and edge type
+            // `__comments`, the system field that holds that text.
+            let mut in_fields: HashMap<String, usize> = HashMap::new();
+            for (field, value) in map {
+                if !field.starts_with("__") {
+                    count_hash_references(value, &mut in_fields);
+                }
+            }
+            for reference in obj
+                .get("__references")
+                .and_then(|v| v.as_array())
+                .into_iter()
+                .flatten()
+            {
+                let Some(target) = reference.get("target").and_then(|v| v.as_str()) else {
+                    continue;
+                };
+                let target = target.strip_prefix('#').unwrap_or(target).trim();
+                if target.is_empty() {
+                    continue;
+                }
+                match in_fields.get_mut(target) {
+                    Some(n) if *n > 0 => *n -= 1,
+                    _ => self.resolve_and_insert_edge(
+                        &source_global_id,
+                        BODY_TEXT_FIELD,
+                        target,
+                        resolve_workspace,
+                        namespace,
+                        None,
+                    )?,
+                }
             }
         }
         Ok(())

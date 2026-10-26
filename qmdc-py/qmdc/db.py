@@ -13,6 +13,27 @@ _REF_VALUE_RE = re.compile(r"^\[\[#[^\]]+\]\]$")
 # Regex for comma-separated references: [[#a]], [[#b]]
 _MULTI_REF_RE = re.compile(r"^\[\[#[^\]]+\]\](?:\s*,\s*\[\[#[^\]]+\]\])+$")
 
+# Source field and edge type of an edge from a reference written in an object's body text:
+# the `__comments` system field that holds that text (QMD-87).
+BODY_TEXT_FIELD = "__comments"
+
+_HASH_REF_RE = re.compile(r"\[\[#([^\]]+)\]\]")
+
+
+def _count_hash_references(value: Any, counts: dict[str, int]) -> None:
+    """Count every `[[#target]]` in a field value (strings and lists of them).
+
+    Keyed by the trimmed target. Used to tell which of an object's `__references` a field
+    already holds.
+    """
+    if isinstance(value, str):
+        for match in _HASH_REF_RE.finditer(value):
+            target = match.group(1).strip()
+            counts[target] = counts.get(target, 0) + 1
+    elif isinstance(value, list):
+        for item in value:
+            _count_hash_references(item, counts)
+
 
 def _parse_reference_target(target: str) -> tuple[str | None, str | None, str]:
     """Parse a reference target into (workspace, namespace, id).
@@ -228,13 +249,42 @@ class QmdcDatabase:
         namespace = obj.get("__namespace") or ""
         source_global_id = self.compute_global_id(workspace_id, namespace, source_id)
 
+        # A `__Workspace` root carries no `__workspace` of its own: it IS the workspace. Its
+        # references (its child fields among them) resolve inside the workspace it names
+        # (QMD-87).
+        resolve_workspace = workspace_id
+        if not workspace_id and obj.get("__kind") == "__Workspace":
+            resolve_workspace = source_id
+
         for field_name, value in obj.items():
             if field_name.startswith("__"):
                 continue
 
             self._extract_refs_from_value(
-                source_global_id, field_name, value, workspace_id, namespace
+                source_global_id, field_name, value, resolve_workspace, namespace
             )
+
+        # QMD-87: references written in the object's body text (`__comments`) are edges
+        # too. The parser already reports every reference of the object in `__references`
+        # (code spans and example fences excluded); the ones no field holds are the
+        # body-text ones, with source field and edge type `__comments`.
+        in_fields: dict[str, int] = {}
+        for field_name, value in obj.items():
+            if not field_name.startswith("__"):
+                _count_hash_references(value, in_fields)
+        for reference in obj.get("__references") or []:
+            target = reference.get("target") if isinstance(reference, dict) else None
+            if not isinstance(target, str):
+                continue
+            target = (target[1:] if target.startswith("#") else target).strip()
+            if not target:
+                continue
+            if in_fields.get(target, 0) > 0:
+                in_fields[target] -= 1
+            else:
+                self._resolve_and_insert_edge(
+                    source_global_id, BODY_TEXT_FIELD, target, resolve_workspace, namespace
+                )
 
     def _resolve_and_insert_edge(
         self,
