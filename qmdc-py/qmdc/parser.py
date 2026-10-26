@@ -2628,6 +2628,17 @@ def _extract_references_for_textblock(tb: dict[str, Any], lines: list[str]) -> N
         tb["__references"] = refs
 
 
+def _field_line_index(lines: list[str], start: int, key: str) -> int | None:
+    """0-based line of field `key` at or after `start`: `- key:` or a `[[key]]` heading."""
+    list_re = re.compile(rf"^\s*-\s+\**{re.escape(key)}\**\s*:")
+    heading_re = re.compile(rf"^#+\s+.*\[\[{re.escape(key)}(?::.*?)?\]\]")
+    for line_idx in range(max(start, 0), len(lines)):
+        line = lines[line_idx]
+        if list_re.match(line) or heading_re.match(line):
+            return line_idx
+    return None
+
+
 def _scan_text_lines(
     text: str, lines: list[str], search_start: int, refs: list[dict[str, Any]]
 ) -> int:
@@ -2701,6 +2712,12 @@ def _extract_references_for_objects(objects: dict[str, dict[str, Any]], lines: l
                 continue
 
             if isinstance(value, str) and "[[" in value:
+                # Start at the field's own line (QMD-88): from the shared cursor, a value
+                # that also appears earlier in the object (in body text, or as another
+                # field's preamble) was attributed to that earlier line.
+                field_idx = _field_line_index(lines, obj_line - 1, key)
+                if field_idx is not None:
+                    obj_search_start = field_idx
                 # For multiline text fields, search each line in original markdown
                 # Track search position to handle duplicate lines in content
                 # Skip lines inside code fences (``` ... ```)
@@ -2755,7 +2772,10 @@ def _extract_references_for_objects(objects: dict[str, dict[str, Any]], lines: l
                     # Find the line containing this field
                     field_line_idx = None
                     field_line = None
-                    for line_idx, line in enumerate(lines):
+                    # From the object's own line, not the file top (QMD-88): an identical
+                    # `key:` line of an earlier object would otherwise be taken.
+                    for line_idx in range(obj_line - 1, len(lines)):
+                        line = lines[line_idx]
                         if f"{key}:" in line and "[[" in line:
                             field_line_idx = line_idx
                             field_line = line
@@ -2789,10 +2809,13 @@ def _extract_references_for_objects(objects: dict[str, dict[str, Any]], lines: l
                                         search_pos += item_pos + len(item)
                 else:
                     # For non-YAML arrays (markdown lists), use original logic
+                    field_idx = _field_line_index(lines, obj_line - 1, key)
+                    item_start = obj_line - 1 if field_idx is None else field_idx
                     for item in value:
                         if isinstance(item, str) and "[[" in item:
-                            # Find this item in source
-                            for line_idx, line in enumerate(lines):
+                            # Find this item in source, from the field's own line (QMD-88)
+                            for line_idx in range(item_start, len(lines)):
+                                line = lines[line_idx]
                                 if item in line:
                                     line_num = line_idx + 1
                                     col_offset = line.find(item)

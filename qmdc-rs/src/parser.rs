@@ -5096,8 +5096,19 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                 for field_name in field_names {
                     if let Some(text) = obj_map.get(&field_name).and_then(|v| v.as_str()) {
                         if text.contains("[[") {
-                            // Start search from object's line (0-indexed)
-                            let mut search_start_idx = obj_start_line.saturating_sub(1);
+                            // Start search at the field's own line when known, else at the
+                            // object's line (0-indexed). Starting every field at the object
+                            // line attributed a line repeated across fields (a shared
+                            // `- about:` preamble) to its first occurrence, where it was then
+                            // dropped as a duplicate (QMD-88).
+                            let field_line = obj_map
+                                .get("__positions")
+                                .and_then(|p| p.get(&field_name))
+                                .and_then(|p| p.get("line"))
+                                .and_then(|l| l.as_u64())
+                                .map(|l| l as usize);
+                            let mut search_start_idx =
+                                field_line.unwrap_or(obj_start_line).saturating_sub(1);
 
                             // Track code fence state for this field
                             let mut in_code_fence = false;

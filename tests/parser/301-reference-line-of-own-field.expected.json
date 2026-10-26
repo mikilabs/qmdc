@@ -1,0 +1,47 @@
+[
+  {
+    "__id": "guide",
+    "__label": "Guide",
+    "__kind": "__Object",
+    "about": [
+      "[[#syntax]]",
+      "[[#reference]]",
+      "[[#workspace]]"
+    ],
+    "validation": "[[#guide.validation]]",
+    "__types": {
+      "about": "array"
+    },
+    "__syntax": {
+      "about": "comma_refs"
+    },
+    "__level": 1
+  },
+  {
+    "__id": "guide.validation",
+    "__local_id": "validation",
+    "__label": "Validation",
+    "__kind": "__Object",
+    "__parent": "[[#guide]]",
+    "__parent_field": "validation",
+    "__comments": [
+      {
+        "after": "depends",
+        "content": "Mentions `[[#rules]]` in code, then the field below."
+      }
+    ],
+    "depends": [
+      "[[#reference]]",
+      "[[#syntax]]"
+    ],
+    "rules": "[[#rules]]",
+    "__types": {
+      "depends": "array",
+      "rules": "string"
+    },
+    "__syntax": {
+      "depends": "comma_refs"
+    },
+    "__level": 2
+  }
+]

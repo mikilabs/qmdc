@@ -1,0 +1,77 @@
+[
+  {
+    "__id": "errors",
+    "__label": "Errors",
+    "__kind": "__Object",
+    "about": [
+      "[[#validation]]",
+      "[[#syntax]]"
+    ],
+    "err_missing_id": "- about: [[#syntax]]\n\nEvery object needs an id.",
+    "err_invalid_key": "- about: [[#syntax]]\n\nKeys are snake_case.",
+    "__types": {
+      "about": "array",
+      "err_missing_id": "string",
+      "err_invalid_key": "string"
+    },
+    "__syntax": {
+      "about": "comma_refs",
+      "err_missing_id": "multiline_text",
+      "err_invalid_key": "multiline_text"
+    },
+    "__level": 1,
+    "__line": 1,
+    "__references": [
+      {
+        "target": "#validation",
+        "type": "hash_local",
+        "line": 3,
+        "start_col": 9,
+        "end_col": 24,
+        "raw": "[[#validation]]"
+      },
+      {
+        "target": "#syntax",
+        "type": "hash_local",
+        "line": 3,
+        "start_col": 26,
+        "end_col": 37,
+        "raw": "[[#syntax]]"
+      },
+      {
+        "target": "#syntax",
+        "type": "hash_local",
+        "line": 7,
+        "start_col": 9,
+        "end_col": 20,
+        "raw": "[[#syntax]]"
+      },
+      {
+        "target": "#syntax",
+        "type": "hash_local",
+        "line": 13,
+        "start_col": 9,
+        "end_col": 20,
+        "raw": "[[#syntax]]"
+      }
+    ],
+    "__positions": {
+      "about": {
+        "line": 3,
+        "col": 2
+      },
+      "err_missing_id": {
+        "line": 5,
+        "col": 14
+      },
+      "err_invalid_key": {
+        "line": 11,
+        "col": 15
+      }
+    },
+    "__labels": {
+      "err_missing_id": "Missing id",
+      "err_invalid_key": "Invalid key"
+    }
+  }
+]
