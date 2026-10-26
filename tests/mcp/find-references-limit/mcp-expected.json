@@ -1,10 +1,10 @@
 {
   "success": true,
-  "total": 3,
+  "total": 4,
   "truncated": true,
-  "next_cursor": "refs_ws::ref0",
-  "count": 3,
+  "next_cursor": "::refs_ws",
+  "count": 4,
   "references": [
-    { "id": "ref0", "kind": "Thing" }
+    { "id": "refs_ws", "kind": "__Workspace" }
   ]
 }

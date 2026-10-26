@@ -895,49 +895,19 @@ impl QmdcDatabase {
         Ok(None)
     }
 
-    /// Find ALL [[#id]] references in a string (handles "[[#a]], [[#b]], [[#c]]")
-    /// Also handles malformed strings like `[["#auth]], [[#user-svc"]]` from parser bugs
+    /// Find ALL `[[#id]]` references in a string (handles "[[#a]], [[#b]], [[#c]]").
+    ///
+    /// The `[[#target]]` form only, as in the Python and TypeScript parsers (QMD-88): a
+    /// definition `[[id]]` and a JSON-looking `["id"` in a code sample are not references,
+    /// and reading them as such gave Rust edges the other two parsers do not have.
     fn parse_all_references(&self, s: &str) -> Vec<String> {
-        let mut refs = Vec::new();
-        let mut i = 0;
-        let chars: Vec<char> = s.chars().collect();
-
-        while i < chars.len() {
-            // Look for [[ or ["
-            if i + 1 < chars.len()
-                && chars[i] == '['
-                && (chars[i + 1] == '[' || chars[i + 1] == '"')
-            {
-                // Skip [[ or ["
-                i += 2;
-                // Skip optional # at start
-                if i < chars.len() && chars[i] == '#' {
-                    i += 1;
-                }
-                // Collect id until ]] or "]
-                let start = i;
-                while i < chars.len() {
-                    if chars[i] == ']' || chars[i] == '"' {
-                        break;
-                    }
-                    i += 1;
-                }
-                if i > start {
-                    let inner: String = chars[start..i].iter().collect();
-                    // QMD-69: keep the FULL reference target, qualifiers included. It used
-                    // to be truncated to the last `:`-segment here, which discarded the
-                    // workspace and namespace before resolution could ever see them.
-                    // `resolve_target_global_id` parses it with the shared grammar.
-                    let id = inner.trim();
-                    if !id.is_empty() && !id.contains(',') && !id.contains(' ') {
-                        refs.push(id.to_string());
-                    }
-                }
-            }
-            i += 1;
-        }
-
-        refs
+        use std::sync::OnceLock;
+        static REF_RE: OnceLock<regex::Regex> = OnceLock::new();
+        let re = REF_RE.get_or_init(|| regex::Regex::new(r"\[\[#([^\]]+)\]\]").unwrap());
+        re.captures_iter(s)
+            .map(|cap| cap[1].trim().to_string())
+            .filter(|id| !id.is_empty())
+            .collect()
     }
 
     /// Get count of objects

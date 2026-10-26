@@ -3,6 +3,7 @@
   "truncated": false,
   "items": [
     { "source": "gateway", "edge_type": "back", "target": "part.a" },
+    { "source": "lib", "edge_type": "util", "target": "util" },
     { "source": "part", "edge_type": "a", "target": "part.a" },
     { "source": "part", "edge_type": "b", "target": "part.b" },
     { "source": "part.a", "edge_type": "next", "target": "part.b" },
