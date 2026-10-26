@@ -1,0 +1,77 @@
+[
+  {
+    "__id": "topic",
+    "__label": "Topic",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "A paragraph [[#p1]] that\ncontinues [[#p2]] here.\n\n- list item [[#l1]]\n- second\n  item [[#l2]]"
+      },
+      {
+        "after": "__self",
+        "content": "### Sub heading\n\n> quoted [[#q1]]\n\n| col |\n|-----|\n| [[#t1]] |\n\n```bash\necho [[#f1]]\n```\n\n```markdown example\nsee [[#e1]]\n```\n\nInline `[[#c1]]` and ``[[#c2]]`` and `` `[[#c3]]` `` and real [[#r1]].\n\n- name: value"
+      }
+    ],
+    "__level": 1,
+    "__line": 1,
+    "__references": [
+      {
+        "target": "#p1",
+        "type": "hash_local",
+        "line": 3,
+        "start_col": 12,
+        "end_col": 19,
+        "raw": "[[#p1]]"
+      },
+      {
+        "target": "#p2",
+        "type": "hash_local",
+        "line": 4,
+        "start_col": 10,
+        "end_col": 17,
+        "raw": "[[#p2]]"
+      },
+      {
+        "target": "#l1",
+        "type": "hash_local",
+        "line": 6,
+        "start_col": 12,
+        "end_col": 19,
+        "raw": "[[#l1]]"
+      },
+      {
+        "target": "#l2",
+        "type": "hash_local",
+        "line": 8,
+        "start_col": 7,
+        "end_col": 14,
+        "raw": "[[#l2]]"
+      },
+      {
+        "target": "#q1",
+        "type": "hash_local",
+        "line": 12,
+        "start_col": 9,
+        "end_col": 16,
+        "raw": "[[#q1]]"
+      },
+      {
+        "target": "#t1",
+        "type": "hash_local",
+        "line": 16,
+        "start_col": 2,
+        "end_col": 9,
+        "raw": "[[#t1]]"
+      },
+      {
+        "target": "#r1",
+        "type": "hash_local",
+        "line": 26,
+        "start_col": 62,
+        "end_col": 69,
+        "raw": "[[#r1]]"
+      }
+    ]
+  }
+]

@@ -5178,6 +5178,63 @@ pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
                     }
                 }
 
+                // QMD-88: references in body text (`__comments`). Paragraph references are
+                // already recorded while the comment is built; this reads every line of every
+                // comment, so a reference in a list item, table row or quote of body text is
+                // a reference too. Lines inside a fenced code block are code and skipped, and
+                // a reference already recorded at the same line and column is not added twice.
+                if let Some(comments) = obj_map.get("__comments").and_then(|v| v.as_array()) {
+                    let mut search_start_idx = obj_start_line.saturating_sub(1);
+                    for comment in comments {
+                        let Some(content) = comment.get("content").and_then(|v| v.as_str()) else {
+                            continue;
+                        };
+                        if !content.contains("[[") {
+                            continue;
+                        }
+                        let mut in_fence = false;
+                        for content_line in content.lines() {
+                            let stripped = content_line.trim();
+                            if stripped.starts_with("```") {
+                                in_fence = !in_fence;
+                                continue;
+                            }
+                            if in_fence || !content_line.contains("[[") || stripped.is_empty() {
+                                continue;
+                            }
+                            for (line_idx, orig_line) in
+                                lines.iter().enumerate().skip(search_start_idx)
+                            {
+                                if orig_line.contains(stripped) && orig_line.contains("[[") {
+                                    let line_num = (line_idx + 1) as u32;
+                                    for r in extract_references_from_line(orig_line, line_num) {
+                                        let is_dup = all_refs.iter().any(|existing| {
+                                            existing.get("line").and_then(|l| l.as_u64())
+                                                == Some(r.line as u64)
+                                                && existing
+                                                    .get("start_col")
+                                                    .and_then(|c| c.as_u64())
+                                                    == Some(r.start_col as u64)
+                                        });
+                                        if !is_dup {
+                                            all_refs.push(json!({
+                                                "target": r.target,
+                                                "type": r.ref_type,
+                                                "line": r.line,
+                                                "start_col": r.start_col,
+                                                "end_col": r.end_col,
+                                                "raw": r.raw,
+                                            }));
+                                        }
+                                    }
+                                    search_start_idx = line_idx + 1;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Update __references if we found any
                 if !all_refs.is_empty() {
                     obj_map.insert("__references".to_string(), json!(all_refs));

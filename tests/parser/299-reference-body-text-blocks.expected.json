@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "topic",
+    "__label": "Topic",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "A paragraph [[#p1]] that\ncontinues [[#p2]] here.\n\n- list item [[#l1]]\n- second\n  item [[#l2]]"
+      },
+      {
+        "after": "__self",
+        "content": "### Sub heading\n\n> quoted [[#q1]]\n\n| col |\n|-----|\n| [[#t1]] |\n\n```bash\necho [[#f1]]\n```\n\n```markdown example\nsee [[#e1]]\n```\n\nInline `[[#c1]]` and ``[[#c2]]`` and `` `[[#c3]]` `` and real [[#r1]].\n\n- name: value"
+      }
+    ],
+    "__level": 1
+  }
+]
