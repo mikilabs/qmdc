@@ -3289,7 +3289,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
     const lines = markdown.split('\n');
     // Operate on result objects (which contain the normalized objects)
     for (const obj of result) {
-      extractReferencesForObject(obj, lines);
+      extractReferencesForObject(obj, lines, result);
     }
   }
 
@@ -3508,7 +3508,11 @@ function scanTextLines(
   return searchStart;
 }
 
-function extractReferencesForObject(obj: QmdcObject, lines: string[]): void {
+function extractReferencesForObject(
+  obj: QmdcObject,
+  lines: string[],
+  allObjects: QmdcObject[]
+): void {
   const refs: ParsedReference[] = [];
   const objLine = obj.__line;
   if (typeof objLine !== 'number') return;
@@ -3538,6 +3542,19 @@ function extractReferencesForObject(obj: QmdcObject, lines: string[]): void {
           }
         }
       }
+      continue;
+    }
+
+    // A parent's field naming a child object (`auth: [[#auth]]` from a `## Auth [[auth]]`
+    // heading) is structure, not a reference written in the source: the line it would be
+    // "found" on belongs to the child (QMD-88, as in Rust). Same test as
+    // `extractFieldPositions` uses to skip parent fields.
+    if (
+      typeof value === 'string' &&
+      value.trim().startsWith('[[#') &&
+      value.trim().endsWith(']]') &&
+      allObjects.some((child) => child.__parent_field === key)
+    ) {
       continue;
     }
 
