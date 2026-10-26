@@ -28,10 +28,22 @@
       "source_field": "user"
     },
     {
+      "source": "users.order",
+      "target": "users",
+      "edge_type": "__comments",
+      "source_field": "__comments"
+    },
+    {
       "source": "users",
       "target": "users.order",
       "edge_type": "order",
       "source_field": "order"
+    },
+    {
+      "source": "users",
+      "target": "users",
+      "edge_type": "__comments",
+      "source_field": "__comments"
     }
   ],
   "success": true

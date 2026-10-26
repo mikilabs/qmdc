@@ -50,3 +50,4 @@ Subheadings without `[[field_id]]` inside an object are comment headings — the
 - Comments are preserved for all object types: top-level, nested, array elements
 - Field order MUST be strictly preserved (insertion order) — without this, comment anchors lose meaning
 - The `example` modifier on code fences prevents reference parsing inside them
+- References `[[#id]]` written in comment text are references of the object, like references in its fields (see [[#reference]])

@@ -43,24 +43,9 @@ pub fn classify_reference(inner: &str) -> &'static str {
     }
 }
 
-/// Check if position is inside backticks (inline code)
+/// Check if position is inside an inline-code span: the shared CommonMark rule (QMD-88).
 fn is_inside_backticks(line: &str, pos: usize) -> bool {
-    let bytes = line.as_bytes();
-    let mut in_backtick = false;
-    let mut i = 0;
-
-    while i < bytes.len() && i < pos {
-        if bytes[i] == b'`' {
-            // Check for triple backticks (code fence) - skip entire line
-            if i + 2 < bytes.len() && bytes[i + 1] == b'`' && bytes[i + 2] == b'`' {
-                return true; // Treat entire line as code
-            }
-            in_backtick = !in_backtick;
-        }
-        i += 1;
-    }
-
-    in_backtick
+    crate::core::reference_scan::is_inside_backticks(line, pos)
 }
 
 /// Extract all [[...]] references from a line with their positions

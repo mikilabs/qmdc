@@ -174,24 +174,32 @@ export function stringifyParseResult(result: unknown, pretty = true): string {
 }
 
 export function isInsideBackticks(text: string, pos: number): boolean {
-  let inBacktick = false;
-  for (let i = 0; i < text.length && i < pos; i++) {
+  // CommonMark's rule, shared by the three parsers (QMD-88): a run of N backticks opens a
+  // code span that the next run of exactly N backticks closes; a run with no closing
+  // partner is literal. A run of three or more before `pos` marks a code-fence line.
+  const runs: Array<[number, number]> = [];
+  for (let i = 0; i < text.length; ) {
     if (text[i] === '`') {
-      // Check for triple backticks (code fence) - treat entire line as code
-      if (i + 2 < text.length && text[i + 1] === '`' && text[i + 2] === '`') {
-        return true;
-      }
-      // Check for double backticks (``) - treat as single backtick pair
-      if (i + 1 < text.length && text[i + 1] === '`') {
-        // Skip both backticks and toggle state
-        i++; // Skip second backtick
-        inBacktick = !inBacktick;
-      } else {
-        inBacktick = !inBacktick;
-      }
+      const start = i;
+      while (i < text.length && text[i] === '`') i++;
+      runs.push([start, i - start]);
+    } else {
+      i++;
     }
   }
-  return inBacktick;
+  if (runs.some(([start, len]) => len >= 3 && start < pos)) return true;
+  for (let k = 0; k < runs.length; ) {
+    const [openStart, len] = runs[k]!;
+    let j = k + 1;
+    while (j < runs.length && runs[j]![1] !== len) j++;
+    if (j < runs.length) {
+      if (openStart + len <= pos && pos < runs[j]![0]) return true;
+      k = j + 1;
+    } else {
+      k++;
+    }
+  }
+  return false;
 }
 
 function extractReferencesFromText(
@@ -3281,7 +3289,7 @@ export function parse(markdown: string, options: ParseOptions | number = {}): Pa
     const lines = markdown.split('\n');
     // Operate on result objects (which contain the normalized objects)
     for (const obj of result) {
-      extractReferencesForObject(obj, lines);
+      extractReferencesForObject(obj, lines, result);
     }
   }
 
@@ -3454,7 +3462,57 @@ function normalizeFieldOrder(obj: QmdcObject): QmdcObject {
 /**
  * Extract references from a single object and add __references field
  */
-function extractReferencesForObject(obj: QmdcObject, lines: string[]): void {
+/** 0-based line of field `key` at or after `start`: `- key:` or a `[[key]]` heading. */
+function fieldLineIndex(lines: string[], start: number, key: string): number | undefined {
+  const esc = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const listRe = new RegExp(`^\\s*-\\s+\\**${esc}\\**\\s*:`);
+  const headingRe = new RegExp(`^#+\\s+.*\\[\\[${esc}(?::.*?)?\\]\\]`);
+  for (let lineIdx = Math.max(start, 0); lineIdx < lines.length; lineIdx++) {
+    const line = lines[lineIdx]!;
+    if (listRe.test(line) || headingRe.test(line)) return lineIdx;
+  }
+  return undefined;
+}
+
+/**
+ * Append the references of every line of body text `text`, located in the source `lines`.
+ *
+ * Each line of `text` that holds `[[` is found in the source at or after `searchStart`
+ * (0-based) and its references are read from the source line, so columns are the line's
+ * own. Lines inside a fenced code block are code, not text, and are skipped. Returns the
+ * index after the last line found, the start of the next search.
+ */
+function scanTextLines(
+  text: string,
+  lines: string[],
+  searchStart: number,
+  refs: ParsedReference[]
+): number {
+  let inFence = false;
+  for (const contentLine of text.split('\n')) {
+    const stripped = contentLine.trim();
+    if (stripped.startsWith('```')) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence || !contentLine.includes('[[') || !stripped) continue;
+    for (let lineIdx = searchStart; lineIdx < lines.length; lineIdx++) {
+      const origLine = lines[lineIdx];
+      if (origLine && origLine.includes(stripped) && origLine.includes('[[')) {
+        refs.push(...extractReferencesFromText(origLine, lineIdx + 1, 0));
+        searchStart = lineIdx + 1;
+        break;
+      }
+    }
+  }
+  return searchStart;
+}
+
+function extractReferencesForObject(
+  obj: QmdcObject,
+  lines: string[],
+  allObjects: QmdcObject[]
+): void {
   const refs: ParsedReference[] = [];
   const objLine = obj.__line;
   if (typeof objLine !== 'number') return;
@@ -3465,25 +3523,21 @@ function extractReferencesForObject(obj: QmdcObject, lines: string[]): void {
   let objSearchStart = objLine > 0 ? objLine - 1 : 0;
 
   // Process string fields
+  // Body text (`__comments`) has its own cursor: comments are in document order, and
+  // sharing the field cursor would let one skip past the other's lines.
+  let commentSearchStart = objSearchStart;
   for (const [key, value] of Object.entries(obj)) {
     if (key.startsWith('__')) {
-      // Check comments
+      // Check comments: every line of a comment, the way multiline text fields are read
+      // below (QMD-88). A comment spanning several lines was matched only when its WHOLE
+      // content sat on one source line, so references in a multi-line paragraph, list or
+      // table of body text were lost.
       if (key === '__comments' && Array.isArray(value)) {
         for (const comment of value) {
           if (typeof comment === 'object' && comment !== null) {
             const content = (comment as Record<string, unknown>).content;
             if (typeof content === 'string' && content.includes('[[')) {
-              // Find this comment in source to get line number
-              for (let lineIdx = objSearchStart; lineIdx < lines.length; lineIdx++) {
-                const line = lines[lineIdx];
-                if (line && line.includes(content)) {
-                  const lineNum = lineIdx + 1;
-                  const colOffset = line.indexOf(content);
-                  refs.push(...extractReferencesFromText(content, lineNum, colOffset));
-                  objSearchStart = lineIdx + 1;
-                  break;
-                }
-              }
+              commentSearchStart = scanTextLines(content, lines, commentSearchStart, refs);
             }
           }
         }
@@ -3491,7 +3545,25 @@ function extractReferencesForObject(obj: QmdcObject, lines: string[]): void {
       continue;
     }
 
+    // A parent's field naming a child object (`auth: [[#auth]]` from a `## Auth [[auth]]`
+    // heading) is structure, not a reference written in the source: the line it would be
+    // "found" on belongs to the child (QMD-88, as in Rust). Same test as
+    // `extractFieldPositions` uses to skip parent fields.
+    if (
+      typeof value === 'string' &&
+      value.trim().startsWith('[[#') &&
+      value.trim().endsWith(']]') &&
+      allObjects.some((child) => child.__parent_field === key)
+    ) {
+      continue;
+    }
+
     if (typeof value === 'string' && value.includes('[[')) {
+      // Start at the field's own line (QMD-88): from the shared cursor, a value that also
+      // appears earlier in the object (in body text, or as another field's preamble) was
+      // attributed to that earlier line.
+      const fieldIdx = fieldLineIndex(lines, objLine - 1, key);
+      if (fieldIdx !== undefined) objSearchStart = fieldIdx;
       // For multiline text fields, search each line in original markdown
       // Track search position to handle duplicate lines in content
       // Track if we're inside a code fence
@@ -3551,7 +3623,9 @@ function extractReferencesForObject(obj: QmdcObject, lines: string[]): void {
         // Find the line containing this field
         let fieldLineIdx: number | undefined;
         let fieldLine: string | undefined;
-        for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        // From the object's own line, not the file top (QMD-88): an identical `key:` line
+        // of an earlier object would otherwise be taken.
+        for (let lineIdx = objLine - 1; lineIdx < lines.length; lineIdx++) {
           const line = lines[lineIdx];
           if (line && line.includes(`${key}:`) && line.includes('[[')) {
             fieldLineIdx = lineIdx;
@@ -3590,10 +3664,12 @@ function extractReferencesForObject(obj: QmdcObject, lines: string[]): void {
         }
       } else {
         // For non-YAML arrays (markdown lists), use original logic
+        const fieldIdx = fieldLineIndex(lines, objLine - 1, key);
+        const itemStart = fieldIdx ?? objLine - 1;
         for (const item of value) {
           if (typeof item === 'string' && item.includes('[[')) {
-            // Find this item in source
-            for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+            // Find this item in source, from the field's own line (QMD-88)
+            for (let lineIdx = itemStart; lineIdx < lines.length; lineIdx++) {
               const line = lines[lineIdx];
               if (line && line.includes(item)) {
                 const lineNum = lineIdx + 1;

@@ -1,0 +1,53 @@
+{
+  "columns": [
+    "source",
+    "source_field",
+    "edge_type",
+    "target",
+    "target_field"
+  ],
+  "rows": [
+    [
+      "api",
+      "__comments",
+      "__comments",
+      "index",
+      "entry"
+    ],
+    [
+      "api",
+      "__comments",
+      "__comments",
+      "users",
+      ""
+    ],
+    [
+      "api",
+      "calls",
+      "calls",
+      "users",
+      ""
+    ],
+    [
+      "body_refs",
+      "index",
+      "index",
+      "index",
+      ""
+    ],
+    [
+      "index",
+      "entry",
+      "entry",
+      "api",
+      ""
+    ],
+    [
+      "users",
+      "__comments",
+      "__comments",
+      "users",
+      ""
+    ]
+  ]
+}
