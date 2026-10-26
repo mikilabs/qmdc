@@ -2711,6 +2711,18 @@ def _extract_references_for_objects(objects: dict[str, dict[str, Any]], lines: l
                                 )
                 continue
 
+            # A parent's field naming a child object (`auth: [[#auth]]` from a `## Auth
+            # [[auth]]` heading) is structure, not a reference written in the source: the
+            # line it would be "found" on belongs to the child (QMD-88, as in Rust).
+            # Same test as `_extract_field_positions` uses to skip parent fields.
+            if (
+                isinstance(value, str)
+                and value.strip().startswith("[[#")
+                and value.strip().endswith("]]")
+                and any(child.get("__parent_field") == key for child in objects.values())
+            ):
+                continue
+
             if isinstance(value, str) and "[[" in value:
                 # Start at the field's own line (QMD-88): from the shared cursor, a value
                 # that also appears earlier in the object (in body text, or as another
