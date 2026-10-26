@@ -3462,6 +3462,18 @@ function normalizeFieldOrder(obj: QmdcObject): QmdcObject {
 /**
  * Extract references from a single object and add __references field
  */
+/** 0-based line of field `key` at or after `start`: `- key:` or a `[[key]]` heading. */
+function fieldLineIndex(lines: string[], start: number, key: string): number | undefined {
+  const esc = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const listRe = new RegExp(`^\\s*-\\s+\\**${esc}\\**\\s*:`);
+  const headingRe = new RegExp(`^#+\\s+.*\\[\\[${esc}(?::.*?)?\\]\\]`);
+  for (let lineIdx = Math.max(start, 0); lineIdx < lines.length; lineIdx++) {
+    const line = lines[lineIdx]!;
+    if (listRe.test(line) || headingRe.test(line)) return lineIdx;
+  }
+  return undefined;
+}
+
 /**
  * Append the references of every line of body text `text`, located in the source `lines`.
  *
@@ -3530,6 +3542,11 @@ function extractReferencesForObject(obj: QmdcObject, lines: string[]): void {
     }
 
     if (typeof value === 'string' && value.includes('[[')) {
+      // Start at the field's own line (QMD-88): from the shared cursor, a value that also
+      // appears earlier in the object (in body text, or as another field's preamble) was
+      // attributed to that earlier line.
+      const fieldIdx = fieldLineIndex(lines, objLine - 1, key);
+      if (fieldIdx !== undefined) objSearchStart = fieldIdx;
       // For multiline text fields, search each line in original markdown
       // Track search position to handle duplicate lines in content
       // Track if we're inside a code fence
@@ -3589,7 +3606,9 @@ function extractReferencesForObject(obj: QmdcObject, lines: string[]): void {
         // Find the line containing this field
         let fieldLineIdx: number | undefined;
         let fieldLine: string | undefined;
-        for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        // From the object's own line, not the file top (QMD-88): an identical `key:` line
+        // of an earlier object would otherwise be taken.
+        for (let lineIdx = objLine - 1; lineIdx < lines.length; lineIdx++) {
           const line = lines[lineIdx];
           if (line && line.includes(`${key}:`) && line.includes('[[')) {
             fieldLineIdx = lineIdx;
@@ -3628,10 +3647,12 @@ function extractReferencesForObject(obj: QmdcObject, lines: string[]): void {
         }
       } else {
         // For non-YAML arrays (markdown lists), use original logic
+        const fieldIdx = fieldLineIndex(lines, objLine - 1, key);
+        const itemStart = fieldIdx ?? objLine - 1;
         for (const item of value) {
           if (typeof item === 'string' && item.includes('[[')) {
-            // Find this item in source
-            for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+            // Find this item in source, from the field's own line (QMD-88)
+            for (let lineIdx = itemStart; lineIdx < lines.length; lineIdx++) {
               const line = lines[lineIdx];
               if (line && line.includes(item)) {
                 const lineNum = lineIdx + 1;
