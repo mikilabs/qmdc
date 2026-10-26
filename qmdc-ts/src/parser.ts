@@ -174,24 +174,32 @@ export function stringifyParseResult(result: unknown, pretty = true): string {
 }
 
 export function isInsideBackticks(text: string, pos: number): boolean {
-  let inBacktick = false;
-  for (let i = 0; i < text.length && i < pos; i++) {
+  // CommonMark's rule, shared by the three parsers (QMD-88): a run of N backticks opens a
+  // code span that the next run of exactly N backticks closes; a run with no closing
+  // partner is literal. A run of three or more before `pos` marks a code-fence line.
+  const runs: Array<[number, number]> = [];
+  for (let i = 0; i < text.length; ) {
     if (text[i] === '`') {
-      // Check for triple backticks (code fence) - treat entire line as code
-      if (i + 2 < text.length && text[i + 1] === '`' && text[i + 2] === '`') {
-        return true;
-      }
-      // Check for double backticks (``) - treat as single backtick pair
-      if (i + 1 < text.length && text[i + 1] === '`') {
-        // Skip both backticks and toggle state
-        i++; // Skip second backtick
-        inBacktick = !inBacktick;
-      } else {
-        inBacktick = !inBacktick;
-      }
+      const start = i;
+      while (i < text.length && text[i] === '`') i++;
+      runs.push([start, i - start]);
+    } else {
+      i++;
     }
   }
-  return inBacktick;
+  if (runs.some(([start, len]) => len >= 3 && start < pos)) return true;
+  for (let k = 0; k < runs.length; ) {
+    const [openStart, len] = runs[k]!;
+    let j = k + 1;
+    while (j < runs.length && runs[j]![1] !== len) j++;
+    if (j < runs.length) {
+      if (openStart + len <= pos && pos < runs[j]![0]) return true;
+      k = j + 1;
+    } else {
+      k++;
+    }
+  }
+  return false;
 }
 
 function extractReferencesFromText(
@@ -3454,6 +3462,40 @@ function normalizeFieldOrder(obj: QmdcObject): QmdcObject {
 /**
  * Extract references from a single object and add __references field
  */
+/**
+ * Append the references of every line of body text `text`, located in the source `lines`.
+ *
+ * Each line of `text` that holds `[[` is found in the source at or after `searchStart`
+ * (0-based) and its references are read from the source line, so columns are the line's
+ * own. Lines inside a fenced code block are code, not text, and are skipped. Returns the
+ * index after the last line found, the start of the next search.
+ */
+function scanTextLines(
+  text: string,
+  lines: string[],
+  searchStart: number,
+  refs: ParsedReference[]
+): number {
+  let inFence = false;
+  for (const contentLine of text.split('\n')) {
+    const stripped = contentLine.trim();
+    if (stripped.startsWith('```')) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence || !contentLine.includes('[[') || !stripped) continue;
+    for (let lineIdx = searchStart; lineIdx < lines.length; lineIdx++) {
+      const origLine = lines[lineIdx];
+      if (origLine && origLine.includes(stripped) && origLine.includes('[[')) {
+        refs.push(...extractReferencesFromText(origLine, lineIdx + 1, 0));
+        searchStart = lineIdx + 1;
+        break;
+      }
+    }
+  }
+  return searchStart;
+}
+
 function extractReferencesForObject(obj: QmdcObject, lines: string[]): void {
   const refs: ParsedReference[] = [];
   const objLine = obj.__line;
@@ -3465,25 +3507,21 @@ function extractReferencesForObject(obj: QmdcObject, lines: string[]): void {
   let objSearchStart = objLine > 0 ? objLine - 1 : 0;
 
   // Process string fields
+  // Body text (`__comments`) has its own cursor: comments are in document order, and
+  // sharing the field cursor would let one skip past the other's lines.
+  let commentSearchStart = objSearchStart;
   for (const [key, value] of Object.entries(obj)) {
     if (key.startsWith('__')) {
-      // Check comments
+      // Check comments: every line of a comment, the way multiline text fields are read
+      // below (QMD-88). A comment spanning several lines was matched only when its WHOLE
+      // content sat on one source line, so references in a multi-line paragraph, list or
+      // table of body text were lost.
       if (key === '__comments' && Array.isArray(value)) {
         for (const comment of value) {
           if (typeof comment === 'object' && comment !== null) {
             const content = (comment as Record<string, unknown>).content;
             if (typeof content === 'string' && content.includes('[[')) {
-              // Find this comment in source to get line number
-              for (let lineIdx = objSearchStart; lineIdx < lines.length; lineIdx++) {
-                const line = lines[lineIdx];
-                if (line && line.includes(content)) {
-                  const lineNum = lineIdx + 1;
-                  const colOffset = line.indexOf(content);
-                  refs.push(...extractReferencesFromText(content, lineNum, colOffset));
-                  objSearchStart = lineIdx + 1;
-                  break;
-                }
-              }
+              commentSearchStart = scanTextLines(content, lines, commentSearchStart, refs);
             }
           }
         }

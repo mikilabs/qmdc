@@ -147,23 +147,35 @@ def classify_reference(inner: str) -> str:
 
 
 def is_inside_backticks(text: str, pos: int) -> bool:
-    """Check if position is inside backticks (inline code)."""
-    in_backtick = False
+    """Check if position is inside an inline-code span (QMD-88).
+
+    CommonMark's rule, shared by the three parsers: a run of N backticks opens a code span
+    that the next run of exactly N backticks closes; a run with no closing partner is
+    literal. A run of three or more before `pos` marks a code-fence line.
+    """
+    runs: list[tuple[int, int]] = []
     i = 0
-    while i < len(text) and i < pos:
+    while i < len(text):
         if text[i] == "`":
-            # Check for triple backticks (code fence) - treat entire line as code
-            if i + 2 < len(text) and text[i + 1] == "`" and text[i + 2] == "`":
-                return True
-            # Check for double backticks (``) - treat as single backtick pair
-            if i + 1 < len(text) and text[i + 1] == "`":
-                # Skip both backticks and toggle state
-                i += 1  # Skip second backtick
-                in_backtick = not in_backtick
-            else:
-                in_backtick = not in_backtick
-        i += 1
-    return in_backtick
+            start = i
+            while i < len(text) and text[i] == "`":
+                i += 1
+            runs.append((start, i - start))
+        else:
+            i += 1
+    if any(length >= 3 and start < pos for start, length in runs):
+        return True
+    k = 0
+    while k < len(runs):
+        open_start, length = runs[k]
+        j = next((j for j in range(k + 1, len(runs)) if runs[j][1] == length), None)
+        if j is None:
+            k += 1
+            continue
+        if open_start + length <= pos < runs[j][0]:
+            return True
+        k = j + 1
+    return False
 
 
 def extract_references_from_text(
@@ -2616,6 +2628,33 @@ def _extract_references_for_textblock(tb: dict[str, Any], lines: list[str]) -> N
         tb["__references"] = refs
 
 
+def _scan_text_lines(
+    text: str, lines: list[str], search_start: int, refs: list[dict[str, Any]]
+) -> int:
+    """Append the references of every line of body text `text`, located in the source `lines`.
+
+    Each line of `text` that holds `[[` is found in the source at or after `search_start`
+    (0-based) and its references are read from the source line, so columns are the line's
+    own. Lines inside a fenced code block are code, not text, and are skipped. Returns the
+    index after the last line found, the start of the next search.
+    """
+    in_fence = False
+    for content_line in text.split("\n"):
+        stripped = content_line.strip()
+        if stripped.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence or "[[" not in content_line or not stripped:
+            continue
+        for line_idx in range(search_start, len(lines)):
+            orig_line = lines[line_idx]
+            if stripped in orig_line and "[[" in orig_line:
+                refs.extend(extract_references_from_text(orig_line, line_idx + 1, 0))
+                search_start = line_idx + 1
+                break
+    return search_start
+
+
 def _extract_references_for_objects(objects: dict[str, dict[str, Any]], lines: list[str]) -> None:
     """
     Extract references from all objects and add __references field.
@@ -2642,27 +2681,23 @@ def _extract_references_for_objects(objects: dict[str, dict[str, Any]], lines: l
         obj_search_start = (obj_line - 1) if obj_line else 0
 
         # Process string fields
+        # Body text (`__comments`) has its own cursor: comments are in document order, and
+        # sharing the field cursor would let one skip past the other's lines.
+        comment_search_start = obj_search_start
         for key, value in obj.items():
             if key.startswith("__"):
-                # Check comments
+                # Check comments: every line of a comment, the way multiline text fields are
+                # read below (QMD-88). A comment spanning several lines was matched only when
+                # its WHOLE content sat on one source line, so references in a multi-line
+                # paragraph, list or table of body text were lost.
                 if key == "__comments" and isinstance(value, list):
                     for comment in value:
                         if isinstance(comment, dict):
                             content = comment.get("content", "")
-                            if "[[" in content:
-                                # Find this comment in source to get line number
-                                for line_idx in range(obj_search_start, len(lines)):
-                                    line = lines[line_idx]
-                                    if content in line:
-                                        line_num = line_idx + 1
-                                        col_offset = line.find(content)
-                                        refs.extend(
-                                            extract_references_from_text(
-                                                content, line_num, col_offset
-                                            )
-                                        )
-                                        obj_search_start = line_idx + 1
-                                        break
+                            if isinstance(content, str) and "[[" in content:
+                                comment_search_start = _scan_text_lines(
+                                    content, lines, comment_search_start, refs
+                                )
                 continue
 
             if isinstance(value, str) and "[[" in value:

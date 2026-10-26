@@ -106,27 +106,50 @@ pub fn parse_reference_target(target: &str) -> (Option<String>, Option<String>, 
     (None, None, s.to_string())
 }
 
-/// Whether `pos` (a byte offset) sits inside an inline-code span on `line`.
-/// Single/double/triple backtick aware (a code fence line is treated wholly as code).
+/// Whether `pos` (a byte offset) sits inside an inline-code span on `line` (QMD-88).
+///
+/// CommonMark's rule: a run of N backticks opens a code span that the next run of exactly
+/// N backticks closes; a run with no closing partner is literal text. So `` `a` ``,
+/// ``` ``a`` ``` and ``` `` `a` `` ``` are all code. A run of three or more backticks
+/// before `pos` marks a code-fence line, which is code as a whole.
+///
+/// The one rule the three parsers share; Python's and TypeScript's `is_inside_backticks`
+/// implement the same.
 pub fn is_inside_backticks(line: &str, pos: usize) -> bool {
     let bytes = line.as_bytes();
-    let mut in_backtick = false;
+    // Backtick runs as (start, len), in order.
+    let mut runs: Vec<(usize, usize)> = Vec::new();
     let mut i = 0;
-    while i < bytes.len() && i < pos {
+    while i < bytes.len() {
         if bytes[i] == b'`' {
-            if i + 2 < bytes.len() && bytes[i + 1] == b'`' && bytes[i + 2] == b'`' {
-                return true;
+            let start = i;
+            while i < bytes.len() && bytes[i] == b'`' {
+                i += 1;
             }
-            if i + 1 < bytes.len() && bytes[i + 1] == b'`' {
-                i += 1; // consume the second backtick of a `` pair
-                in_backtick = !in_backtick;
-            } else {
-                in_backtick = !in_backtick;
-            }
+            runs.push((start, i - start));
+        } else {
+            i += 1;
         }
-        i += 1;
     }
-    in_backtick
+    if runs.iter().any(|&(start, len)| len >= 3 && start < pos) {
+        return true;
+    }
+    let mut k = 0;
+    while k < runs.len() {
+        let (open_start, len) = runs[k];
+        match (k + 1..runs.len()).find(|&j| runs[j].1 == len) {
+            Some(j) => {
+                let content_start = open_start + len;
+                let content_end = runs[j].0;
+                if content_start <= pos && pos < content_end {
+                    return true;
+                }
+                k = j + 1;
+            }
+            None => k += 1,
+        }
+    }
+    false
 }
 
 /// Is the reference at `ref_pos` between a pair of double backticks (``…``) on `line`?
