@@ -1,0 +1,8 @@
+{
+  "tool": "qmdc_find_path",
+  "arguments": {
+    "path": "{{workspace}}",
+    "from_id": "d",
+    "to_id": "b"
+  }
+}

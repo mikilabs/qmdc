@@ -1,0 +1,177 @@
+{
+  "items": [
+    {
+      "id": "a",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "a",
+      "file": "g.qmd.md",
+      "line": 1
+    },
+    {
+      "id": "b",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "b",
+      "file": "g.qmd.md",
+      "line": 7
+    },
+    {
+      "id": "c",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "Charlie",
+      "file": "g.qmd.md",
+      "line": 13
+    },
+    {
+      "id": "e",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "e",
+      "file": "g.qmd.md",
+      "line": 22
+    },
+    {
+      "id": "d",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "d",
+      "file": "g.qmd.md",
+      "line": 18
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "truncated": false,
+  "edges": [
+    {
+      "source": "a",
+      "target": "a",
+      "edge_type": "next",
+      "source_field": "next"
+    },
+    {
+      "source": "a",
+      "target": "b",
+      "edge_type": "links",
+      "source_field": "links"
+    },
+    {
+      "source": "a",
+      "target": "c",
+      "edge_type": "links",
+      "source_field": "links"
+    },
+    {
+      "source": "a",
+      "target": "b",
+      "edge_type": "links",
+      "source_field": "links"
+    },
+    {
+      "source": "a",
+      "target": "c",
+      "edge_type": "see",
+      "source_field": "see"
+    },
+    {
+      "source": "a",
+      "target": "b",
+      "edge_type": "see",
+      "source_field": "see"
+    },
+    {
+      "source": "b",
+      "target": "a",
+      "edge_type": "back",
+      "source_field": "back"
+    },
+    {
+      "source": "c",
+      "target": "a",
+      "edge_type": "next",
+      "source_field": "next"
+    },
+    {
+      "source": "e",
+      "target": "a",
+      "edge_type": "links",
+      "source_field": "links"
+    },
+    {
+      "source": "a",
+      "target": "b",
+      "edge_type": "links",
+      "source_field": "links"
+    },
+    {
+      "source": "a",
+      "target": "b",
+      "edge_type": "links",
+      "source_field": "links"
+    },
+    {
+      "source": "a",
+      "target": "b",
+      "edge_type": "see",
+      "source_field": "see"
+    },
+    {
+      "source": "b",
+      "target": "c",
+      "edge_type": "next",
+      "source_field": "next"
+    },
+    {
+      "source": "b",
+      "target": "a",
+      "edge_type": "back",
+      "source_field": "back"
+    },
+    {
+      "source": "b",
+      "target": "nowhere",
+      "edge_type": "dangling",
+      "source_field": "dangling"
+    },
+    {
+      "source": "a",
+      "target": "c",
+      "edge_type": "links",
+      "source_field": "links"
+    },
+    {
+      "source": "a",
+      "target": "c",
+      "edge_type": "see",
+      "source_field": "see"
+    },
+    {
+      "source": "b",
+      "target": "c",
+      "edge_type": "next",
+      "source_field": "next"
+    },
+    {
+      "source": "c",
+      "target": "a",
+      "edge_type": "next",
+      "source_field": "next"
+    },
+    {
+      "source": "e",
+      "target": "a",
+      "edge_type": "links",
+      "source_field": "links"
+    },
+    {
+      "source": "e",
+      "target": "d",
+      "edge_type": "links",
+      "source_field": "links"
+    }
+  ],
+  "edges_truncated": false,
+  "success": true
+}

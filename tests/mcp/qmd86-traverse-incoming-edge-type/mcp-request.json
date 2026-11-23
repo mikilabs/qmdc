@@ -1,0 +1,10 @@
+{
+  "tool": "qmdc_traverse_graph",
+  "arguments": {
+    "path": "{{workspace}}",
+    "start_id": "b",
+    "direction": "incoming",
+    "edge_type": "links",
+    "depth": 3
+  }
+}

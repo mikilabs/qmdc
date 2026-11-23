@@ -9,7 +9,7 @@ use serde_json::Value;
 
 use crate::core::envelope::DEFAULT_LIMIT;
 use crate::core::error::{ErrorCode, ErrorEnvelope};
-use crate::core::graph::{extract_edges, extract_nodes, GraphEdge, GraphNode, Subgraph};
+use crate::core::graph::{Direction, GraphEdge, GraphNode, GraphView, Subgraph};
 use crate::core::resolved_index::ResolvedIndex;
 
 /// Maximum traversal depth allowed.
@@ -64,13 +64,17 @@ pub fn traverse(
         ));
     }
 
-    // Build graph data
-    let all_nodes = extract_nodes(index);
-    let all_edges = extract_edges(index);
+    // Build graph data once: node lookup and neighbour enumeration are O(1) per step
+    // (QMD-86, GitHub #17).
+    let graph = GraphView::build(index);
+    let direction = match direction {
+        "outgoing" => Direction::Outgoing,
+        "incoming" => Direction::Incoming,
+        _ => Direction::Both,
+    };
 
     // Check start node exists
-    let node_ids: HashSet<&str> = all_nodes.iter().map(|n| n.id.as_str()).collect();
-    if !node_ids.contains(start_id) {
+    if !graph.contains(start_id) {
         return Err(ErrorEnvelope::error(
             ErrorCode::NotFound,
             format!("no object with id '{}' found in workspace", start_id),
@@ -78,17 +82,17 @@ pub fn traverse(
     }
 
     // BFS
-    let mut visited: HashSet<String> = HashSet::new();
+    let mut visited: HashSet<&str> = HashSet::new();
     let mut result_nodes: Vec<GraphNode> = Vec::new();
     let mut result_edges: Vec<GraphEdge> = Vec::new();
-    let mut queue: VecDeque<(String, usize)> = VecDeque::new();
+    let mut queue: VecDeque<(&str, usize)> = VecDeque::new();
 
-    visited.insert(start_id.to_string());
-    queue.push_back((start_id.to_string(), 0));
+    visited.insert(start_id);
+    queue.push_back((start_id, 0));
 
     while let Some((current_id, current_depth)) = queue.pop_front() {
-        // Add node to results
-        if let Some(node) = all_nodes.iter().find(|n| n.id == current_id) {
+        // Add node to results (a dangling reference target has no node)
+        if let Some(node) = graph.node(current_id) {
             result_nodes.push(node.clone());
         }
 
@@ -97,14 +101,10 @@ pub fn traverse(
             continue;
         }
 
-        // Find adjacent edges based on direction
-        let adjacent = find_adjacent_edges(&all_edges, &current_id, direction, edge_type);
-
-        for (edge, neighbor_id) in adjacent {
+        for (edge, neighbor_id) in graph.adjacent(current_id, direction, edge_type) {
             result_edges.push(edge.clone());
 
-            if !visited.contains(&neighbor_id) {
-                visited.insert(neighbor_id.clone());
+            if visited.insert(neighbor_id) {
                 queue.push_back((neighbor_id, current_depth + 1));
             }
         }
@@ -117,49 +117,6 @@ pub fn traverse(
 
     let payload = subgraph.to_bounded_value(DEFAULT_LIMIT);
     Ok(ErrorEnvelope::success(payload))
-}
-
-/// Find edges adjacent to `node_id` given direction and optional edge_type filter.
-/// Returns tuples of (edge, neighbor_id).
-fn find_adjacent_edges<'a>(
-    all_edges: &'a [GraphEdge],
-    node_id: &str,
-    direction: &str,
-    edge_type_filter: Option<&str>,
-) -> Vec<(&'a GraphEdge, String)> {
-    let mut results = Vec::new();
-
-    for edge in all_edges {
-        // Apply edge_type filter
-        if let Some(et) = edge_type_filter {
-            if edge.edge_type != et {
-                continue;
-            }
-        }
-
-        match direction {
-            "outgoing" => {
-                if edge.source == node_id {
-                    results.push((edge, edge.target.clone()));
-                }
-            }
-            "incoming" => {
-                if edge.target == node_id {
-                    results.push((edge, edge.source.clone()));
-                }
-            }
-            "both" => {
-                if edge.source == node_id {
-                    results.push((edge, edge.target.clone()));
-                } else if edge.target == node_id {
-                    results.push((edge, edge.source.clone()));
-                }
-            }
-            _ => {}
-        }
-    }
-
-    results
 }
 
 /// Strip leading `#` from an id string, trim whitespace.

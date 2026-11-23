@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use serde_json::Value;
 
 use crate::core::error::{ErrorCode, ErrorEnvelope};
-use crate::core::graph::{extract_edges, extract_nodes, GraphEdge, GraphNode, PathChain};
+use crate::core::graph::{Direction, GraphEdge, GraphNode, GraphView, PathChain};
 use crate::core::resolved_index::ResolvedIndex;
 
 /// Find the shortest path from `from_id` to `to_id` in the graph.
@@ -45,20 +45,18 @@ pub fn find_path(
         ));
     }
 
-    // Build graph data
-    let all_nodes = extract_nodes(index);
-    let all_edges = extract_edges(index);
-
-    let node_ids: HashSet<&str> = all_nodes.iter().map(|n| n.id.as_str()).collect();
+    // Build graph data once: node lookup and neighbour enumeration are O(1) per step
+    // (QMD-86, GitHub #17).
+    let graph = GraphView::build(index);
 
     // Validate endpoints exist
-    if !node_ids.contains(from_id) {
+    if !graph.contains(from_id) {
         return Err(ErrorEnvelope::error(
             ErrorCode::NotFound,
             format!("no object with id '{}' found in workspace", from_id),
         ));
     }
-    if !node_ids.contains(to_id) {
+    if !graph.contains(to_id) {
         return Err(ErrorEnvelope::error(
             ErrorCode::NotFound,
             format!("no object with id '{}' found in workspace", to_id),
@@ -67,7 +65,7 @@ pub fn find_path(
 
     // Trivial case: same node
     if from_id == to_id {
-        if let Some(node) = all_nodes.iter().find(|n| n.id == from_id) {
+        if let Some(node) = graph.node(from_id) {
             let chain = PathChain {
                 nodes: vec![node.clone()],
                 edges: vec![],
@@ -77,12 +75,12 @@ pub fn find_path(
     }
 
     // BFS: find shortest path (treating edges as undirected for path-finding)
-    let mut visited: HashSet<String> = HashSet::new();
-    let mut predecessors: HashMap<String, (String, GraphEdge)> = HashMap::new();
-    let mut queue: VecDeque<String> = VecDeque::new();
+    let mut visited: HashSet<&str> = HashSet::new();
+    let mut predecessors: HashMap<&str, (&str, &GraphEdge)> = HashMap::new();
+    let mut queue: VecDeque<&str> = VecDeque::new();
 
-    visited.insert(from_id.to_string());
-    queue.push_back(from_id.to_string());
+    visited.insert(from_id);
+    queue.push_back(from_id);
 
     let mut found = false;
 
@@ -92,29 +90,11 @@ pub fn find_path(
             break;
         }
 
-        // Find neighbors (both directions — path-finding is undirected)
-        for edge in &all_edges {
-            // Apply edge_type filter
-            if let Some(et) = edge_type {
-                if edge.edge_type != et {
-                    continue;
-                }
-            }
-
-            let neighbor = if edge.source == current {
-                Some(&edge.target)
-            } else if edge.target == current {
-                Some(&edge.source)
-            } else {
-                None
-            };
-
-            if let Some(neighbor_id) = neighbor {
-                if !visited.contains(neighbor_id.as_str()) {
-                    visited.insert(neighbor_id.clone());
-                    predecessors.insert(neighbor_id.clone(), (current.clone(), edge.clone()));
-                    queue.push_back(neighbor_id.clone());
-                }
+        // Neighbors in both directions — path-finding is undirected
+        for (edge, neighbor_id) in graph.adjacent(current, Direction::Both, edge_type) {
+            if visited.insert(neighbor_id) {
+                predecessors.insert(neighbor_id, (current, edge));
+                queue.push_back(neighbor_id);
             }
         }
     }
@@ -127,16 +107,16 @@ pub fn find_path(
     }
 
     // Reconstruct path from predecessors
-    let mut path_node_ids: Vec<String> = Vec::new();
+    let mut path_node_ids: Vec<&str> = Vec::new();
     let mut path_edges: Vec<GraphEdge> = Vec::new();
-    let mut current = to_id.to_string();
+    let mut current = to_id;
 
-    while let Some((prev, edge)) = predecessors.get(&current) {
-        path_node_ids.push(current.clone());
+    while let Some(&(prev, edge)) = predecessors.get(current) {
+        path_node_ids.push(current);
         path_edges.push(edge.clone());
-        current = prev.clone();
+        current = prev;
     }
-    path_node_ids.push(from_id.to_string());
+    path_node_ids.push(from_id);
 
     // Reverse to get from→to order
     path_node_ids.reverse();
@@ -145,7 +125,7 @@ pub fn find_path(
     // Collect nodes in path order
     let path_nodes: Vec<GraphNode> = path_node_ids
         .iter()
-        .filter_map(|id| all_nodes.iter().find(|n| n.id == *id).cloned())
+        .filter_map(|id| graph.node(id).cloned())
         .collect();
 
     let chain = PathChain {

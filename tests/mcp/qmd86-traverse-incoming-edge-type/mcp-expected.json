@@ -1,0 +1,53 @@
+{
+  "items": [
+    {
+      "id": "b",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "b",
+      "file": "g.qmd.md",
+      "line": 7
+    },
+    {
+      "id": "a",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "a",
+      "file": "g.qmd.md",
+      "line": 1
+    },
+    {
+      "id": "e",
+      "kind": "__Object",
+      "namespace": "",
+      "label": "e",
+      "file": "g.qmd.md",
+      "line": 22
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "truncated": false,
+  "edges": [
+    {
+      "source": "a",
+      "target": "b",
+      "edge_type": "links",
+      "source_field": "links"
+    },
+    {
+      "source": "a",
+      "target": "b",
+      "edge_type": "links",
+      "source_field": "links"
+    },
+    {
+      "source": "e",
+      "target": "a",
+      "edge_type": "links",
+      "source_field": "links"
+    }
+  ],
+  "edges_truncated": false,
+  "success": true
+}
