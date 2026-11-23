@@ -1,0 +1,55 @@
+[
+  {
+    "__id": "spans",
+    "__label": "Spans",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "Single `[[#a]]`, double ``[[#b]]``, double around single `` `[[#c]]` ``, and real [[#d]]."
+      },
+      {
+        "after": "__self",
+        "content": "Unclosed ` before [[#e]] is not code."
+      }
+    ],
+    "note": "see `[[#f]]` and [[#g]]",
+    "__types": {
+      "note": "string"
+    },
+    "__level": 1,
+    "__line": 1,
+    "__references": [
+      {
+        "target": "#d",
+        "type": "hash_local",
+        "line": 3,
+        "start_col": 82,
+        "end_col": 88,
+        "raw": "[[#d]]"
+      },
+      {
+        "target": "#e",
+        "type": "hash_local",
+        "line": 5,
+        "start_col": 18,
+        "end_col": 24,
+        "raw": "[[#e]]"
+      },
+      {
+        "target": "#g",
+        "type": "hash_local",
+        "line": 7,
+        "start_col": 25,
+        "end_col": 31,
+        "raw": "[[#g]]"
+      }
+    ],
+    "__positions": {
+      "note": {
+        "line": 7,
+        "col": 2
+      }
+    }
+  }
+]

@@ -4,7 +4,7 @@
 
 ## Description [[description: text]]
 
-References connect objects in the QMDC graph. A reference is a link to another object in the workspace, written as `[[#id]]` in field values. References enable building a graph of interconnected objects.
+References connect objects in the QMDC graph. A reference is a link to another object in the workspace, written as `[[#id]]` in a field value or in body text. References enable building a graph of interconnected objects.
 
 The process has two phases:
 
@@ -13,7 +13,7 @@ The process has two phases:
 
 ## Syntax [[syntax: text]]
 
-A reference is defined via `[[#...]]` inside field values:
+A reference is defined via `[[#...]]` inside a field value or body text:
 
 ```markdown example
 - target: [[#users]]
@@ -406,11 +406,11 @@ Association (reference) — objects are independent, the link does not imply own
 
 ## Rules [[rules: text]]
 
-- References work only in field values. In headings, `[[...]]` without `#` is a definition.
-- In text fields (`:text`), references `[[#id]]` are validated for existence but remain as part of the text — they are not resolved into objects.
+- References work in field values and in body text: the paragraphs, lists, tables and quotes an object collects in `__comments`. In headings, `[[...]]` without `#` is a definition.
+- In text fields (`:text`) and in body text, references `[[#id]]` are validated for existence but remain as part of the text — they are not resolved into objects.
 - In YAML pipe blocks (`|`), references are not parsed at all — content remains plain text.
-- In inline code (`` `[[#ref]]` ``), references are not parsed.
-- In fenced code blocks with the `example` modifier, references are not parsed.
+- In inline code, references are not parsed. Inline code follows CommonMark: a run of backticks opens a span that the next run of the same length closes, so `` `[[#ref]]` ``, ``` ``[[#ref]]`` ``` and ``` `` `[[#ref]]` `` ``` are all code; a backtick with no closing partner is plain text.
+- In fenced code blocks with the `example` modifier, references are not parsed. In body text, references in any fenced code block are not parsed: there a code block is a sample, not text.
 - When two objects share an id across namespaces of one workspace, qualify the reference with the namespace (`[[#storage:users]]`); unqualified, it is ambiguous and resolves to nothing.
 - Cross-namespace format: `[[#namespace:id]]`.
 - Cross-workspace format: `[[#workspace:namespace:id]]`, or `[[#workspace::id]]` to elide the namespace and match any namespace of that workspace.

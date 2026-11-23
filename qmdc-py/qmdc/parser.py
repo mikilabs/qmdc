@@ -147,23 +147,35 @@ def classify_reference(inner: str) -> str:
 
 
 def is_inside_backticks(text: str, pos: int) -> bool:
-    """Check if position is inside backticks (inline code)."""
-    in_backtick = False
+    """Check if position is inside an inline-code span (QMD-88).
+
+    CommonMark's rule, shared by the three parsers: a run of N backticks opens a code span
+    that the next run of exactly N backticks closes; a run with no closing partner is
+    literal. A run of three or more before `pos` marks a code-fence line.
+    """
+    runs: list[tuple[int, int]] = []
     i = 0
-    while i < len(text) and i < pos:
+    while i < len(text):
         if text[i] == "`":
-            # Check for triple backticks (code fence) - treat entire line as code
-            if i + 2 < len(text) and text[i + 1] == "`" and text[i + 2] == "`":
-                return True
-            # Check for double backticks (``) - treat as single backtick pair
-            if i + 1 < len(text) and text[i + 1] == "`":
-                # Skip both backticks and toggle state
-                i += 1  # Skip second backtick
-                in_backtick = not in_backtick
-            else:
-                in_backtick = not in_backtick
-        i += 1
-    return in_backtick
+            start = i
+            while i < len(text) and text[i] == "`":
+                i += 1
+            runs.append((start, i - start))
+        else:
+            i += 1
+    if any(length >= 3 and start < pos for start, length in runs):
+        return True
+    k = 0
+    while k < len(runs):
+        open_start, length = runs[k]
+        j = next((j for j in range(k + 1, len(runs)) if runs[j][1] == length), None)
+        if j is None:
+            k += 1
+            continue
+        if open_start + length <= pos < runs[j][0]:
+            return True
+        k = j + 1
+    return False
 
 
 def extract_references_from_text(
@@ -2616,6 +2628,44 @@ def _extract_references_for_textblock(tb: dict[str, Any], lines: list[str]) -> N
         tb["__references"] = refs
 
 
+def _field_line_index(lines: list[str], start: int, key: str) -> int | None:
+    """0-based line of field `key` at or after `start`: `- key:` or a `[[key]]` heading."""
+    list_re = re.compile(rf"^\s*-\s+\**{re.escape(key)}\**\s*:")
+    heading_re = re.compile(rf"^#+\s+.*\[\[{re.escape(key)}(?::.*?)?\]\]")
+    for line_idx in range(max(start, 0), len(lines)):
+        line = lines[line_idx]
+        if list_re.match(line) or heading_re.match(line):
+            return line_idx
+    return None
+
+
+def _scan_text_lines(
+    text: str, lines: list[str], search_start: int, refs: list[dict[str, Any]]
+) -> int:
+    """Append the references of every line of body text `text`, located in the source `lines`.
+
+    Each line of `text` that holds `[[` is found in the source at or after `search_start`
+    (0-based) and its references are read from the source line, so columns are the line's
+    own. Lines inside a fenced code block are code, not text, and are skipped. Returns the
+    index after the last line found, the start of the next search.
+    """
+    in_fence = False
+    for content_line in text.split("\n"):
+        stripped = content_line.strip()
+        if stripped.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence or "[[" not in content_line or not stripped:
+            continue
+        for line_idx in range(search_start, len(lines)):
+            orig_line = lines[line_idx]
+            if stripped in orig_line and "[[" in orig_line:
+                refs.extend(extract_references_from_text(orig_line, line_idx + 1, 0))
+                search_start = line_idx + 1
+                break
+    return search_start
+
+
 def _extract_references_for_objects(objects: dict[str, dict[str, Any]], lines: list[str]) -> None:
     """
     Extract references from all objects and add __references field.
@@ -2642,30 +2692,44 @@ def _extract_references_for_objects(objects: dict[str, dict[str, Any]], lines: l
         obj_search_start = (obj_line - 1) if obj_line else 0
 
         # Process string fields
+        # Body text (`__comments`) has its own cursor: comments are in document order, and
+        # sharing the field cursor would let one skip past the other's lines.
+        comment_search_start = obj_search_start
         for key, value in obj.items():
             if key.startswith("__"):
-                # Check comments
+                # Check comments: every line of a comment, the way multiline text fields are
+                # read below (QMD-88). A comment spanning several lines was matched only when
+                # its WHOLE content sat on one source line, so references in a multi-line
+                # paragraph, list or table of body text were lost.
                 if key == "__comments" and isinstance(value, list):
                     for comment in value:
                         if isinstance(comment, dict):
                             content = comment.get("content", "")
-                            if "[[" in content:
-                                # Find this comment in source to get line number
-                                for line_idx in range(obj_search_start, len(lines)):
-                                    line = lines[line_idx]
-                                    if content in line:
-                                        line_num = line_idx + 1
-                                        col_offset = line.find(content)
-                                        refs.extend(
-                                            extract_references_from_text(
-                                                content, line_num, col_offset
-                                            )
-                                        )
-                                        obj_search_start = line_idx + 1
-                                        break
+                            if isinstance(content, str) and "[[" in content:
+                                comment_search_start = _scan_text_lines(
+                                    content, lines, comment_search_start, refs
+                                )
+                continue
+
+            # A parent's field naming a child object (`auth: [[#auth]]` from a `## Auth
+            # [[auth]]` heading) is structure, not a reference written in the source: the
+            # line it would be "found" on belongs to the child (QMD-88, as in Rust).
+            # Same test as `_extract_field_positions` uses to skip parent fields.
+            if (
+                isinstance(value, str)
+                and value.strip().startswith("[[#")
+                and value.strip().endswith("]]")
+                and any(child.get("__parent_field") == key for child in objects.values())
+            ):
                 continue
 
             if isinstance(value, str) and "[[" in value:
+                # Start at the field's own line (QMD-88): from the shared cursor, a value
+                # that also appears earlier in the object (in body text, or as another
+                # field's preamble) was attributed to that earlier line.
+                field_idx = _field_line_index(lines, obj_line - 1, key)
+                if field_idx is not None:
+                    obj_search_start = field_idx
                 # For multiline text fields, search each line in original markdown
                 # Track search position to handle duplicate lines in content
                 # Skip lines inside code fences (``` ... ```)
@@ -2720,7 +2784,10 @@ def _extract_references_for_objects(objects: dict[str, dict[str, Any]], lines: l
                     # Find the line containing this field
                     field_line_idx = None
                     field_line = None
-                    for line_idx, line in enumerate(lines):
+                    # From the object's own line, not the file top (QMD-88): an identical
+                    # `key:` line of an earlier object would otherwise be taken.
+                    for line_idx in range(obj_line - 1, len(lines)):
+                        line = lines[line_idx]
                         if f"{key}:" in line and "[[" in line:
                             field_line_idx = line_idx
                             field_line = line
@@ -2754,10 +2821,13 @@ def _extract_references_for_objects(objects: dict[str, dict[str, Any]], lines: l
                                         search_pos += item_pos + len(item)
                 else:
                     # For non-YAML arrays (markdown lists), use original logic
+                    field_idx = _field_line_index(lines, obj_line - 1, key)
+                    item_start = obj_line - 1 if field_idx is None else field_idx
                     for item in value:
                         if isinstance(item, str) and "[[" in item:
-                            # Find this item in source
-                            for line_idx, line in enumerate(lines):
+                            # Find this item in source, from the field's own line (QMD-88)
+                            for line_idx in range(item_start, len(lines)):
+                                line = lines[line_idx]
                                 if item in line:
                                     line_num = line_idx + 1
                                     col_offset = line.find(item)

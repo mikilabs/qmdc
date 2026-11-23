@@ -1,0 +1,59 @@
+[
+  {
+    "__id": "release",
+    "__label": "Release",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "One tool with three implementations ([[#python_parser]],\n[[#typescript_parser]], [[#rust_parser]]), kept identical by the\nshared corpus (see [[#testing]])."
+      }
+    ],
+    "version": 2,
+    "__types": {
+      "version": "number"
+    },
+    "__level": 1,
+    "__line": 1,
+    "__references": [
+      {
+        "target": "#python_parser",
+        "type": "hash_local",
+        "line": 3,
+        "start_col": 37,
+        "end_col": 55,
+        "raw": "[[#python_parser]]"
+      },
+      {
+        "target": "#typescript_parser",
+        "type": "hash_local",
+        "line": 4,
+        "start_col": 0,
+        "end_col": 22,
+        "raw": "[[#typescript_parser]]"
+      },
+      {
+        "target": "#rust_parser",
+        "type": "hash_local",
+        "line": 4,
+        "start_col": 24,
+        "end_col": 40,
+        "raw": "[[#rust_parser]]"
+      },
+      {
+        "target": "#testing",
+        "type": "hash_local",
+        "line": 5,
+        "start_col": 19,
+        "end_col": 31,
+        "raw": "[[#testing]]"
+      }
+    ],
+    "__positions": {
+      "version": {
+        "line": 7,
+        "col": 2
+      }
+    }
+  }
+]

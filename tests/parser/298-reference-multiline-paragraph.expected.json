@@ -1,0 +1,18 @@
+[
+  {
+    "__id": "release",
+    "__label": "Release",
+    "__kind": "__Object",
+    "__comments": [
+      {
+        "after": "__self",
+        "content": "One tool with three implementations ([[#python_parser]],\n[[#typescript_parser]], [[#rust_parser]]), kept identical by the\nshared corpus (see [[#testing]])."
+      }
+    ],
+    "version": 2,
+    "__types": {
+      "version": "number"
+    },
+    "__level": 1
+  }
+]
