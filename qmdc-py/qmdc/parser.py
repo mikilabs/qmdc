@@ -257,6 +257,13 @@ def _rebased_fences(fences: list[dict[str, Any]], block_line: int) -> list[CodeF
     ]
 
 
+def normalize_line_endings(markdown: str) -> str:
+    """QMD-90: CRLF and a lone CR read as LF."""
+    if "\r" not in markdown:
+        return markdown
+    return markdown.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def parse(
     markdown: str,
     random_seed: int = 666,
@@ -280,6 +287,10 @@ def parse(
 
     # Use format preset or custom features
     active_features = features if features is not None else FORMATS[format]
+    # QMD-90: read CRLF and a lone CR as LF, so a file parses the same whatever line
+    # endings it was saved with (git's core.autocrlf=true checks files out with CRLF on
+    # Windows). Files opened in text mode are already normalised; strings are not.
+    markdown = normalize_line_endings(markdown)
     # Set random seed for deterministic fallback IDs
     set_random_seed(random_seed)
 

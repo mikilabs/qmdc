@@ -1,0 +1,22 @@
+{
+  "columns": [
+    "source",
+    "source_field",
+    "edge_type",
+    "target"
+  ],
+  "rows": [
+    [
+      "api",
+      "calls",
+      "calls",
+      "store"
+    ],
+    [
+      "doc",
+      "overview",
+      "about",
+      "api"
+    ]
+  ]
+}

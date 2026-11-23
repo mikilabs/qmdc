@@ -12,3 +12,5 @@ Core principles:
 - Minimal ceremony — only the essentials
 - Readability over parse simplicity — humans should understand documents without a parser
 - Expressive parity with YAML — anything expressible in YAML is expressible in QMD.md
+
+A file may use LF, CRLF or CR line endings. Parsers read CRLF and a lone CR as LF before anything else, so objects, field values and references never depend on how the file was saved.
