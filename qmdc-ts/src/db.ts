@@ -52,6 +52,29 @@ export interface QmdcObject {
 }
 
 /**
+ * Source field and edge type of an edge from a reference written in an object's body
+ * text: the `__comments` system field that holds that text (QMD-87).
+ */
+export const BODY_TEXT_FIELD = '__comments';
+
+const HASH_REF_RE = /\[\[#([^\]]+)\]\]/g;
+
+/**
+ * Count every `[[#target]]` in a field value (strings and arrays of them), keyed by the
+ * trimmed target. Used to tell which of an object's `__references` a field already holds.
+ */
+function countHashReferences(value: unknown, counts: Map<string, number>): void {
+  if (typeof value === 'string') {
+    for (const match of value.matchAll(HASH_REF_RE)) {
+      const target = match[1]!.trim();
+      counts.set(target, (counts.get(target) ?? 0) + 1);
+    }
+  } else if (Array.isArray(value)) {
+    for (const item of value) countHashReferences(item, counts);
+  }
+}
+
+/**
  * QMDC SQLite database wrapper
  */
 export class QmdcDatabase {
@@ -185,8 +208,10 @@ export class QmdcDatabase {
     targetField?: string | null,
     workspaceId?: string
   ): void {
-    // Extract workspace from sourceId (format: workspace:namespace:id or workspace::id)
-    const workspace = sourceId.split(':')[0] || workspaceId || '';
+    // Extract workspace from sourceId (format: workspace:namespace:id or workspace::id).
+    // A `__Workspace` root's id has an empty workspace part, as its own `__workspace` is
+    // empty; its edges keep that, as in the Rust and Python parsers (QMD-87).
+    const workspace = sourceId ? sourceId.split(':')[0]! : workspaceId || '';
     const actualEdgeType = edgeType ?? sourceField;
     this.db.run(
       'INSERT OR IGNORE INTO edges (source_id, source_field, target_id, edge_type, target_field, __workspace) VALUES (?, ?, ?, ?, ?, ?)',
@@ -203,10 +228,44 @@ export class QmdcDatabase {
     const namespace = obj.__namespace || '';
     const sourceGlobalId = QmdcDatabase.computeGlobalId(workspaceId, namespace, sourceId);
 
+    // A `__Workspace` root carries no `__workspace` of its own: it IS the workspace. Its
+    // references (its child fields among them) resolve inside the workspace it names
+    // (QMD-87).
+    const resolveWorkspace =
+      !workspaceId && obj.__kind === '__Workspace' ? sourceId : workspaceId;
+
     for (const [field, value] of Object.entries(obj)) {
       if (field.startsWith('__')) continue;
 
-      this.extractRefsFromValue(sourceGlobalId, field, value, workspaceId, namespace);
+      this.extractRefsFromValue(sourceGlobalId, field, value, resolveWorkspace, namespace);
+    }
+
+    // QMD-87: references written in the object's body text (`__comments`) are edges too.
+    // The parser already reports every reference of the object in `__references` (code
+    // spans and example fences excluded); the ones no field holds are the body-text ones,
+    // with source field and edge type `__comments`.
+    const inFields = new Map<string, number>();
+    for (const [field, value] of Object.entries(obj)) {
+      if (!field.startsWith('__')) countHashReferences(value, inFields);
+    }
+    const references = obj.__references;
+    for (const reference of Array.isArray(references) ? references : []) {
+      const raw = (reference as { target?: unknown } | null)?.target;
+      if (typeof raw !== 'string') continue;
+      const target = (raw.startsWith('#') ? raw.slice(1) : raw).trim();
+      if (!target) continue;
+      const held = inFields.get(target) ?? 0;
+      if (held > 0) {
+        inFields.set(target, held - 1);
+      } else {
+        this.resolveAndInsertEdge(
+          sourceGlobalId,
+          BODY_TEXT_FIELD,
+          target,
+          resolveWorkspace,
+          namespace
+        );
+      }
     }
   }
 

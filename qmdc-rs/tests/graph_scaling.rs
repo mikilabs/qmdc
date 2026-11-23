@@ -5,8 +5,8 @@
 //! and minutes in a debug one. The workspace below is the one from the issue: a ring of `n`
 //! objects, each with three references (`next`, `a`, `b`), so the whole graph is reachable.
 //!
-//! The index is built in memory, without parsing, so the time measured is the graph
-//! operation alone. The bound is generous on purpose: linear work on this graph takes well
+//! The index is built in memory, without parsing (its database is filled the way the real
+//! index fills it), so the time measured is the graph operation alone. The bound is generous on purpose: linear work on this graph takes well
 //! under a second even unoptimized, while the quadratic version takes minutes.
 
 use std::path::PathBuf;
@@ -37,6 +37,10 @@ fn ring_index(n: usize) -> ResolvedIndex {
             })
         })
         .collect();
+    // The real index fills its database while it is built; the graph reads resolved edges
+    // from it (QMD-87), so do the same here, outside the timed part.
+    let db = QmdcDatabase::new().expect("in-memory db");
+    db.sync_objects_from_vec(&objects).expect("sync objects");
     ResolvedIndex {
         root: PathBuf::from("/graph-scaling"),
         workspace: WorkspaceResult {
@@ -47,7 +51,7 @@ fn ring_index(n: usize) -> ResolvedIndex {
             objects,
             errors: vec![],
         },
-        db: QmdcDatabase::new().expect("in-memory db"),
+        db,
         built_at: Instant::now(),
         file_count: 0,
     }

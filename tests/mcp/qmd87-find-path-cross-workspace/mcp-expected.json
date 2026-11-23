@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "length": 2,
+  "nodes": [
+    { "id": "gateway" },
+    { "id": "part.a" },
+    { "id": "util" }
+  ],
+  "edges": [
+    { "source": "part.a", "target": "gateway", "edge_type": "peer" },
+    { "source": "part.a", "target": "util", "edge_type": "remote" }
+  ]
+}

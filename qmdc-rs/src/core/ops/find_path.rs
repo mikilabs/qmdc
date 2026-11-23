@@ -47,7 +47,7 @@ pub fn find_path(
 
     // Build graph data once: node lookup and neighbour enumeration are O(1) per step
     // (QMD-86, GitHub #17).
-    let graph = GraphView::build(index);
+    let graph = GraphView::build(index)?;
 
     // Validate endpoints exist
     if !graph.contains(from_id) {

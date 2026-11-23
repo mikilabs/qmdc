@@ -437,8 +437,10 @@ async fn main() {
 
             // QMD-59: unified resolver — walk-up to an ancestor workspace, else
             // walk-down into contained sub-workspaces (so query works from any dir).
+            // Full format: the edges table reads `__references` for body-text references
+            // (QMD-87), the same format the MCP index and the other two parsers query.
             let ws_result =
-                match resolve_workspace_input(ws_path.as_deref(), &with, OutputFormat::Standard) {
+                match resolve_workspace_input(ws_path.as_deref(), &with, OutputFormat::Full) {
                     Ok(r) => r,
                     Err(msg) => {
                         eprintln!("error: {}", msg);
