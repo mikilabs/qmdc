@@ -36,12 +36,6 @@
       "source_field": "links"
     },
     {
-      "source": "a",
-      "target": "b",
-      "edge_type": "links",
-      "source_field": "links"
-    },
-    {
       "source": "e",
       "target": "a",
       "edge_type": "links",

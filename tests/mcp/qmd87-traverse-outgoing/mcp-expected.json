@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "items": [
+    { "id": "part.a" },
+    { "id": "part.b" },
+    { "id": "gateway", "namespace": "svc" },
+    { "id": "util" }
+  ],
+  "edges": [
+    { "source": "part.a", "target": "part.b", "edge_type": "next", "source_field": "next" },
+    { "source": "part.a", "target": "gateway", "edge_type": "peer", "source_field": "peer" },
+    { "source": "part.a", "target": "util", "edge_type": "remote", "source_field": "remote" }
+  ],
+  "edges_truncated": false
+}
