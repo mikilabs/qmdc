@@ -68,7 +68,12 @@ make publish          # build the full matrix, then idempotently publish ALL reg
 make publish-check    # same but DRY — build + show what WOULD publish, upload nothing
 ```
 
-In CI this is automatic: pushing a `v*` tag runs the cross-platform tests, then `make publish`.
+In CI the release is one button: **Actions → Release → Run workflow**, pick `patch`, `minor`
+or `major` (or `gh workflow run release.yml -R mikilabs/qmdc -f bump=patch`). It runs the
+cross-platform tests on `main`, bumps all six packages in lockstep with
+`scripts/release-bump.sh` (versions and lock files), commits that to `main`, tags `vX.Y.Z`
+and runs `make publish` on the tag. `none` publishes `main` as is. Pushing a `v*` tag by
+hand still runs the tests, then `make publish`, without the bump.
 
 **One leaf package at a time:**
 

@@ -95,7 +95,12 @@ make semantic-release   # build sdist+wheel, idempotent `twine upload --skip-exi
   (`needs: test`), then `make publish` on a macOS runner with tokens from GitHub Secrets
   (same names as the env vars above). Nothing reaches a registry unless every OS is green.
 
-So the normal release is: bump the package(s) → commit → push a `v*` tag.
+So the normal release is one button: **Actions → Release → Run workflow**, pick
+`patch` / `minor` / `major`. After CI is green it bumps all six packages together
+(`scripts/release-bump.sh`: versions + lock files), commits to `main`, tags `vX.Y.Z` and
+publishes that tag. From a terminal: `gh workflow run release.yml -R mikilabs/qmdc -f bump=patch`.
+`none` publishes `main` as is. Bumping by hand and pushing a `v*` tag still works.
+The button does not write `CHANGELOG.md`; add the entry in a PR before releasing.
 
 ## Docs site
 

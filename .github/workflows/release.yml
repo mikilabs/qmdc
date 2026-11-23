@@ -1,13 +1,23 @@
 name: Release
 
-# Publish ONLY on a version tag (e.g. v1.2.3). The publish job is gated behind
-# the full cross-platform CI matrix — nothing reaches a registry unless every
-# OS (incl. Windows) is green. Re-running the same tag is safe: release-publish
-# is idempotent and skips anything already published.
+# One button: Actions -> Release -> Run workflow, pick patch / minor / major.
+# It runs the full cross-platform CI matrix on main, then bumps every package in
+# lockstep (scripts/release-bump.sh), commits that to main, tags vX.Y.Z and
+# publishes the tag to all registries. `none` publishes the current commit as is.
+#
+# Pushing a tag vX.Y.Z by hand still works the same way, without the bump.
+# Nothing reaches a registry unless every OS (incl. Windows) is green. Re-running
+# is safe: release-publish is idempotent and skips anything already published.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump (all packages together; none = publish main as is)
+        type: choice
+        options: [patch, minor, major, none]
+        default: patch
 
 # A called (reusable) workflow can never request MORE token scopes than its
 # caller is allowed. The reused ci.yml asks for `contents: read` +
@@ -27,8 +37,49 @@ jobs:
   test:
     uses: ./.github/workflows/ci.yml
 
-  publish:
+  # Button only: bump, commit to main, tag. Runs after CI so a red matrix leaves
+  # main and the tags untouched. A push made with GITHUB_TOKEN starts no new
+  # workflow run, so this tag does not trigger a second Release.
+  bump:
     needs: test
+    if: github.event_name == 'workflow_dispatch' && inputs.bump != 'none'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install qmdc-vscode dev deps (its bump script runs on tsx)
+        run: cd qmdc-vscode && npm ci --ignore-scripts
+      - name: Bump, commit, tag, push
+        id: tag
+        run: |
+          version=$(scripts/release-bump.sh "${{ inputs.bump }}" | tail -1)
+          tag="v$version"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::tag $tag already exists"
+            exit 1
+          fi
+          git config user.name "qmdc release"
+          git config user.email "release@users.noreply.github.com"
+          git commit -qam "chore(release): bump all packages to $version"
+          git tag "$tag"
+          # Fails (instead of overwriting) if main moved after CI started.
+          git push origin "HEAD:refs/heads/main" "refs/tags/$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: [test, bump]
+    # bump is skipped for a tag push and for `none`; it must not be failed.
+    if: ${{ !cancelled() && needs.test.result == 'success' && (needs.bump.result == 'success' || needs.bump.result == 'skipped') }}
     # Build host is macOS on purpose: Apple targets build with the native
     # toolchain (zig has no macOS SDK), while cargo-zigbuild cross-compiles the
     # Linux and Windows targets from the same runner. See scripts/release-build.sh.
@@ -37,6 +88,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
+          # The new tag when the button bumped; otherwise the triggering ref.
+          ref: ${{ needs.bump.outputs.tag || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
       # v1 (frozen at v1.2.2) predates Zig's tarball rename and requests the old
       # `zig-<os>-<arch>-<ver>` name, which 404s for 0.15.x (real file is
