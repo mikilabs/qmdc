@@ -11,7 +11,7 @@ The edge type of a text field's leading `- key: [[#ref]]` list comes from the pr
 (`extract_preamble_refs` in Rust, `extractPreambleRefs` in TypeScript, `_extract_preamble_refs` in
 Python). It cuts the value at the first blank line with `split("\n\n")`. With CRLF the value is
 `- about: [[#api]]\r\n\r\nThe API accepts requests.`, which has no `\n\n`, so the prose line lands
-in the preamble block, fails the `- ` check, the whole preamble is rejected, and the edge falls
+in the preamble block, is not a list item, the whole preamble is rejected, and the edge falls
 back to the field name. That is why only "bullet, blank line, more text" triggers it.
 
 No fixture caught it: `.gitattributes` pins `*.qmd.md` to `eol=lf` (QMD-65), so every fixture is
