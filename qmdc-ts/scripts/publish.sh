@@ -38,7 +38,7 @@ cat > "$PKG_DIR/package.json" <<EOF
   "name": "@qmdc/cli-$SUFFIX",
   "version": "$VERSION",
   "description": "qmdc native CLI binary for $SUFFIX",
-  "license": "AGPL-3.0-or-later",
+  "license": "Apache-2.0",
   "repository": { "type": "git", "url": "https://github.com/mikilabs/qmdc" },
   "os": ["$NPM_OS"],
   "cpu": ["$NPM_CPU"],

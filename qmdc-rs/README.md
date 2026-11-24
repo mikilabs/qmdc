@@ -236,4 +236,4 @@ Or use the VS Code extension from `qmdc-vscode/`.
 
 ## License
 
-[AGPL-3.0-or-later](LICENSE) © mikilabs
+[Apache-2.0](LICENSE) © mikilabs

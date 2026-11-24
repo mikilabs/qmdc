@@ -5,7 +5,7 @@
   "version": "2.0.2",
   "publisher": "mikilabs",
   "icon": "icons/qmdc-marketplace.png",
-  "license": "AGPL-3.0-or-later",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/mikilabs/qmdc"

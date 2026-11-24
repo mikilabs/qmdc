@@ -67,7 +67,7 @@ for entry in "${TARGETS[@]}"; do
   "name": "@qmdc/cli-$suffix",
   "version": "$VERSION",
   "description": "qmdc native CLI binary for $suffix",
-  "license": "AGPL-3.0-or-later",
+  "license": "Apache-2.0",
   "repository": { "type": "git", "url": "https://github.com/mikilabs/qmdc" },
   "os": ["$npmos"],
   "cpu": ["$npmcpu"],
