@@ -191,4 +191,4 @@ See the [format specification](https://qmdc.mikilabs.io/) for the full spec.
 
 ## License
 
-[AGPL-3.0-or-later](LICENSE) © mikilabs
+[Apache-2.0](LICENSE) © mikilabs

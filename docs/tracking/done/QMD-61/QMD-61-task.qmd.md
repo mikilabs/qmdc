@@ -132,7 +132,7 @@ Do housekeeping, so like analyze what's there, delete or, uh, move to declined f
 
 1. License choice (MIT vs Apache-2.0) — nominally owned by QMD-60, but if undecided it blocks QMD-61 too.
 
-AGPL
+A copyleft license at the time; relicensed to Apache-2.0 by QMD-91.
 
 ### Resolved during triage [[qmd61_resolved]]
 

@@ -21,7 +21,7 @@ What actually exists in the tree today, checked before planning so the seed is b
 - `git lfs ls-files` tracks `docs2/.qmdc-semantic/embeddings.db` (≈93 MB smudged working file) and `zold_docs/.qmdc-semantic/embeddings.db`. Only the `zold_docs` one leaves (its parent is excluded).
 - `docs2/mkdocs.yml` has no `site_url`.
 - `README.md` is the QMD-60 state: English "Getting Started" + package table, but the body is still Russian and shows the old `qmd-py`/`qmd-ts`/`qmd-rs` wrapper invocations. Needs the OSS English rewrite.
-- `LICENSE` present (AGPL, from QMD-60) — verify only.
+- `LICENSE` present (copyleft at the time, from QMD-60; relicensed to Apache-2.0 by QMD-91) — verify only.
 - `tasks/` holds the live parser fixtures (see [[#qmd61_finding_fixtures]]).
 
 ## Open questions resolved [[qmd61_finding_open: Finding]]
@@ -37,7 +37,7 @@ The four task open-questions, with the operator answers and the consequences tri
 1. **`tasks/` fixtures** → relocate (operator: "a"). Caveat: the task says "arguably its own task QMD-62", but **QMD-62 is already taken** (a `done/` task + `tasks/QMD-62/artifacts/envelope-tests`); a split-out would be QMD-63. Treated here as the highest-risk layer [[#qmd61_finding_fixtures]].
 2. **Keep `docs2/tracking/` public?** → keep, after housekeeping (operator: analyse, decline/relocate dead or done-differently tasks, check in the rest). See [[#qmd61_finding_housekeeping]].
 3. **Pages URL** → custom domain `qmdc.mikilabs.io`, root-served (no `/qmdc/` subpath, no redirect). `site_url = https://qmdc.mikilabs.io/`. Local `mkdocs serve` / `make site` keep working unchanged; the domain only applies on deploy. Operator adds the DNS `CNAME` record and the GitHub Pages custom-domain setting.
-4. **License** → AGPL (delivered by QMD-60; verify present).
+4. **License** → copyleft at the time (delivered by QMD-60; verify present). Relicensed to Apache-2.0 by QMD-91.
 
 ### Secondary decisions (resolved) [[qmd61_open_decisions: text]]
 

@@ -4,7 +4,7 @@ version = "2.0.2"
 description = "Semantic search for QMDC workspaces - hybrid search, graph walk, inferred edges"
 readme = "README.md"
 requires-python = ">=3.12"
-license = "AGPL-3.0-or-later"
+license = "Apache-2.0"
 authors = [
     {name = "mikilabs"}
 ]

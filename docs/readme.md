@@ -10,7 +10,7 @@ Human-readable docs. Machine-queryable graph. Agent-ready context.
 [![npm](https://img.shields.io/npm/v/@qmdc/qmdc?label=npm)](https://www.npmjs.com/package/@qmdc/qmdc)
 [![VS Code Marketplace](https://vsmarketplacebadges.dev/version/mikilabs.qmdc-vscode.svg)](https://marketplace.visualstudio.com/items?itemName=MiKiLabs.qmdc-vscode)
 [![Open VSX](https://img.shields.io/open-vsx/v/mikilabs/qmdc-vscode?label=Open%20VSX)](https://open-vsx.org/extension/mikilabs/qmdc-vscode)
-[![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](https://github.com/mikilabs/qmdc/blob/main/LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://github.com/mikilabs/qmdc/blob/main/LICENSE)
 
 !!! warning "Alpha release"
     QMDC is early and moving fast — the format, APIs, and tooling may still change, and some edges will be rough or broken. If something doesn't work, please [open an issue](https://github.com/mikilabs/qmdc/issues). Bug reports and feedback are hugely welcome.

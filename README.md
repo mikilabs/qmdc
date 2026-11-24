@@ -6,7 +6,7 @@
 [![npm](https://img.shields.io/npm/v/@qmdc/qmdc?label=npm)](https://www.npmjs.com/package/@qmdc/qmdc)
 [![VS Code Marketplace](https://vsmarketplacebadges.dev/version/mikilabs.qmdc-vscode.svg)](https://marketplace.visualstudio.com/items?itemName=MiKiLabs.qmdc-vscode)
 [![Open VSX](https://img.shields.io/open-vsx/v/mikilabs/qmdc-vscode?label=Open%20VSX)](https://open-vsx.org/extension/mikilabs/qmdc-vscode)
-[![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
 > [!WARNING]
 > **Alpha release.** QMDC is early and moving fast — the format, APIs, and tooling may still change, and some edges will be rough or broken, especially on Windows. If something doesn't work, please [open an issue](https://github.com/mikilabs/qmdc/issues) — bug reports and feedback are hugely welcome.
@@ -180,4 +180,4 @@ After building, the wrapper scripts `./bin/qmdc-py`, `./bin/qmdc-ts`, and `./bin
 
 ## License
 
-[AGPL-3.0-or-later](LICENSE) © mikilabs
+[Apache-2.0](LICENSE) © mikilabs

@@ -312,4 +312,4 @@ code --install-extension qmdc-vscode-0.2.1.vsix
 
 ## License
 
-[AGPL-3.0-or-later](LICENSE) © mikilabs
+[Apache-2.0](LICENSE) © mikilabs

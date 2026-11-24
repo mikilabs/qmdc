@@ -57,7 +57,7 @@ Documentation content lives in `.qmd.md` files. Validate it with `./bin/qmdc-py 
 - Make sure `make test` is green and `make lint` is clean.
 - Update docs and add or adjust fixtures when behavior changes.
 - Write a clear description: what changed, why, and how you verified it.
-- By contributing, you agree your contributions are licensed under the project's [AGPL-3.0-or-later](LICENSE) license.
+- By contributing, you agree your contributions are licensed under the project's [Apache-2.0](LICENSE) license.
 
 ## Reporting bugs and requesting features
 
