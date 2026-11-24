@@ -90,7 +90,10 @@ jobs:
           lfs: true
           # The new tag when the button bumped; otherwise the triggering ref.
           ref: ${{ needs.bump.outputs.tag || github.ref }}
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned: stable 1.100.0 (2026-11-09) fails to link aarch64-pc-windows-gnullvm
+      # under cargo-zigbuild (undefined _Unwind_* symbols). 1.99.0 built 2.0.1.
+      # Keep in sync with ci.yml.
+      - uses: dtolnay/rust-toolchain@1.99.0
       # v1 (frozen at v1.2.2) predates Zig's tarball rename and requests the old
       # `zig-<os>-<arch>-<ver>` name, which 404s for 0.15.x (real file is
       # `zig-<arch>-<os>-<ver>`). v2.x uses the current naming + community mirrors.
