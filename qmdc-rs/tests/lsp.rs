@@ -161,6 +161,95 @@ fn get_lsp_test_dirs() -> Vec<(String, PathBuf, String)> {
     tests
 }
 
+/// Diagnostics for `target_uri` from the captured `publishDiagnostics` params,
+/// as an LSP client would hold them (latest publish per URI), simplified and
+/// sorted by line.
+///
+/// Files are matched by filename, because the URIs in a test definition differ
+/// from the real temp-dir URIs; `input.qmd.md` (single-file tests) matches any.
+fn collect_diagnostics(notifications: &[Value], target_uri: &str) -> Vec<Value> {
+    let target_filename = target_uri.rsplit('/').next().unwrap_or("");
+    let mut result_diagnostics: Vec<Value> = Vec::new();
+
+    // Each publish replaces the previous set for its URI: keep only the latest
+    // notification per URI, in first-seen order.
+    let mut latest: Vec<(&str, &Value)> = Vec::new();
+    for notification in notifications {
+        let uri = notification
+            .get("uri")
+            .and_then(|u| u.as_str())
+            .unwrap_or("");
+        match latest.iter_mut().find(|(u, _)| *u == uri) {
+            Some(slot) => slot.1 = notification,
+            None => latest.push((uri, notification)),
+        }
+    }
+
+    for (notif_uri, diag_notification) in latest {
+        let notif_filename = notif_uri.rsplit('/').next().unwrap_or("");
+
+        if notif_filename == target_filename || target_filename == "input.qmd.md" {
+            if let Some(diagnostics) = diag_notification
+                .get("diagnostics")
+                .and_then(|d| d.as_array())
+            {
+                for d in diagnostics {
+                    // Simplify diagnostic output
+                    let mut simplified = json!({
+                        "message": d.get("message"),
+                        "range": d.get("range"),
+                        "severity": d.get("severity"),
+                    });
+                    if let Some(code) = d.get("code") {
+                        simplified["code"] = code.clone();
+                    }
+                    result_diagnostics.push(simplified);
+                }
+            }
+        }
+    }
+
+    // Sort diagnostics by line number for deterministic output
+    result_diagnostics.sort_by_key(|d| {
+        d.get("range")
+            .and_then(|r| r.get("start"))
+            .and_then(|s| s.get("line"))
+            .and_then(|l| l.as_u64())
+            .unwrap_or(0)
+    });
+    result_diagnostics
+}
+
+/// A server may publish diagnostics for one file more than once (the fs
+/// watcher's rescan re-publishes every open buffer). In LSP each publish
+/// replaces the previous set for that URI, so only the latest one counts.
+#[test]
+fn collect_diagnostics_keeps_latest_publish_per_uri() {
+    let diag = json!({
+        "message": "table_in_array: field: tags, object: [[#doc]]",
+        "range": {"start": {"line": 4, "character": 0}, "end": {"line": 4, "character": 5}},
+        "severity": 1,
+        "code": "table_in_array",
+    });
+    let other = json!({
+        "message": "broken_link: [[#gone]]",
+        "range": {"start": {"line": 2, "character": 0}, "end": {"line": 2, "character": 9}},
+        "severity": 1,
+        "code": "broken_link",
+    });
+    let notifications = vec![
+        json!({"uri": "file:///ws/doc.qmd.md", "diagnostics": [other]}),
+        json!({"uri": "file:///ws/readme.qmd.md", "diagnostics": []}),
+        json!({"uri": "file:///ws/doc.qmd.md", "diagnostics": [diag.clone()]}),
+        json!({"uri": "file:///ws/readme.qmd.md", "diagnostics": []}),
+    ];
+
+    assert_eq!(
+        collect_diagnostics(&notifications, "workspace/doc.qmd.md"),
+        vec![diag]
+    );
+}
+
 async fn run_lsp_test(test_dir: &Path, category: &str) -> Result<(), String> {
     // Read input - either single file or workspace directory
     let input_file = test_dir.join("input.qmd.md");
@@ -384,58 +473,7 @@ async fn run_lsp_test(test_dir: &Path, category: &str) -> Result<(), String> {
                 .and_then(|u| u.as_str())
                 .unwrap_or("input.qmd.md");
 
-            let mut result_diagnostics: Vec<Value> = Vec::new();
-
-            for diag_notification in diags.iter() {
-                // Check if this notification is for our target URI
-                let notif_uri = diag_notification
-                    .get("uri")
-                    .and_then(|u| u.as_str())
-                    .unwrap_or("");
-
-                // Match by filename since URIs differ between test definition and actual
-                let notif_filename = notif_uri.rsplit('/').next().unwrap_or("");
-                let target_filename = target_uri.rsplit('/').next().unwrap_or("");
-
-                if notif_filename == target_filename || target_filename == "input.qmd.md" {
-                    if let Some(diagnostics) = diag_notification
-                        .get("diagnostics")
-                        .and_then(|d| d.as_array())
-                    {
-                        for d in diagnostics {
-                            // Simplify diagnostic output
-                            let mut simplified = json!({
-                                "message": d.get("message"),
-                                "range": d.get("range"),
-                                "severity": d.get("severity"),
-                            });
-                            if let Some(code) = d.get("code") {
-                                simplified["code"] = code.clone();
-                            }
-                            result_diagnostics.push(simplified);
-                        }
-                    }
-                }
-            }
-
-            // Sort diagnostics by line number for deterministic output
-            result_diagnostics.sort_by(|a, b| {
-                let line_a = a
-                    .get("range")
-                    .and_then(|r| r.get("start"))
-                    .and_then(|s| s.get("line"))
-                    .and_then(|l| l.as_u64())
-                    .unwrap_or(0);
-                let line_b = b
-                    .get("range")
-                    .and_then(|r| r.get("start"))
-                    .and_then(|s| s.get("line"))
-                    .and_then(|l| l.as_u64())
-                    .unwrap_or(0);
-                line_a.cmp(&line_b)
-            });
-
-            json!({ "diagnostics": result_diagnostics })
+            json!({ "diagnostics": collect_diagnostics(&diags, target_uri) })
         }
         "completion" => {
             let pos = request.get("position").ok_or("No position in request")?;
