@@ -1,0 +1,12 @@
+{
+  "columns": [
+    "__id",
+    "overview"
+  ],
+  "rows": [
+    [
+      "doc",
+      "- about: [[#api]]\n\nThe API accepts requests."
+    ]
+  ]
+}

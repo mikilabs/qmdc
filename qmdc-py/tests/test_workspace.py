@@ -670,3 +670,22 @@ def test_qmd77_workspace_parse_envelope(parser: str, tmp_path):
     assert "object" not in keys and "field" not in keys, (
         f"{parser}: the pre-QMD-77 spellings `object`/`field` must be gone, got {sorted(keys)}"
     )
+
+
+def test_qmd90_parse_reads_crlf_as_lf():
+    """QMD-90 (GitHub #23): parse() on a CRLF (or lone-CR) string gives the LF result.
+
+    The `crlf-line-endings` workspace fixture can't check this for Python: the workspace
+    scan opens files in text mode, which already turns CRLF into LF. This passes the
+    fixture's raw CRLF bytes straight to `parse()`.
+    """
+    from qmdc import parse
+
+    fixture = (
+        Path(__file__).parent.parent.parent / "tests/workspace/crlf-line-endings/readme.qmd.md"
+    )
+    crlf = fixture.read_bytes().decode("utf-8")
+    assert "\r\n" in crlf
+    lf = crlf.replace("\r\n", "\n")
+    assert parse(crlf, format="full") == parse(lf, format="full")
+    assert parse(lf.replace("\n", "\r"), format="full") == parse(lf, format="full")

@@ -307,7 +307,16 @@ function rebasedFences(fences: PendingCodeFence[], blockLine: number): CodeFence
   }));
 }
 
+/** QMD-90: CRLF and a lone CR read as LF. */
+export function normalizeLineEndings(markdown: string): string {
+  return markdown.includes('\r') ? markdown.replace(/\r\n?/g, '\n') : markdown;
+}
+
 export function parse(markdown: string, options: ParseOptions | number = {}): ParseResult {
+  // QMD-90: read CRLF and a lone CR as LF, so a file parses the same whatever line
+  // endings it was saved with (git's core.autocrlf=true checks files out with CRLF on
+  // Windows).
+  markdown = normalizeLineEndings(markdown);
   // Support legacy signature: parse(markdown, randomSeed)
   const opts: ParseOptions = typeof options === 'number' ? { randomSeed: options } : options;
   const { randomSeed = 666, format = 'standard', features } = opts;

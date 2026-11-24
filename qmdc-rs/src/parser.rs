@@ -261,8 +261,21 @@ fn create_table_child_objects(
     result
 }
 
+/// QMD-90: read CRLF and a lone CR as LF, so a file parses the same whatever line
+/// endings it was saved with (git's `core.autocrlf=true` checks files out with CRLF on
+/// Windows). Borrows when the text has no `\r`.
+pub fn normalize_line_endings(markdown: &str) -> std::borrow::Cow<'_, str> {
+    if markdown.contains('\r') {
+        std::borrow::Cow::Owned(markdown.replace("\r\n", "\n").replace('\r', "\n"))
+    } else {
+        std::borrow::Cow::Borrowed(markdown)
+    }
+}
+
 /// Main parse function
 pub fn parse(markdown: &str, options: ParseOptions) -> Vec<Value> {
+    let markdown = normalize_line_endings(markdown);
+    let markdown: &str = &markdown;
     let seed = options.random_seed.unwrap_or(666);
     let format = options.format;
     let mut rng = SimpleRng::new(seed);

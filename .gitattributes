@@ -3,3 +3,6 @@
 # QMD sources/fixtures are LF-only. Without this, core.autocrlf=true on Windows
 # checks out CRLF, and the CRLF leaks into LSP hover content (QMD-65).
 *.qmd.md text eol=lf
+
+# QMD-90: this fixture must keep its CRLF line endings, so git never converts it.
+tests/workspace/crlf-line-endings/*.qmd.md -text
