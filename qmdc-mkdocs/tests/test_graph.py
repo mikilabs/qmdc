@@ -351,3 +351,67 @@ class TestIndexPageBreadcrumb:
         assert f'href="../../">{self.WS}</a>' in crumb
         assert 'href="../">News</a>' in crumb
         assert "Archive</span>" in crumb
+
+
+EDGE_ORDER_FILES = {
+    "readme.qmd.md": "# Repro [[repro: __Workspace]]\n",
+    "axes.qmd.md": """\
+# Axes [[axes: Page]]
+
+## 1. Axis number 1 [[axis-1: Axis]]
+
+## 2. Axis number 2 [[axis-2: Axis]]
+
+## 3. Axis number 3 [[axis-3: Axis]]
+
+## 10. Axis number 10 [[axis-10: Axis]]
+
+## 11. Axis number 11 [[axis-11: Axis]]
+""",
+    "page.qmd.md": """\
+# Page [[p: Page]]
+
+Links: [[#axis-1]], [[#axis-2]], [[#axis-3]], [[#axis-10]], [[#axis-11]].
+""",
+}
+
+
+class TestEdgeOrder:
+    """Edge lists sort numbered labels by number, not as plain text (#44)."""
+
+    @staticmethod
+    def _ctx(tmp_path, source_file):
+        from qmdc_mkdocs.database import load_workspace
+
+        for rel_path, content in EDGE_ORDER_FILES.items():
+            (tmp_path / rel_path).write_text(content, encoding="utf-8")
+        ws = load_workspace(tmp_path)
+        try:
+            return compute_graph_context(source_file, ws)
+        finally:
+            ws.close()
+
+    def test_links_to_in_natural_order(self, tmp_path):
+        ctx = self._ctx(tmp_path, "page.qmd.md")
+        assert [e.obj_id for e in ctx.links_to] == [
+            "axes.axis-1", "axes.axis-2", "axes.axis-3", "axes.axis-10", "axes.axis-11",
+        ]
+
+    def test_linked_from_in_natural_order(self, tmp_path):
+        """The reverse list uses the same order, seen from the axes page."""
+        files = dict(EDGE_ORDER_FILES)
+        files["refs.qmd.md"] = "".join(
+            f"## Ref {n} [[ref-{n}: Ref]]\n\n- axis: [[#axes]]\n\n" for n in (10, 2, 1, 11, 3)
+        ).replace("## Ref", "# Refs [[refs: Page]]\n\n## Ref", 1)
+        from qmdc_mkdocs.database import load_workspace
+
+        for rel_path, content in files.items():
+            (tmp_path / rel_path).write_text(content, encoding="utf-8")
+        ws = load_workspace(tmp_path)
+        try:
+            ctx = compute_graph_context("axes.qmd.md", ws)
+        finally:
+            ws.close()
+        assert [e.label for e in ctx.linked_from if e.edge_type == "axis"] == [
+            "Ref 1", "Ref 2", "Ref 3", "Ref 10", "Ref 11",
+        ]
