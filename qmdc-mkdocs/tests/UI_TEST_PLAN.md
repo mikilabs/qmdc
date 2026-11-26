@@ -199,7 +199,10 @@ Agent-executable test plan for verifying the rendered site using Playwright.
 
 ### 7.3 Zoom/pan interactions
 - Clicking `+` / `−` zooms; the percentage label updates
-- "Fit to width" scales the diagram to the column; "1:1" shows actual size
+- On load a wide diagram fits the column but not below 75% (the label never shows
+  less than `75%`), and the rest scrolls horizontally; a diagram narrower than the
+  column stays at `100%`
+- "Fit to width" scales the whole diagram to the column, below 75% if needed; "1:1" shows actual size
 - Ctrl/Cmd + wheel zooms toward the cursor (plain wheel scrolls the page)
 - When zoomed wider than the column, the viewport gains `.mermaid-pannable` and
   drag / Arrow keys pan horizontally

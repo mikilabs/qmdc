@@ -15,9 +15,10 @@ features:
   workspace database and rendered as Markdown tables.
 - **Reference links** — `[[#id]]` references become clickable links to the target
   object's page and anchor.
-- **Mermaid diagrams** — ` ```mermaid ` fences render at natural (readable) size
-  and get a zoom/pan viewport with a toolbar (fit-to-width, actual size, zoom
-  in/out; Ctrl/Cmd+wheel and drag to pan). Enabled automatically by the plugin —
+- **Mermaid diagrams** — ` ```mermaid ` fences open fitted to the column, but never
+  below 75% of natural size, so labels stay readable and a wider diagram scrolls
+  horizontally. They get a zoom/pan viewport with a toolbar (fit-to-width, actual
+  size, zoom in/out; Ctrl/Cmd+wheel and drag to pan). Enabled automatically by the plugin —
   no `markdown_extensions` config required. Mermaid is **self-hosted** (vendored
   into the site, no third-party CDN), so diagrams render offline / behind a CSP,
   and the theme follows Material's light/dark palette. The renderer core is

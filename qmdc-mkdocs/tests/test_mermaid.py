@@ -449,3 +449,35 @@ class TestTouchToolbar:
         rule = self._rule(self._touch_block(), ".mermaid-btn")
         assert "min-width: 44px;" in rule
         assert "height: 44px;" in rule
+
+
+class TestDefaultFitFloor:
+    """A wide diagram opens at a readable scale, not shrunk without limit (#34).
+
+    The default (load and resize) fit is clamped to MIN_FIT and the rest scrolls
+    horizontally; the fit-to-width button and the `0` key still fit the whole
+    diagram. Measured in Chromium at 1400x1000 on the issue's 8-node flowchart:
+    28% before, 75% after; the button still gives 28%.
+    """
+
+    @staticmethod
+    def _core() -> str:
+        return (TEMPLATES / "js" / "qmdc-mermaid-core.js").read_text(encoding="utf-8")
+
+    def test_core_declares_a_readable_floor(self):
+        import re
+
+        m = re.search(r"var MIN_FIT = ([0-9.]+);", self._core())
+        assert m, "no MIN_FIT floor in qmdc-mermaid-core.js"
+        assert 0.6 <= float(m.group(1)) <= 1
+
+    def test_initial_fit_uses_the_floor(self):
+        js = self._core()
+        assert "var fitFloor = MIN_FIT;" in js
+        assert "fit(fitFloor);" in js
+        assert "Math.max(floor, Math.min(availWidth() / natW, 1))" in js
+
+    def test_fit_button_and_key_fit_the_whole_diagram(self):
+        js = self._core()
+        # Both the ⤢ button and the `0` key opt out of the floor.
+        assert js.count("fitFloor = 0;") == 2
