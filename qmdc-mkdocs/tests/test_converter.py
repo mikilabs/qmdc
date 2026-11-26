@@ -560,3 +560,35 @@ class TestPropsCardValues:
             "Body text.\n",
         )
         assert values == ['"Quoted" and not', "\"open'"]
+
+
+class TestPropsCardWraps:
+    """A long unbroken value wraps inside the props card instead of widening it (#35).
+
+    Measured in Chromium on the issue's page: at 390x844 the page was 665 px wide
+    with a 610 px value track before, and 390 px with the value inside the card
+    after; at 1280 px the card keeps two columns. This pins the CSS that does it.
+    """
+
+    @staticmethod
+    def _css() -> str:
+        css_path = (
+            Path(__file__).parent.parent
+            / "qmdc_mkdocs" / "templates" / "css" / "qmdc-extra.css"
+        )
+        return " ".join(css_path.read_text(encoding="utf-8").split())
+
+    def test_value_track_can_shrink_below_its_content(self):
+        css = self._css()
+        assert "grid-template-columns: minmax(5rem, max-content) minmax(0, 1fr);" in css
+        assert "grid-template-columns: minmax(0, 1fr); gap: 0.1rem;" in css  # narrow layout
+        assert "grid-template-columns: minmax(5rem, max-content) 1fr;" not in css
+
+    def test_value_breaks_unbroken_text(self):
+        import re
+
+        css = self._css()
+        rule = re.search(r"\.qmdc-prop__val \{([^}]*)\}", css)
+        assert rule, "no .qmdc-prop__val rule"
+        assert "min-width: 0;" in rule.group(1)
+        assert "overflow-wrap: anywhere;" in rule.group(1)
