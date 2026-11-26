@@ -15,14 +15,27 @@
 <nav class="md-nav md-nav--secondary qmdc-sidebar" data-pagefind-ignore aria-label="Graph sidebar">
 
   {# Breadcrumb #}
+  {# Ancestors link to their index pages when those are in the site. On the namespace's
+     or workspace's own readme that item is the current page, so no page item follows. #}
+  {% set current = sidebar.current_level or "file" %}
   <div class="sb-breadcrumb">
-    <span class="sb-breadcrumb__item">{{ sidebar.workspace_label | e }}</span>
+    {% if sidebar.workspace_href %}
+    <a class="sb-breadcrumb__item sb-crumb" href="{{ sidebar.workspace_href | e }}">{{ sidebar.workspace_label | e }}</a>
+    {% else %}
+    <span class="sb-breadcrumb__item{% if current == 'workspace' %} sb-breadcrumb__item--current{% endif %}">{{ sidebar.workspace_label | e }}</span>
+    {% endif %}
     {% if sidebar.namespace_label %}
     <span class="sb-breadcrumb__sep" aria-hidden="true">›</span>
-    <span class="sb-breadcrumb__item">{{ sidebar.namespace_label | e }}</span>
+    {% if sidebar.namespace_href %}
+    <a class="sb-breadcrumb__item sb-crumb" href="{{ sidebar.namespace_href | e }}">{{ sidebar.namespace_label | e }}</a>
+    {% else %}
+    <span class="sb-breadcrumb__item{% if current == 'namespace' %} sb-breadcrumb__item--current{% endif %}">{{ sidebar.namespace_label | e }}</span>
     {% endif %}
+    {% endif %}
+    {% if current == "file" %}
     <span class="sb-breadcrumb__sep" aria-hidden="true">›</span>
     <span class="sb-breadcrumb__item sb-breadcrumb__item--current">{{ sidebar.file_label | e }}</span>
+    {% endif %}
   </div>
 
   {# Page TOC #}

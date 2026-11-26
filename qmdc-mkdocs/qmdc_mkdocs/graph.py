@@ -41,6 +41,18 @@ class GraphContext:
     linked_from: list[EdgeItem]
     siblings: list[SiblingItem]
     toc: list[dict]  # [{id, label, level}]
+    # Which breadcrumb item is the current page: "workspace" or "namespace" on that
+    # object's own readme, otherwise "file".
+    current_level: str = "file"
+    # Output-relative paths of the workspace and namespace index pages, for breadcrumb
+    # links; None when the page is not in the built site or is the current page.
+    workspace_page: str | None = None
+    namespace_page: str | None = None
+
+
+# A page is named by its top-level object. System objects are skipped, except the
+# __Namespace / __Workspace heading that names a namespace or workspace readme.
+_PAGE_OBJECT_FILTER = "(__kind NOT GLOB '__*' OR __kind IN ('__Namespace', '__Workspace'))"
 
 
 def compute_graph_context(
@@ -68,6 +80,35 @@ def compute_graph_context(
     ws_label = _get_workspace_label(ws_data)
     ns_label = _get_namespace_label(source_file, ws_data)
     file_label = _get_file_label(source_file, ws_data)
+
+    # Breadcrumb ancestors: the files holding the __Workspace and __Namespace objects.
+    ws_file = _get_index_file(ws_data, "__Workspace", None)
+    ns_file = (
+        _get_index_file(ws_data, "__Namespace", _namespace_id(source_file))
+        if ns_label is not None
+        else None
+    )
+    if source_file == ws_file:
+        current_level = "workspace"
+    elif source_file == ns_file:
+        current_level = "namespace"
+    else:
+        current_level = "file"
+
+    def _linkable(index_file: str | None) -> str | None:
+        """Output path of an ancestor index page, if it is in the site and not this page."""
+        if index_file is None or index_file == source_file:
+            return None
+        if namespace_prefix is not None:
+            prefix = namespace_prefix + "/"
+            if not index_file.startswith(prefix):
+                return None  # outside the namespace being built
+            out = index_file[len(prefix):]
+        else:
+            out = index_file
+        if is_excluded(index_file, ignore_patterns or [], namespace_prefix):
+            return None
+        return out
 
     # Outgoing edges (links-to): objects in THIS file reference objects in OTHER files
     links_to_rows = ws_data.query(
@@ -151,11 +192,14 @@ def compute_graph_context(
         ],
         siblings=siblings,
         toc=toc,
+        current_level=current_level,
+        workspace_page=_linkable(ws_file),
+        namespace_page=_linkable(ns_file),
     )
 
 
 def _get_page_object(source_file: str, ws_data: WorkspaceData) -> dict | None:
-    """The top-level non-system object of a file (same rule as _get_file_label)."""
+    """The top-level non-system object of a file (system objects never credited)."""
     rows = ws_data.query(
         """
         SELECT __id, __label, __kind, __file FROM objects
@@ -215,15 +259,34 @@ def _get_namespace_label(source_file: str, ws_data: WorkspaceData) -> str | None
     if directory == ".":
         return None
 
-    # The namespace ID is typically the first path component
-    ns_id = directory.split("/")[0]
     rows = ws_data.query(
         "SELECT __label FROM objects WHERE __kind = '__Namespace' AND __id = ?",
-        params=(ns_id,),
+        params=(_namespace_id(source_file),),
     )
     if rows and rows[0]["__label"]:
         return rows[0]["__label"]
     return None
+
+
+def _namespace_id(source_file: str) -> str:
+    """The namespace ID for a file: typically its first path component."""
+    return str(PurePosixPath(source_file).parent).split("/")[0]
+
+
+def _get_index_file(
+    ws_data: WorkspaceData, kind: str, obj_id: str | None
+) -> str | None:
+    """The file holding the __Workspace object, or the __Namespace with ``obj_id``."""
+    if obj_id is None:
+        rows = ws_data.query(
+            "SELECT __file FROM objects WHERE __kind = ? LIMIT 1", params=(kind,)
+        )
+    else:
+        rows = ws_data.query(
+            "SELECT __file FROM objects WHERE __kind = ? AND __id = ? LIMIT 1",
+            params=(kind, obj_id),
+        )
+    return rows[0]["__file"] if rows and rows[0]["__file"] else None
 
 
 def _label_from_filename(source_file: str) -> str:
@@ -244,11 +307,11 @@ def _label_from_filename(source_file: str) -> str:
 
 
 def _get_file_label(source_file: str, ws_data: WorkspaceData) -> str:
-    """Get the top-level non-system object's __label on this file."""
+    """Get the __label of the page's top-level object (see _PAGE_OBJECT_FILTER)."""
     rows = ws_data.query(
-        """
+        f"""
         SELECT __label FROM objects
-        WHERE __file = ? AND __kind NOT GLOB '__*'
+        WHERE __file = ? AND {_PAGE_OBJECT_FILTER}
         ORDER BY CAST(__level AS INTEGER) ASC, CAST(__line AS INTEGER) ASC
         LIMIT 1
         """,
@@ -264,7 +327,7 @@ def _get_siblings(source_file: str, ws_data: WorkspaceData) -> list[SiblingItem]
     """Get other files in the same directory as the source file.
 
     Resolves all sibling labels in a single batch query (the top-level
-    non-system object per file) instead of one query per file (avoids N+1).
+    page object per file) instead of one query per file (avoids N+1).
     """
     directory = str(PurePosixPath(source_file).parent)
 
@@ -289,12 +352,13 @@ def _get_siblings(source_file: str, ws_data: WorkspaceData) -> list[SiblingItem]
         params=params,
     )
 
-    # Batch-resolve labels: the first top-level non-system object per file.
+    # Batch-resolve labels: the page's top-level object per file (same rule as
+    # _get_file_label, see _PAGE_OBJECT_FILTER).
     label_rows = ws_data.query(
         f"""
         SELECT __file, __label FROM (
             SELECT __file, __label FROM objects
-            WHERE ({file_filter}) AND __kind NOT GLOB '__*'
+            WHERE ({file_filter}) AND {_PAGE_OBJECT_FILTER}
             ORDER BY CAST(__level AS INTEGER) ASC, CAST(__line AS INTEGER) ASC
         )
         GROUP BY __file
