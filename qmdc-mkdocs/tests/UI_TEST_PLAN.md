@@ -59,6 +59,8 @@ Agent-executable test plan for verifying the rendered site using Playwright.
 - On `/architecture/algorithms/`: breadcrumb shows "QMD Documentation v2 › Architecture › Parsing Algorithm"
 - On `/format/references/`: breadcrumb shows "QMD Documentation v2 › QMD Format Specification › Reference"
 - On `/readme/`: breadcrumb shows "QMD Documentation v2 › [file label]" (no namespace segment)
+- On a namespace index such as `/architecture/`: breadcrumb shows "QMD Documentation v2 › Architecture", ending at the namespace (its first child object is not appended)
+- The workspace and namespace items are links to their index pages, except the item for the current page
 
 ### 2.3 Page TOC section
 - On `/architecture/algorithms/`: "On this page" section lists headings: Parsing Algorithm, Rebuild Algorithm, Workspace Indexing, SQLite Mapping, Reference Resolution

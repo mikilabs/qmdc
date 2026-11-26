@@ -572,6 +572,17 @@ def _build_front_matter(
         "workspace_label": graph_ctx.workspace_label,
         "namespace_label": graph_ctx.namespace_label,
         "file_label": graph_ctx.file_label,
+        "current_level": graph_ctx.current_level,
+        "workspace_href": (
+            _compute_href(source_file, graph_ctx.workspace_page, None)
+            if graph_ctx.workspace_page
+            else None
+        ),
+        "namespace_href": (
+            _compute_href(source_file, graph_ctx.namespace_page, None)
+            if graph_ctx.namespace_page
+            else None
+        ),
         "links_to": [
             {
                 "edge_type": edge.edge_type,

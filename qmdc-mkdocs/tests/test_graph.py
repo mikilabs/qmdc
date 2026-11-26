@@ -235,3 +235,119 @@ class TestHiddenKinds:
         finally:
             ws.close()
         assert [(e.edge_type, e.obj_id) for e in ctx.links_to] == [("axis", "quality")]
+
+
+NAMESPACE_INDEX_FILES = {
+    "readme.qmd.md": "# A long descriptive workspace title for the whole site [[ws: __Workspace]]\n",
+    "news/readme.qmd.md": """\
+# News [[news: __Namespace]]
+
+Latest updates.
+
+### First update [[u1: Update]]
+
+Text.
+
+### Second update [[u2: Update]]
+
+Text.
+""",
+    "news/archive.qmd.md": """\
+# Archive [[archive: Page]]
+
+Older updates.
+""",
+}
+
+
+class TestIndexPageBreadcrumb:
+    """A namespace or workspace readme is named by its own heading (#41)."""
+
+    WS = "A long descriptive workspace title for the whole site"
+
+    @staticmethod
+    def _ws(tmp_path):
+        from qmdc_mkdocs.database import load_workspace
+
+        for rel_path, content in NAMESPACE_INDEX_FILES.items():
+            p = tmp_path / rel_path
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        return load_workspace(tmp_path)
+
+    def _ctx(self, tmp_path, source_file, **kwargs):
+        ws = self._ws(tmp_path)
+        try:
+            return compute_graph_context(source_file, ws, **kwargs)
+        finally:
+            ws.close()
+
+    def test_namespace_readme_is_the_namespace(self, tmp_path):
+        ctx = self._ctx(tmp_path, "news/readme.qmd.md")
+        assert ctx.file_label == "News"
+        assert ctx.current_level == "namespace"
+        assert ctx.workspace_page == "readme.qmd.md"
+        assert ctx.namespace_page is None  # it is the current page
+
+    def test_namespace_readme_sibling_label(self, tmp_path):
+        ctx = self._ctx(tmp_path, "news/readme.qmd.md")
+        assert [(s.label, s.is_current) for s in ctx.siblings] == [
+            ("Archive", False),
+            ("News", True),
+        ]
+
+    def test_page_in_namespace_links_both_ancestors(self, tmp_path):
+        ctx = self._ctx(tmp_path, "news/archive.qmd.md")
+        assert ctx.file_label == "Archive"
+        assert ctx.current_level == "file"
+        assert ctx.workspace_page == "readme.qmd.md"
+        assert ctx.namespace_page == "news/readme.qmd.md"
+
+    def test_workspace_readme_is_the_workspace(self, tmp_path):
+        ctx = self._ctx(tmp_path, "readme.qmd.md")
+        assert ctx.file_label == self.WS
+        assert ctx.current_level == "workspace"
+        assert ctx.workspace_page is None
+
+    def test_namespace_build_has_no_workspace_link(self, tmp_path):
+        ctx = self._ctx(tmp_path, "news/archive.qmd.md", namespace_prefix="news")
+        assert ctx.workspace_page is None
+        assert ctx.namespace_page == "readme.qmd.md"  # output path, prefix stripped
+
+    def test_ignored_index_page_is_not_linked(self, tmp_path):
+        ctx = self._ctx(
+            tmp_path, "news/archive.qmd.md", ignore_patterns=["news/readme.qmd.md"]
+        )
+        assert ctx.namespace_page is None
+        assert ctx.workspace_page == "readme.qmd.md"
+
+    def test_breadcrumb_template(self, tmp_path):
+        from pathlib import Path
+
+        import jinja2
+
+        import qmdc_mkdocs
+        from qmdc_mkdocs.converter import _build_front_matter
+        import yaml
+
+        templates = Path(qmdc_mkdocs.__file__).parent / "templates"
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(templates)))
+        tmpl = env.get_template("partials/toc.html")
+
+        def render(source_file):
+            ctx = self._ctx(tmp_path, source_file)
+            fm = _build_front_matter(ctx, {}, source_file)
+            sidebar = yaml.safe_load(fm.split("---\n")[1])["_graph_sidebar"]
+            html = tmpl.render(qmdc_graph_sidebar=sidebar)
+            return html.split('<div class="sb-breadcrumb">', 1)[1].split("</div>", 1)[0]
+
+        crumb = render("news/readme.qmd.md")
+        assert f'href="../">{self.WS}</a>' in crumb
+        assert "News</span>" in crumb
+        assert "First update" not in crumb
+        assert crumb.count("sb-breadcrumb__sep") == 1
+
+        crumb = render("news/archive.qmd.md")
+        assert f'href="../../">{self.WS}</a>' in crumb
+        assert 'href="../">News</a>' in crumb
+        assert "Archive</span>" in crumb
