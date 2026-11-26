@@ -116,10 +116,14 @@ def compute_graph_context(
             if not is_excluded(s.file, ignore_patterns, namespace_prefix)
         ]
 
-    # Filter out hidden kinds from edges
+    # Filter out hidden kinds from edges. An outgoing edge is listed from this
+    # page whatever kind its source has, so only the target kind matters there.
+    # An incoming edge from a hidden object is credited to the page that holds
+    # it (the file's top-level object), once per page and edge type, so both
+    # sides of the sidebar show the same page relationship.
     if hidden_kinds:
         links_to_rows = [r for r in links_to_rows if r["__kind"] not in hidden_kinds]
-        linked_from_rows = [r for r in linked_from_rows if r["__kind"] not in hidden_kinds]
+        linked_from_rows = _credit_hidden_sources(linked_from_rows, hidden_kinds, ws_data)
 
     return GraphContext(
         workspace_label=ws_label,
@@ -148,6 +152,48 @@ def compute_graph_context(
         siblings=siblings,
         toc=toc,
     )
+
+
+def _get_page_object(source_file: str, ws_data: WorkspaceData) -> dict | None:
+    """The top-level non-system object of a file (same rule as _get_file_label)."""
+    rows = ws_data.query(
+        """
+        SELECT __id, __label, __kind, __file FROM objects
+        WHERE __file = ? AND __kind NOT GLOB '__*'
+        ORDER BY CAST(__level AS INTEGER) ASC, CAST(__line AS INTEGER) ASC
+        LIMIT 1
+        """,
+        params=(source_file,),
+    )
+    return rows[0] if rows else None
+
+
+def _credit_hidden_sources(
+    rows: list[dict], hidden_kinds: list[str], ws_data: WorkspaceData
+) -> list[dict]:
+    """Replace incoming-edge sources of a hidden kind with their page object.
+
+    Rows keep their order; a page credited twice for the same edge type is
+    listed once, and a source whose page object is itself hidden is dropped.
+    """
+    pages: dict[str, dict | None] = {}
+    seen: set[tuple[str, str, str]] = set()
+    result: list[dict] = []
+    for r in rows:
+        if r["__kind"] in hidden_kinds:
+            file = r["__file"]
+            if file not in pages:
+                pages[file] = _get_page_object(file, ws_data)
+            page = pages[file]
+            if page is None or page["__kind"] in hidden_kinds:
+                continue
+            r = {"edge_type": r["edge_type"], **page}
+        key = (r["edge_type"], r["__id"], r["__file"])
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(r)
+    return result
 
 
 def _get_workspace_label(ws_data: WorkspaceData) -> str:

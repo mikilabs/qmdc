@@ -165,3 +165,73 @@ class TestComputeGraphContext:
             assert not edge.kind.startswith("__")
         for edge in ctx.linked_from:
             assert not edge.kind.startswith("__")
+
+
+HIDDEN_KIND_FILES = {
+    "readme.qmd.md": "# Repro [[repro: __Workspace]]\n",
+    "product.qmd.md": """\
+# Product [[p: Product]]
+
+Text.
+
+## Quality score [[s: Score]]
+
+- axis: [[#quality]]
+- value: 3
+
+## Speed score [[s2: Score]]
+
+- axis: [[#quality]]
+- value: 4
+""",
+    "quality.qmd.md": """\
+# Quality [[quality: Axis]]
+
+What quality means.
+""",
+    "scores.qmd.md": """\
+# Loose score [[loose: Score]]
+
+- axis: [[#quality]]
+""",
+}
+
+
+class TestHiddenKinds:
+    """`hidden_kinds` hides an object, not the page that holds it (#42)."""
+
+    @staticmethod
+    def _ws(tmp_path):
+        from qmdc_mkdocs.database import load_workspace
+
+        for rel_path, content in HIDDEN_KIND_FILES.items():
+            (tmp_path / rel_path).write_text(content, encoding="utf-8")
+        return load_workspace(tmp_path)
+
+    def test_hidden_source_is_credited_to_its_page(self, tmp_path):
+        ws = self._ws(tmp_path)
+        try:
+            ctx = compute_graph_context("quality.qmd.md", ws, hidden_kinds=["Score"])
+        finally:
+            ws.close()
+        # Two Score objects in product.qmd.md give one Product entry; the file
+        # whose top-level object is itself a Score gives none.
+        assert [(e.edge_type, e.obj_id, e.label, e.kind, e.file) for e in ctx.linked_from] == [
+            ("axis", "p", "Product", "Product", "product.qmd.md"),
+        ]
+
+    def test_without_hidden_kinds_sources_are_listed(self, tmp_path):
+        ws = self._ws(tmp_path)
+        try:
+            ctx = compute_graph_context("quality.qmd.md", ws)
+        finally:
+            ws.close()
+        assert sorted(e.obj_id for e in ctx.linked_from) == ["loose", "p.s", "p.s2"]
+
+    def test_links_to_side_is_unchanged(self, tmp_path):
+        ws = self._ws(tmp_path)
+        try:
+            ctx = compute_graph_context("product.qmd.md", ws, hidden_kinds=["Score"])
+        finally:
+            ws.close()
+        assert [(e.edge_type, e.obj_id) for e in ctx.links_to] == [("axis", "quality")]
