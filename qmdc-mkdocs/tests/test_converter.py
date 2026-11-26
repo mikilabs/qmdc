@@ -301,8 +301,9 @@ class TestAssetCopy:
         assert not (tmpdir / "docs" / "assets" / "qmdc").exists()
 
     def test_inplace_servable_asset_left_untouched(self, tmp_path, mock_workspace_db):
-        """An image already servable in place (non-dot dir, inside the workspace) is left
-        alone — minimal intervention, no needless copy/rewrite."""
+        """An image inside the workspace under a non-dot path keeps its reference text,
+        and is copied to the same relative path under docs/ — MkDocs builds from that
+        temporary docs dir, not from the workspace (#46)."""
         workspace = tmp_path / "workspace"
         workspace.mkdir()
         self._write(workspace / "assets" / "inplace.png")
@@ -317,6 +318,45 @@ class TestAssetCopy:
         out = (tmpdir / "docs" / "guide.md").read_text()
         assert "![In place](assets/inplace.png)" in out
         assert not (tmpdir / "docs" / "assets" / "qmdc").exists()
+        assert (tmpdir / "docs" / "assets" / "inplace.png").read_bytes() == self._PNG
+
+    def test_sibling_image_copied_next_to_page(self, tmp_path, mock_workspace_db):
+        """The issue's case: `![chart](wide.png)` with wide.png beside the page (#46)."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        self._write(workspace / "wide.png")
+        (workspace / "figure.qmd.md").write_text(
+            "# Wide figure [[wide: Source]]\n\n![A wide process chart](wide.png)\n"
+        )
+        tmpdir = tmp_path / "build"
+        tmpdir.mkdir()
+
+        convert_workspace(workspace, tmpdir, mock_workspace_db, {})
+
+        out = (tmpdir / "docs" / "figure.md").read_text()
+        assert "![A wide process chart](wide.png)" in out
+        assert (tmpdir / "docs" / "wide.png").read_bytes() == self._PNG
+
+    def test_inplace_asset_in_namespace_build(self, tmp_path, mock_workspace_db):
+        """A single-namespace build strips the namespace prefix from page paths, so an
+        in-place image under that namespace lands at the stripped path too."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        self._write(workspace / "storage" / "img" / "er.png")
+        (workspace / "storage").mkdir(exist_ok=True)
+        (workspace / "storage" / "schema.qmd.md").write_text(
+            "# Schema [[schema]]\n\n![ER](img/er.png)\n"
+        )
+        tmpdir = tmp_path / "build"
+        tmpdir.mkdir()
+
+        convert_workspace(
+            workspace, tmpdir, mock_workspace_db, {}, namespace_prefix="storage"
+        )
+
+        out = (tmpdir / "docs" / "schema.md").read_text()
+        assert "![ER](img/er.png)" in out
+        assert (tmpdir / "docs" / "img" / "er.png").read_bytes() == self._PNG
 
 
 class TestBuildFrontMatter:
