@@ -406,3 +406,46 @@ class TestMermaidEndToEnd:
         assert "<summary>" in index
         # ...not leaked as literal markup.
         assert "??? note" not in index
+
+
+class TestTouchToolbar:
+    """On touch screens the toolbar is visible, beside the diagram, and tappable (#45).
+
+    A touch screen never hovers before the first tap, so the hover-only opacity and
+    the overlay position must be overridden under `@media (hover: none)`. Measured in
+    Chromium at 390x844 with touch emulation: opacity 1, 44x44 buttons, toolbar above
+    the diagram with no overlap; a mouse desktop keeps the floating toolbar.
+    """
+
+    @staticmethod
+    def _touch_block() -> str:
+        import re
+
+        css = (TEMPLATES / "css" / "qmdc-mermaid.css").read_text(encoding="utf-8")
+        m = re.search(r"@media \(hover: none\) \{(.*?)\n\}", css, re.S)
+        assert m, "no @media (hover: none) block in qmdc-mermaid.css"
+        return m.group(1)
+
+    @staticmethod
+    def _rule(block: str, selector: str) -> str:
+        import re
+
+        m = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", block)
+        assert m, f"no {selector} rule in the touch block"
+        return " ".join(m.group(1).split())
+
+    def test_toolbar_fully_visible_and_out_of_the_overlay(self):
+        rule = self._rule(self._touch_block(), ".mermaid-toolbar")
+        assert "opacity: 1;" in rule
+        assert "position: static;" in rule
+        assert "order: -1;" in rule  # the core appends it after the viewport
+
+    def test_container_stacks_toolbar_above_diagram(self):
+        rule = self._rule(self._touch_block(), ".mermaid")
+        assert "display: flex;" in rule
+        assert "flex-direction: column;" in rule
+
+    def test_touch_targets_are_44px(self):
+        rule = self._rule(self._touch_block(), ".mermaid-btn")
+        assert "min-width: 44px;" in rule
+        assert "height: 44px;" in rule
