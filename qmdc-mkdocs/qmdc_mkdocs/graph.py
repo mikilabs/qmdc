@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
@@ -157,6 +158,11 @@ def compute_graph_context(
             if not is_excluded(s.file, ignore_patterns, namespace_prefix)
         ]
 
+    # SQL orders labels as plain text (`10. …` before `2. …`); order both lists by
+    # edge type, then naturally by the label shown.
+    links_to_rows = sorted(links_to_rows, key=_edge_sort_key)
+    linked_from_rows = sorted(linked_from_rows, key=_edge_sort_key)
+
     # Filter out hidden kinds from edges. An outgoing edge is listed from this
     # page whatever kind its source has, so only the target kind matters there.
     # An incoming edge from a hidden object is credited to the page that holds
@@ -238,6 +244,25 @@ def _credit_hidden_sources(
         seen.add(key)
         result.append(r)
     return result
+
+
+_DIGITS_RE = re.compile(r"(\d+)")
+
+
+def _natural_key(text: str) -> list:
+    """Sort key that compares digit runs as numbers and text case-insensitively.
+
+    Alternating text/number parts start with a (possibly empty) text part, so two
+    keys never compare a number with a string.
+    """
+    parts = _DIGITS_RE.split(text)
+    return [int(p) if i % 2 else p.casefold() for i, p in enumerate(parts)]
+
+
+def _edge_sort_key(row: dict) -> tuple:
+    """Edge type, then the displayed label in natural order, then the label as is."""
+    label = row["__label"] or row["__id"]
+    return (row["edge_type"] or "", _natural_key(label), label)
 
 
 def _get_workspace_label(ws_data: WorkspaceData) -> str:
