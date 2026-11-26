@@ -7,7 +7,6 @@ from qmdc_mkdocs.graph import (
     _get_file_label,
     _get_namespace_label,
     _get_siblings,
-    _get_toc,
     _get_workspace_label,
     compute_graph_context,
 )
@@ -72,32 +71,6 @@ class TestGetSiblings:
         assert "storage/tables.qmd.md" not in files
 
 
-class TestGetToc:
-    def test_returns_toc_entries_for_page(self, mock_workspace_db):
-        toc = _get_toc("storage/tables.qmd.md", mock_workspace_db)
-        assert len(toc) == 2
-        ids = [entry["id"] for entry in toc]
-        assert "users" in ids
-        assert "orders" in ids
-
-    def test_toc_entries_have_required_keys(self, mock_workspace_db):
-        toc = _get_toc("storage/tables.qmd.md", mock_workspace_db)
-        for entry in toc:
-            assert "id" in entry
-            assert "label" in entry
-            assert "level" in entry
-
-    def test_toc_excludes_system_objects(self, mock_workspace_db):
-        toc = _get_toc("readme.qmd.md", mock_workspace_db)
-        # readme.qmd.md only has the __Workspace object, which is system
-        assert len(toc) == 0
-
-    def test_toc_level_is_integer(self, mock_workspace_db):
-        toc = _get_toc("storage/tables.qmd.md", mock_workspace_db)
-        for entry in toc:
-            assert isinstance(entry["level"], int)
-
-
 class TestComputeGraphContext:
     def test_returns_graph_context_dataclass(self, mock_workspace_db):
         ctx = compute_graph_context("api/endpoints.qmd.md", mock_workspace_db)
@@ -140,12 +113,6 @@ class TestComputeGraphContext:
         files = [s.file for s in ctx.siblings]
         assert "api/endpoints.qmd.md" in files
         assert "api/readme.qmd.md" in files
-
-    def test_toc_entries(self, mock_workspace_db):
-        ctx = compute_graph_context("storage/tables.qmd.md", mock_workspace_db)
-        assert len(ctx.toc) == 2
-        assert ctx.toc[0]["id"] == "users"
-        assert ctx.toc[0]["label"] == "Users"
 
     def test_no_self_edges_in_links_to(self, mock_workspace_db):
         # Edges within the same file should not appear in links_to
@@ -351,6 +318,113 @@ class TestIndexPageBreadcrumb:
         assert f'href="../../">{self.WS}</a>' in crumb
         assert 'href="../">News</a>' in crumb
         assert "Archive</span>" in crumb
+
+
+PAGE_TOC_FILES = {
+    "readme.qmd.md": "# Repro [[repro: __Workspace]]\n",
+    "page.qmd.md": """\
+# Demo [[demo: Page]]
+
+## Part one [[part-one: Section]]
+
+Typed object heading.
+
+## Summary [[summary: text]]
+
+A text field.
+
+### Plain subsection
+
+Plain Markdown heading.
+
+## Plain & <em>heading</em>
+
+Plain Markdown heading.
+""",
+}
+
+
+class TestPageToc:
+    """"On this page" lists every rendered heading below the title, nested (#36).
+
+    It is built from MkDocs' own page.toc, so text-field and plain headings are
+    listed with the anchors they really have, not only typed objects.
+    """
+
+    @staticmethod
+    def _toc_section(tmp_path) -> tuple[str, str]:
+        from click.testing import CliRunner
+
+        from qmdc_mkdocs.cli import cli
+
+        ws = tmp_path / "ws"
+        for rel_path, content in PAGE_TOC_FILES.items():
+            p = ws / rel_path
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        out = tmp_path / "site"
+        result = CliRunner().invoke(
+            cli, ["--workspace", str(ws), "--output", str(out), "build"]
+        )
+        assert result.exit_code == 0, f"build failed: {result.output}"
+        html = (out / "page" / "index.html").read_text(encoding="utf-8")
+        section = html.split('<div class="sb-section sb-section--toc">', 1)[1]
+        return html, section.split('<div class="sb-section sb-section--', 1)[0]
+
+    def test_lists_every_heading_in_order_with_real_anchors(self, tmp_path):
+        import re
+
+        html, toc = self._toc_section(tmp_path)
+        links = re.findall(r'<a href="#([^"]+)" class="md-nav__link sb-toc-link">(.*?)</a>', toc, re.S)
+        labels = [re.sub(r"\s+", " ", label).strip() for _, label in links]
+        assert labels == ["Part one", "Summary", "Plain subsection", "Plain &amp; heading"]
+        # Every link targets a heading that exists on the page.
+        for anchor, _ in links:
+            assert f'id="{anchor}"' in html, anchor
+        # The page title (h1) is not repeated in its own TOC.
+        assert "Demo" not in toc
+
+    def test_keeps_heading_nesting(self, tmp_path):
+        _, toc = self._toc_section(tmp_path)
+        summary, rest = toc.split(">Summary</a>", 1)
+        sub, after = rest.split(">Plain subsection</a>", 1)
+        # The h3 sits in a nested list opened inside the Summary item...
+        assert '<ul class="md-nav__list sb-toc-sub">' in sub
+        assert "</li>" not in sub
+        # ...which closes before the next h2.
+        assert "</ul>" in after.split(">Plain &amp; heading</a>", 1)[0]
+
+    def test_headings_after_a_second_h1_are_kept(self):
+        """A rendered example can add a second h1; its headings stay listed."""
+        import re
+        from pathlib import Path
+        from types import SimpleNamespace
+
+        import jinja2
+        from mkdocs.structure.toc import AnchorLink, TableOfContents
+
+        import qmdc_mkdocs
+
+        def link(title, anchor, level, *children):
+            item = AnchorLink(title, anchor, level)
+            item.children = list(children)
+            return item
+
+        toc = TableOfContents([
+            link("Page", "page", 1, link("Before", "before", 2)),
+            link("Example", "example", 1, link("After", "after", 2)),
+        ])
+        templates = Path(qmdc_mkdocs.__file__).parent / "templates"
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(templates)))
+        html = env.get_template("partials/toc.html").render(
+            qmdc_graph_sidebar={"workspace_label": "WS", "file_label": "Page"},
+            page=SimpleNamespace(toc=toc),
+        )
+        assert re.findall(r'href="#([^"]+)" class="md-nav__link sb-toc-link"', html) == [
+            "before",
+            "example",
+            "after",
+        ]
 
 
 EDGE_ORDER_FILES = {
