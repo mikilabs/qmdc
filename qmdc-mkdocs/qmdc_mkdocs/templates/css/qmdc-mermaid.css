@@ -92,3 +92,27 @@
   color: var(--md-default-fg-color--light);
   user-select: none;
 }
+
+/* Touch screens never hover before the first tap, so the faint floating toolbar
+   would stay faint and cover the diagram. There it sits fully visible in its own
+   row above the diagram (the core script appends it after the viewport, hence the
+   column order), with 44px touch targets (WCAG 2.5.5). */
+@media (hover: none) {
+  .mermaid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mermaid-toolbar {
+    position: static;
+    order: -1;
+    align-self: flex-end;
+    margin-bottom: 4px;
+    opacity: 1;
+  }
+
+  .mermaid-btn {
+    min-width: 44px;
+    height: 44px;
+  }
+}

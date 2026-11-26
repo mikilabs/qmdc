@@ -192,6 +192,7 @@ Agent-executable test plan for verifying the rendered site using Playwright.
 - The diagram is wrapped in `.mermaid-viewport`
 - A `.mermaid-toolbar` is present with zoom out / label / zoom in / fit / 1:1 buttons
 - Toolbar is faint by default, becomes opaque on hover/focus
+- On a touch screen (`hover: none`, e.g. 390x844 with touch emulation): toolbar is fully opaque, sits in its own row above the diagram without covering it, and its buttons are at least 44x44 px
 - `container.dataset.zoomReady === "1"` after render
 
 ### 7.3 Zoom/pan interactions
