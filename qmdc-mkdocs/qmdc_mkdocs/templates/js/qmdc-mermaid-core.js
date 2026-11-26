@@ -27,7 +27,8 @@
 //      with no way to zoom. securityLevel is pinned to 'strict' (mermaid's default)
 //      so author diagram source cannot execute script.
 //   2. After rendering, wrap each diagram in a viewport that fits the diagram to
-//      the column width and scrolls *horizontally* when zoomed wider. Height
+//      the column width, but not below MIN_FIT (75%), and scrolls *horizontally*
+//      when the diagram is wider than the column. Height
 //      follows the SVG, so the diagram is never clipped vertically — the page just
 //      scrolls. A toolbar offers zoom in/out, fit-to-width and actual size;
 //      Ctrl/Cmd+wheel zooms toward the cursor; drag and arrow keys pan.
@@ -36,6 +37,10 @@
   "use strict";
 
   if (typeof mermaid === "undefined") return;
+
+  // Smallest scale the default view shrinks a wide diagram to (#34): mermaid's
+  // 16px labels stay at 12px; the part that does not fit scrolls horizontally.
+  var MIN_FIT = 0.75;
 
   function clamp(v, lo, hi) {
     return Math.max(lo, Math.min(hi, v));
@@ -81,10 +86,10 @@
       if (label) label.textContent = Math.round(scale * 100) + "%";
     }
 
-    // Default + "fit to width": scale so the diagram fills the column width
-    // without upscaling. Full height stays visible; the page scrolls if tall.
-    function fit() {
-      scale = Math.min(availWidth() / natW, 1);
+    // Fit to the column width without upscaling, but never below `floor`.
+    // Full height stays visible; the page scrolls if tall.
+    function fit(floor) {
+      scale = Math.max(floor, Math.min(availWidth() / natW, 1));
       apply();
     }
 
@@ -137,9 +142,12 @@
       wrap.classList.toggle("mermaid-pannable", overflows);
     }
 
-    // "fitted" tracks whether we should re-fit on container resize.
-    // Zooming/1:1 opt out; Fit opts back in.
+    // "fitted" tracks whether we should re-fit on container resize, and
+    // "fitFloor" the smallest scale that re-fit may use. The default view keeps
+    // MIN_FIT, so a wide diagram stays readable and the rest scrolls; the Fit
+    // button and the 0 key fit the whole diagram. Zooming/1:1 opt out of re-fit.
     var fitted = true;
+    var fitFloor = MIN_FIT;
 
     function centerZoom(factor) {
       var r = wrap.getBoundingClientRect();
@@ -160,7 +168,8 @@
     bFit.addEventListener("click", function (e) {
       e.stopPropagation();
       fitted = true;
-      fit();
+      fitFloor = 0;
+      fit(fitFloor);
       updateOverflowState();
     });
     bOne.addEventListener("click", function (e) {
@@ -207,7 +216,8 @@
         e.preventDefault();
       } else if (e.key === "0") {
         fitted = true;
-        fit();
+        fitFloor = 0;
+        fit(fitFloor);
         updateOverflowState();
         e.preventDefault();
       }
@@ -244,13 +254,13 @@
     // Re-fit on container resize (e.g. window/panel resize) while at fit scale.
     if (typeof ResizeObserver !== "undefined") {
       var ro = new ResizeObserver(function () {
-        if (fitted) fit();
+        if (fitted) fit(fitFloor);
         updateOverflowState();
       });
       ro.observe(container);
     }
 
-    fit();
+    fit(fitFloor);
     updateOverflowState();
   }
 

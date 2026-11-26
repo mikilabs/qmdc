@@ -441,11 +441,11 @@ async function renderWithMermaidEnhance(page: import('@playwright/test').Page, n
   await page.waitForSelector('.mermaid-viewport');
 }
 
-test('mermaid: large diagram is not squished (renders at fit-to-width size)', async ({ page }) => {
+test('mermaid: large diagram is not squished (opens at the 75% floor, Fit fits the column)', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 800 });
   await renderWithMermaidEnhance(page, 'mermaid-large-sequence.qmd.md');
 
-  const info = await page.evaluate(() => {
+  const readInfo = () => page.evaluate(() => {
     const svgEl = document.querySelector('div.mermaid svg') as SVGSVGElement;
     const wrap = document.querySelector('.mermaid-viewport') as HTMLElement;
     return {
@@ -453,14 +453,24 @@ test('mermaid: large diagram is not squished (renders at fit-to-width size)', as
       renderedWidth: parseFloat(svgEl.style.width),
       maxWidth: svgEl.style.maxWidth,
       contentW: wrap.clientWidth,
+      label: (document.querySelector('.mermaid-zoom-label') as HTMLElement).textContent,
     };
   });
+  const info = await readInfo();
 
   // useMaxWidth is disabled so the SVG is explicitly pixel-sized, not auto-shrunk.
   expect(info.maxWidth).toBe('none');
   expect(info.viewBoxWidth).toBeGreaterThan(1000);
-  // Default view fits the diagram to the full column width (within ~2px).
-  expect(Math.abs(info.renderedWidth - info.contentW)).toBeLessThanOrEqual(2);
+  // Fitting this diagram to the column would go below 75%, so the default view
+  // stops at the floor (#34) and the rest scrolls horizontally.
+  expect(info.contentW / info.viewBoxWidth).toBeLessThan(0.75);
+  expect(Math.abs(info.renderedWidth - 0.75 * info.viewBoxWidth)).toBeLessThanOrEqual(1);
+  expect(info.label).toBe('75%');
+
+  // The Fit button still fits the whole diagram to the column width (within ~2px).
+  await page.getByRole('button', { name: /fit to width/i }).click();
+  const fitted = await readInfo();
+  expect(Math.abs(fitted.renderedWidth - fitted.contentW)).toBeLessThanOrEqual(2);
 });
 
 test('mermaid: diagram in a horizontal-scroll viewport with toolbar', async ({ page }) => {
@@ -589,8 +599,12 @@ test('mermaid: one broken diagram does not block enhancing valid ones', async ({
 test('mermaid: grab affordance only when the diagram overflows', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 800 });
 
-  // At fit-to-width the diagram exactly fills the column — nothing to pan.
+  // The default view stops at the 75% floor, wider than the column — pannable.
   await renderWithMermaidEnhance(page, 'mermaid-large-sequence.qmd.md');
+  await expect(page.locator('.mermaid-viewport')).toHaveClass(/mermaid-pannable/);
+
+  // At fit-to-width the diagram exactly fills the column — nothing to pan.
+  await page.getByRole('button', { name: /fit to width/i }).click();
   await expect(page.locator('.mermaid-viewport')).not.toHaveClass(/mermaid-pannable/);
 
   // One zoom-in pushes it past the column width → pannable affordance appears.
