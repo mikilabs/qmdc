@@ -50,14 +50,24 @@ def generate_nav(db: WorkspaceData, namespace_prefix: str | None = None) -> list
         )
     }
 
-    file_labels = {
-        r["__file"]: r["__label"]
-        for r in db.query(
-            "SELECT __file, __label FROM objects "
-            "WHERE CAST(__level AS INTEGER) = 1 "
-            "AND __kind NOT GLOB '__*' AND __label IS NOT NULL"
-        )
-    }
+    # A page is named by its level-1 heading. A namespace or workspace readme is
+    # named by its __Namespace / __Workspace heading (#39), as the graph sidebar
+    # names it. Keys use the same paths as `files` (namespace prefix stripped).
+    # Rows come latest line first, so a file's first level-1 heading wins.
+    file_labels: dict[str, str] = {}
+    for r in db.query(
+        "SELECT __file, __label FROM objects "
+        "WHERE CAST(__level AS INTEGER) = 1 "
+        "AND (__kind NOT GLOB '__*' OR __kind IN ('__Namespace', '__Workspace')) "
+        "AND __label IS NOT NULL "
+        "ORDER BY __file, CAST(__line AS INTEGER) DESC"
+    ):
+        path = r["__file"]
+        if namespace_prefix:
+            if not path.startswith(namespace_prefix + "/"):
+                continue
+            path = path[len(namespace_prefix) + 1:]
+        file_labels[path] = r["__label"]
 
     # Build nested nav tree from directory structure
     nav = _build_nav_tree(files, namespaces, file_labels)

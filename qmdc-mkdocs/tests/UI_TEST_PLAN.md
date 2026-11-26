@@ -35,6 +35,8 @@ Agent-executable test plan for verifying the rendered site using Playwright.
 - `/format/` loads the format namespace readme
 - `/parsers/` loads the parsers namespace readme
 - Root `/` loads the workspace readme
+- In a generated nav (`nav.yml`, or a site with no `nav:`), each readme entry is named by its
+  `__Namespace` / `__Workspace` heading, never `Readme`
 
 ### 1.5 Plain readme.md priority
 - If a directory has both `readme.md` and `readme.qmd.md`, the plain `readme.md` is used as `index.md` without QMD transformation
