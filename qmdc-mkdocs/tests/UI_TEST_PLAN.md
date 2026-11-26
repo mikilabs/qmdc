@@ -111,12 +111,12 @@ Agent-executable test plan for verifying the rendered site using Playwright.
 ## 4. QMD Syntax Transformation
 
 ### 4.1 Object headings have ID anchors
-- On `/architecture/algorithms/`: heading "Parsing Algorithm" has an element with `id="parsing_algorithm"`
-- The ID is inside a `<span class="qmd-id">` (hidden via CSS)
+- On `/architecture/algorithms/`: the heading "Parsing Algorithm" itself has the object's id (`id="parsing_algorithm"`), and its `¶` permalink is `#parsing_algorithm`
+- The heading's text, the "On this page" entry and the search result title read "Parsing Algorithm", with no `[[...]]` and no kind name
 
 ### 4.2 Kind badges render
 - On `/architecture/algorithms/`: "Algorithm" badge appears next to "Parsing Algorithm" heading
-- Badge has class `qmd-kind` and attribute `data-pagefind-filter="kind"`
+- Badge is an empty `<span class="qmdc-kind" data-qmdc-kind="Algorithm">`; its text is drawn by CSS (`::after`), so it is not part of the heading text
 
 ### 4.3 System types have no badge
 - On `/readme/`: the `__Workspace` heading does NOT show a kind badge
@@ -124,11 +124,11 @@ Agent-executable test plan for verifying the rendered site using Playwright.
 
 ### 4.4 Code fences are not transformed
 - On any page with code examples: `[[id]]` patterns inside ``` blocks remain as plain text
-- No `<span class="qmd-id">` inside code blocks
+- No `qmdc-kind` badge inside code blocks
 
 ### 4.5 Text field headings
 - On `/architecture/algorithms/`: headings like `### Description [[description: text]]` should be transformed the same way as object headings
-- The `[[description: text]]` marker should be hidden (inside a `<span class="qmd-id">`)
+- The `[[description: text]]` marker is removed and the heading gets `id="description"`
 - The kind badge "text" should appear (since `text` doesn't start with `__`)
 - NO raw `[[description: text]]` visible in the rendered heading text
 
@@ -237,7 +237,7 @@ Agent-executable test plan for verifying the rendered site using Playwright.
 - Content area takes full width
 
 ### 9.4 Kind badge styling
-- `.qmd-kind` renders as small text badge (not a block element)
+- `.qmdc-kind` renders as small text badge (not a block element)
 - Badge is adjacent to the heading text (same line)
 - Badge has reduced opacity/lighter color
 

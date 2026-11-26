@@ -26,6 +26,12 @@
   opacity: 0.6;
 }
 
+/* The kind is drawn from the attribute so it is not part of the heading's text,
+   which MkDocs uses for the anchor slug and the search title. */
+.qmdc-kind[data-qmdc-kind]::after {
+  content: attr(data-qmdc-kind);
+}
+
 .qmdc-ref {
   color: var(--md-accent-fg-color);
   background: color-mix(in srgb, var(--md-accent-fg-color) 10%, transparent);

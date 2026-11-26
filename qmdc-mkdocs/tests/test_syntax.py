@@ -30,11 +30,11 @@ class TestTransformDefinitionsBasic:
             }
         ]
         result = transform_definitions(lines, file_objects)
-        assert 'id="semantic_algorithms.algo_inferred_edges"' in result[0]
+        assert result[0].rstrip().endswith("{ #semantic_algorithms.algo_inferred_edges }")
         # The local-id-only anchor must NOT be what we emit.
-        assert 'id="algo_inferred_edges"' not in result[0]
+        assert "{ #algo_inferred_edges }" not in result[0]
         # Kind badge still present.
-        assert ">Algorithm</span>" in result[0]
+        assert 'data-qmdc-kind="Algorithm"' in result[0]
 
     def test_transforms_heading_at_correct_line(self):
         lines = [
@@ -47,8 +47,10 @@ class TestTransformDefinitionsBasic:
         file_objects = [{"__line": 3, "__id": "users", "__kind": "Table"}]
         result = transform_definitions(lines, file_objects)
         # Line 3 (index 2) should be transformed
-        assert '<span class="qmdc-id" data-pagefind-ignore id="users">' in result[2]
-        assert '<span class="qmdc-kind" data-pagefind-filter="kind">Table</span>' in result[2]
+        assert result[2] == (
+            '## Users <span class="qmdc-kind" data-qmdc-kind="Table" '
+            'data-pagefind-filter="kind:Table"></span> { #users }\n'
+        )
 
     def test_multiple_objects_on_different_lines(self):
         lines = [
@@ -65,79 +67,72 @@ class TestTransformDefinitionsBasic:
         ]
         result = transform_definitions(lines, file_objects)
         # Line 1: system type — no badge
-        assert 'id="doc"' in result[0]
-        assert "qmdc-kind" not in result[0]
+        assert result[0] == "# Doc { #doc }\n"
         # Line 3: regular kind — has badge
-        assert 'id="users"' in result[2]
-        assert ">Table</span>" in result[2]
+        assert "{ #users }" in result[2]
+        assert 'data-qmdc-kind="Table"' in result[2]
         # Line 5: bare id
-        assert 'id="address"' in result[4]
+        assert result[4] == "### Address { #address }\n"
 
 
 class TestTransformDefinitionsKindBadge:
-    """[[id: Kind]] produces hidden span + kind badge on the correct line."""
+    """[[id: Kind]] produces a heading id + an attribute-drawn kind badge (#38)."""
 
     def test_kind_badge_rendered(self):
         lines = ["## API [[api: Service]]\n"]
         file_objects = [{"__line": 1, "__id": "api", "__kind": "Service"}]
         result = transform_definitions(lines, file_objects)
-        assert (
-            '<span class="qmdc-id" data-pagefind-ignore id="api">'
-            "[[api: Service]]</span>"
-            '<span class="qmdc-kind" data-pagefind-filter="kind">Service</span>'
-        ) in result[0]
+        assert result[0] == (
+            '## API <span class="qmdc-kind" data-qmdc-kind="Service" '
+            'data-pagefind-filter="kind:Service"></span> { #api }\n'
+        )
 
     def test_kind_with_whitespace_trimmed(self):
         lines = ["## Config [[cfg:   Config]]\n"]
         file_objects = [{"__line": 1, "__id": "cfg", "__kind": "Config"}]
         result = transform_definitions(lines, file_objects)
-        assert 'id="cfg"' in result[0]
-        assert ">Config</span>" in result[0]
+        assert "{ #cfg }" in result[0]
+        assert 'data-qmdc-kind="Config"' in result[0]
 
     def test_kind_badge_html_escaped(self):
         lines = ['## Test [[t: Kind<"special">]]\n']
         file_objects = [{"__line": 1, "__id": "t", "__kind": 'Kind<"special">'}]
         result = transform_definitions(lines, file_objects)
-        assert "Kind&lt;&quot;special&quot;&gt;</span>" in result[0]
+        assert 'data-qmdc-kind="Kind&lt;&quot;special&quot;&gt;"' in result[0]
 
 
 class TestTransformDefinitionsSystemTypes:
-    """System types ([[id: __Namespace]]) produce hidden span only, no badge."""
+    """System types ([[id: __Namespace]]) get the heading id only, no badge."""
 
     def test_namespace_no_badge(self):
         lines = ["# Storage [[storage: __Namespace]]\n"]
         file_objects = [{"__line": 1, "__id": "storage", "__kind": "__Namespace"}]
         result = transform_definitions(lines, file_objects)
-        assert 'id="storage"' in result[0]
-        assert "[[storage: __Namespace]]</span>" in result[0]
-        assert "qmdc-kind" not in result[0]
+        assert result[0] == "# Storage { #storage }\n"
 
     def test_workspace_no_badge(self):
         lines = ["# Project [[proj: __Workspace]]\n"]
         file_objects = [{"__line": 1, "__id": "proj", "__kind": "__Workspace"}]
         result = transform_definitions(lines, file_objects)
-        assert 'id="proj"' in result[0]
+        assert "{ #proj }" in result[0]
         assert "qmdc-kind" not in result[0]
 
     def test_document_no_badge(self):
         lines = ["## Notes [[notes: __Document]]\n"]
         file_objects = [{"__line": 1, "__id": "notes", "__kind": "__Document"}]
         result = transform_definitions(lines, file_objects)
-        assert 'id="notes"' in result[0]
+        assert "{ #notes }" in result[0]
         assert "qmdc-kind" not in result[0]
 
 
 class TestTransformDefinitionsBareId:
-    """[[id]] produces hidden span with id attribute."""
+    """[[id]] gives the heading its id (#38)."""
 
     def test_bare_id_span(self):
         lines = ["### Address [[address]]\n"]
         file_objects = [{"__line": 1, "__id": "address", "__kind": ""}]
         result = transform_definitions(lines, file_objects)
-        assert (
-            '<span class="qmdc-id" data-pagefind-ignore id="address">'
-            "[[address]]</span>"
-        ) in result[0]
+        assert result[0] == "### Address { #address }\n"
 
     def test_bare_id_no_kind_badge(self):
         lines = ["## Anchor [[my_anchor]]\n"]
@@ -166,7 +161,7 @@ class TestTransformDefinitionsUntouchedLines:
         file_objects = [{"__line": 1, "__id": "title", "__kind": "Section"}]
         result = transform_definitions(lines, file_objects)
         # Only line 1 is transformed
-        assert 'id="title"' in result[0]
+        assert "{ #title }" in result[0]
         # Other lines remain exactly as-is
         assert result[1] == "\n"
         assert result[2] == "- field: value\n"
@@ -240,7 +235,7 @@ class TestTransformDefinitionsCodeFenceEdgeCase:
         file_objects = [{"__line": 1, "__id": "real", "__kind": "Section"}]
         result = transform_definitions(lines, file_objects)
         # Real heading transformed
-        assert 'id="real"' in result[0]
+        assert "{ #real }" in result[0]
         # Fake heading inside fence NOT transformed (no object points to it)
         assert result[2] == "## Fake Heading [[fake: Example]]\n"
 
@@ -375,3 +370,131 @@ class TestAlreadyResolvedReferences:
         assert ">Service</span>" in result
         # Link untouched
         assert "[Users](tables.md#users)" in result
+
+
+# =============================================================================
+# Heading text, anchors and search titles (#38)
+# =============================================================================
+
+
+def _toc(md_text: str) -> list[tuple[str, str]]:
+    """(name, id) of every heading as MkDocs' toc builds them (search titles come
+    from the same tokens)."""
+    import markdown
+
+    md = markdown.Markdown(extensions=["attr_list", "md_in_html", "toc"])
+    md.convert(md_text)
+    out: list[tuple[str, str]] = []
+
+    def walk(tokens):
+        for t in tokens:
+            out.append((t["name"], t["id"]))
+            walk(t["children"])
+
+    walk(md.toc_tokens)
+    return out
+
+
+class TestHeadingTextStaysClean:
+    """The marker and the kind badge must not end up in the heading's text (#38)."""
+
+    LINES = [
+        "# Demo [[demo: Page]]\n",
+        "\n",
+        "## Question [[question: text]]\n",
+        "\n",
+        "What is rendered and indexed?\n",
+        "\n",
+        "## Part [[part: Section]]\n",
+        "\n",
+        "- status: open\n",
+    ]
+    OBJECTS = [
+        {"__line": 1, "__id": "demo", "__kind": "Page"},
+        {"__line": 3, "__id": "question", "__kind": "text"},
+        {"__line": 7, "__id": "demo.part", "__kind": "Section"},
+    ]
+
+    def test_toc_names_and_ids_are_the_heading_and_the_qmdc_id(self):
+        out = "".join(transform_definitions(self.LINES, self.OBJECTS))
+        assert _toc(out) == [
+            ("Demo", "demo"),
+            ("Question", "question"),
+            ("Part", "demo.part"),
+        ]
+
+    def test_kind_badge_is_drawn_from_an_attribute(self):
+        out = transform_definitions(self.LINES, self.OBJECTS)
+        assert 'data-qmdc-kind="Section"' in out[6]
+        assert ">Section</span>" not in out[6]
+        assert "[[" not in out[6]
+
+    def test_system_kind_has_no_badge(self):
+        out = transform_definitions(
+            ["# Storage [[storage: __Namespace]]\n"],
+            [{"__line": 1, "__id": "storage", "__kind": "__Namespace"}],
+        )
+        assert "qmdc-kind" not in out[0]
+        assert _toc(out[0]) == [("Storage", "storage")]
+
+    def test_id_attr_list_cannot_express_keeps_an_empty_anchor(self):
+        out = transform_definitions(
+            ['## Test [[a&b"c]]\n'], [{"__line": 1, "__id": 'a&b"c', "__kind": ""}]
+        )
+        assert 'id="a&amp;b&quot;c"' in out[0]
+        assert "[[" not in out[0]
+        assert _toc(out[0])[0][0] == "Test"
+
+    def test_field_heading_is_clean_too(self):
+        from qmdc_mkdocs.converter import _transform_remaining_heading_markers
+
+        out = _transform_remaining_heading_markers(["### Description [[description: text]]\n"])
+        assert _toc(out[0]) == [("Description", "description")]
+
+    def test_content_generator_target_heading_is_still_hidden(self):
+        from qmdc_mkdocs.converter import (
+            _collapse_content_generators,
+            _transform_remaining_heading_markers,
+        )
+
+        lines = [
+            "# Page [[pg: Page]]",
+            "",
+            "## Generate [[gen: ContentGenerator]]",
+            "",
+            "- target: [[#pg.content]]",
+            "",
+            "## Content [[content: text]]",
+            "",
+            "Generated text.",
+        ]
+        objects = [
+            {"__line": 1, "__id": "pg", "__kind": "Page"},
+            {"__line": 3, "__id": "pg.gen", "__kind": "ContentGenerator",
+             "target": "[[#pg.content]]"},
+        ]
+        lines = transform_definitions(lines, objects)
+        lines = _transform_remaining_heading_markers(lines)
+        out = _collapse_content_generators("\n".join(lines), objects)
+        assert "## Content" not in out
+        assert "Generated text." in out
+
+
+class TestHintIconFindsHeading:
+    """on_post_page places the hint icon in the heading that carries the id (#38)."""
+
+    def test_hint_injected_into_heading_with_id_on_the_tag(self):
+        from qmdc_mkdocs.plugin import QmdcPlugin
+
+        class _Page:
+            meta = {"_semantic_hints": {"question": [
+                {"label": "Other", "kind": "text", "score": 0.5, "href": "../o/"}
+            ]}}
+
+        html = (
+            '<h2 id="question">Question <span class="qmdc-kind" data-qmdc-kind="text">'
+            '</span></h2><p>x</p>'
+        )
+        out = QmdcPlugin().on_post_page(html, _Page(), {})
+        heading = out.split("</h2>", 1)[0]
+        assert 'data-hint-toggle="question"' in heading

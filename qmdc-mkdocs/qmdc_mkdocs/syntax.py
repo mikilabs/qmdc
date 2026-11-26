@@ -6,7 +6,6 @@ Two approaches:
 """
 
 import re
-from functools import partial
 from html import escape as html_escape
 from typing import Any
 
@@ -52,49 +51,74 @@ def transform_definitions(
     return result
 
 
+# An id attr_list can carry as ``{ #id }`` (no quotes, braces, spaces or ampersands).
+_ATTR_LIST_ID_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.:-]*$")
+
+
 def _transform_heading_line(line: str, anchor_id: str | None = None) -> str:
     """Transform QMDC markers on a single heading line.
 
-    Handles (in order):
-    1. [[id: Kind]] → hidden span + kind badge (system types: no badge)
-    2. [[:Kind]] → hidden span
-    3. [[id]] → hidden span with id attribute
+    MkDocs builds the heading's slug and its search title from the heading's
+    text, so no marker text may stay in it (#38). Markers become:
 
-    ``anchor_id`` overrides the emitted ``id`` attribute (the heading's HTML
-    anchor). For nested objects the parser's ``__id`` is dot-composed
-    (``parent.child``) while the heading literally writes the local id; the
-    anchor must be the full ``__id`` so it matches reference/sidebar link
-    targets. The *displayed* ``[[...]]`` text always keeps the literal local id.
+    1. ``[[id: Kind]]`` → a kind badge whose text is drawn by CSS from
+       ``data-qmdc-kind`` (system types ``__*``: no badge)
+    2. ``[[:Kind]]`` → nothing
+    3. ``[[id]]`` → nothing
+
+    and the first marker's id becomes the heading's own ``id`` through an
+    ``attr_list`` suffix (``{ #id }``). An id that syntax cannot carry is kept on
+    an empty anchor span instead, so it stays targetable.
+
+    ``anchor_id`` overrides the id. For nested objects the parser's ``__id`` is
+    dot-composed (``parent.child``) while the heading literally writes the local
+    id; the anchor must be the full ``__id`` so it matches reference/sidebar link
+    targets.
 
     Note: callers that handle field-definition headings
-    (``_transform_remaining_heading_markers`` / ``transform_qmdc_syntax``) invoke
-    this without an ``anchor_id`` and so emit local-id anchors. That is fine —
-    those code paths only reach field headings, not object headings, so there is
-    no nested-id mismatch to reconcile there.
+    (``_transform_remaining_heading_markers``) invoke this without an
+    ``anchor_id`` and so emit local-id anchors. That is fine — that path only
+    reaches field headings, not object headings, so there is no nested-id
+    mismatch to reconcile there.
     """
+    body = line.rstrip("\n")
+    newline = line[len(body):]
+    found: list[str] = []
+
+    def def_with_kind(m: re.Match) -> str:
+        found.append(m.group(1))
+        return _kind_badge(m.group(2).strip())
+
+    def bare_id(m: re.Match) -> str:
+        found.append(m.group(1))
+        return ""
 
     # 1. [[id: Kind]] — definition with kind
-    line = re.sub(
-        r"\[\[([^\]:#]+):\s*([^\]]+)\]\]",
-        partial(_replace_def_with_kind, anchor_id=anchor_id),
-        line,
-    )
-
+    body = re.sub(r"\[\[([^\]:#]+):\s*([^\]]+)\]\]", def_with_kind, body)
     # 2. [[:Kind]] — kind-only definition
-    line = re.sub(
-        r"\[\[:([^\]]+)\]\]",
-        r'<span class="qmdc-id" data-pagefind-ignore>[[:\1]]</span>',
-        line,
-    )
-
+    body = re.sub(r"\s*\[\[:([^\]]+)\]\]", "", body)
     # 3. [[id]] — plain definition (no kind, no #)
-    line = re.sub(
-        r"\[\[([^\]#:]+)\]\]",
-        partial(_replace_bare_id, anchor_id=anchor_id),
-        line,
-    )
+    body = re.sub(r"\[\[([^\]#:]+)\]\]", bare_id, body)
 
-    return line
+    body = body.rstrip()
+    anchor = anchor_id if anchor_id else (found[0] if found else None)
+    if anchor:
+        if _ATTR_LIST_ID_RE.match(anchor):
+            body = f"{body} {{ #{anchor} }}"
+        else:
+            body = f'{body} <span class="qmdc-anchor" id="{html_escape(anchor)}"></span>'
+    return body + newline
+
+
+def _kind_badge(kind: str) -> str:
+    """An empty kind badge; CSS draws ``data-qmdc-kind`` (no text in the heading)."""
+    if kind.startswith("__"):
+        return ""  # system types: no badge
+    k = html_escape(kind)
+    return (
+        f'<span class="qmdc-kind" data-qmdc-kind="{k}" '
+        f'data-pagefind-filter="kind:{k}"></span>'
+    )
 
 
 def _replace_bare_id(m: re.Match, anchor_id: str | None = None) -> str:
