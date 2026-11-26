@@ -514,3 +514,49 @@ class TestComputeHref:
         result = _compute_href("storage/tables.qmd.md", "readme.qmd.md", "project")
         # From storage/tables/ to / (root index)
         assert result == "../../#project"
+
+
+class TestPropsCardValues:
+    """The properties card shows the value the parser reads, not its source quoting (#37)."""
+
+    @staticmethod
+    def _card_values(tmp_path, page: str) -> list[str]:
+        import re
+
+        from qmdc_mkdocs.database import load_workspace
+
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        (workspace / "readme.qmd.md").write_text("# Repro [[repro: __Workspace]]\n")
+        (workspace / "source.qmd.md").write_text(page)
+        tmpdir = tmp_path / "build"
+        tmpdir.mkdir()
+        ws_data = load_workspace(workspace)
+        try:
+            convert_workspace(workspace, tmpdir, ws_data, {})
+        finally:
+            ws_data.close()
+        out = (tmpdir / "docs" / "source.md").read_text()
+        return re.findall(r'<span class="qmdc-prop__val">(.*?)</span>', out)
+
+    def test_quoted_values_lose_their_quotes(self, tmp_path):
+        values = self._card_values(
+            tmp_path,
+            "# Source [[s: Source]]\n\n"
+            '- date: "2026-09-08"\n'
+            "- code: '007'\n"
+            '- empty: ""\n'
+            "- url: https://example.com/docs/page\n\n"
+            "Body text.\n",
+        )
+        assert values == ["2026-09-08", "007", "", "https://example.com/docs/page"]
+
+    def test_partly_quoted_values_are_left_alone(self, tmp_path):
+        values = self._card_values(
+            tmp_path,
+            "# Source [[s: Source]]\n\n"
+            '- title: "Quoted" and not\n'
+            "- mixed: \"open'\n\n"
+            "Body text.\n",
+        )
+        assert values == ['"Quoted" and not', "\"open'"]

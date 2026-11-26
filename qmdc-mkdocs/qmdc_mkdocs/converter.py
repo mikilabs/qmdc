@@ -475,6 +475,20 @@ def _strip_example_modifier(lines: list[str]) -> list[str]:
 _PROPS_BULLET_RE = re.compile(r"^\s*-\s+([A-Za-z_][\w-]*):\s?(.*)$")
 
 
+def _unquote_scalar(value: str) -> str:
+    """Drop one pair of matching quotes that wraps the whole value.
+
+    Same rule as the parser's scalar values (``qmdc.parsers.field``): a quoted value
+    is a String and its quotes are syntax, so ``"2026-09-08"`` reads ``2026-09-08``.
+    A value that is only partly quoted is shown as written.
+    """
+    if (value.startswith('"') and value.endswith('"')) or (
+        value.startswith("'") and value.endswith("'")
+    ):
+        return value[1:-1]
+    return value
+
+
 def _render_object_props_card(content: str, file_objects: list[dict]) -> str:
     """Replace the page object's leading metadata bullets with a styled props card.
 
@@ -521,7 +535,7 @@ def _render_object_props_card(content: str, file_objects: list[dict]) -> str:
         m = _PROPS_BULLET_RE.match(raw)
         if not m:
             break
-        rows.append((m.group(1), m.group(2).strip()))
+        rows.append((m.group(1), _unquote_scalar(m.group(2).strip())))
         i += 1
     block_end = i
 
