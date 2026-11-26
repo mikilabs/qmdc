@@ -434,7 +434,7 @@ def _transform_remaining_heading_markers(lines: list[str]) -> list[str]:
 
     This catches field definition headings (like ### Description [[description: text]])
     that weren't handled by transform_definitions (which only processes object headings).
-    Skips lines already transformed (containing qmdc-id class).
+    Lines already transformed have no ``[[`` left and are skipped.
     Skips lines inside code fences.
     """
     from .syntax import _transform_heading_line
@@ -448,8 +448,9 @@ def _transform_remaining_heading_markers(lines: list[str]) -> list[str]:
             continue
         if in_fence:
             continue
-        # Only process heading lines that still have [[ markers and aren't already transformed
-        if line.lstrip().startswith("#") and "[[" in line and "qmdc-id" not in line:
+        # Only process heading lines that still have [[ markers (transformed object
+        # headings have none left)
+        if line.lstrip().startswith("#") and "[[" in line:
             result[i] = _transform_heading_line(line)
     return result
 
@@ -790,8 +791,14 @@ def _collapse_content_generators(content: str, file_objects: list[dict]) -> str:
             if line.lstrip().startswith("#"):
                 should_hide = False
                 for field_name in target_fields:
-                    # Match patterns like: ### Content [[content: text]] or ### Content [[content]]
-                    if f"[[{field_name}" in line:
+                    # The heading's markers are already transformed by now, so
+                    # `## Content [[content: text]]` reads `## Content … { #content }`
+                    # (or an anchor span for an id attr_list cannot carry).
+                    if (
+                        f"[[{field_name}" in line
+                        or line.rstrip().endswith(f"{{ #{field_name} }}")
+                        or f'id="{field_name}"' in line
+                    ):
                         should_hide = True
                         break
                 if should_hide:

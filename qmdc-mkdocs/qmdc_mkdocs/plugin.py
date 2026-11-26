@@ -129,14 +129,18 @@ class QmdcPlugin(BasePlugin):
                 f'{items_html}</span></span>'
             )
 
-            # Find the span with this id and inject the hint icon inside the
-            # heading (before the closing tag)
+            # Find the heading with this id -- on the heading tag itself, or on a
+            # span inside it -- and inject the hint icon before the closing tag.
             id_pattern = re.escape(f'id="{obj_id}"')
-            heading_pattern = re.compile(
+            match = re.search(
+                rf'(<h[2-6][^>]*\s{id_pattern}[^>]*>)(.*?)(</h[2-6]>)',
+                output,
+                re.DOTALL,
+            ) or re.search(
                 rf'(<h[2-6][^>]*>)(.*?{id_pattern}.*?)(</h[2-6]>)',
+                output,
                 re.DOTALL,
             )
-            match = heading_pattern.search(output)
             if match:
                 # Insert hint icon before the closing </hN> tag
                 output = output[:match.start(3)] + hint_html + output[match.start(3):]
