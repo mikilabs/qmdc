@@ -152,7 +152,8 @@ def convert_workspace(
         # path) — MkDocs ignores dotfiles and can't serve external paths, so in-place
         # serving is impossible for those.
         content = _copy_and_rewrite_media(
-            content, source_file, out_source, workspace, docs_dir, copied_assets
+            content, source_file, out_source, workspace, docs_dir, copied_assets,
+            namespace_prefix=namespace_prefix,
         )
 
         # Build front matter and prepend. Hrefs are relative to the page's OUTPUT
@@ -305,6 +306,7 @@ def _copy_and_rewrite_media(
     workspace: Path,
     docs_dir: Path,
     copied: dict[str, bool],
+    namespace_prefix: str | None = None,
 ) -> str:
     """Copy every locally-referenced image/video into the site and rewrite its reference.
 
@@ -314,8 +316,10 @@ def _copy_and_rewrite_media(
     ``docs_dir``. Such files are copied under ``docs/assets/qmdc/<hash>/<name>`` and the
     reference rewritten to point there (relative to the page's output location).
 
-    Left untouched: remote/`data:`/anchor targets; and files already servable in place
-    (inside the workspace under a non-dot path) — MkDocs serves those as-is. A referenced
+    A file inside the workspace under a non-dot path keeps its reference as written and
+    is copied to the same relative path under ``docs_dir`` (namespace prefix stripped in
+    a single-namespace build, as for pages), since MkDocs builds from ``docs_dir``, not
+    from the workspace. Remote/`data:`/anchor targets are left untouched. A referenced
     file that does not exist is a stderr warning, not a failure (the build proceeds).
 
     Code fences are skipped so example snippets aren't rewritten.
@@ -323,7 +327,7 @@ def _copy_and_rewrite_media(
 
     def process(url: str) -> str | None:
         return _resolve_copy_rewrite(
-            url, source_file, out_source, workspace, docs_dir, copied
+            url, source_file, out_source, workspace, docs_dir, copied, namespace_prefix
         )
 
     def md_repl(m: re.Match) -> str:
@@ -355,6 +359,7 @@ def _resolve_copy_rewrite(
     workspace: Path,
     docs_dir: Path,
     copied: dict[str, bool],
+    namespace_prefix: str | None = None,
 ) -> str | None:
     """Resolve one media reference; copy it in and return the rewritten path, or ``None``
     to leave the reference unchanged."""
@@ -384,13 +389,30 @@ def _resolve_copy_rewrite(
         )
         return None
 
-    # Already servable in place? (inside the workspace, no dot-prefixed path part.)
+    # Inside the workspace under a non-dot path: keep the reference as written and copy
+    # the file to the same relative path under docs_dir, where MkDocs builds from. A
+    # single-namespace build strips the prefix from page paths, so strip it here too; a
+    # file outside the namespace being built has no such path and is copied below.
     try:
         rel = abs_src.relative_to(workspace.resolve())
-        if not any(part.startswith(".") for part in rel.parts):
-            return None
     except ValueError:
-        pass  # outside the workspace → must copy
+        rel = None  # outside the workspace → must copy
+    if rel is not None and not any(part.startswith(".") for part in rel.parts):
+        rel_posix = PurePosixPath(*rel.parts)
+        if namespace_prefix is None:
+            inplace_rel: PurePosixPath | None = rel_posix
+        elif rel_posix.parts[:1] == (namespace_prefix,):
+            inplace_rel = PurePosixPath(*rel_posix.parts[1:])
+        else:
+            inplace_rel = None
+        if inplace_rel is not None:
+            key = f"inplace:{inplace_rel}"
+            if key not in copied:
+                dest_abs = docs_dir / inplace_rel
+                dest_abs.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(abs_src, dest_abs)
+                copied[key] = True
+            return None
 
     digest = hashlib.sha1(str(abs_src).encode("utf-8")).hexdigest()[:12]
     dest_rel = _ASSET_DEST_ROOT / digest / abs_src.name
