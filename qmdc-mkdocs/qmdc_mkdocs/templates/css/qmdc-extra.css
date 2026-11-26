@@ -489,7 +489,9 @@ a.sb-sib:hover {
 
 .md-typeset .qmdc-props li {
   display: grid;
-  grid-template-columns: minmax(5rem, max-content) 1fr;
+  /* minmax(0, …): a bare 1fr track cannot shrink below its content, so an
+     unbroken value (a URL) would widen the card and the page. */
+  grid-template-columns: minmax(5rem, max-content) minmax(0, 1fr);
   gap: 0.2rem 1.2rem;
   align-items: baseline;
   margin: 0;
@@ -515,12 +517,14 @@ a.sb-sib:hover {
 
 .qmdc-prop__val {
   color: var(--md-default-fg-color);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Stack key over value on narrow viewports */
 @media screen and (max-width: 44.9375em) {
   .md-typeset .qmdc-props li {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.1rem;
   }
 }
