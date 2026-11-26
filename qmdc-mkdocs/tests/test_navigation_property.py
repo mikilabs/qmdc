@@ -667,13 +667,18 @@ class TestNavPropertyHypothesis:
                     actual_title = page_titles[md_path]
 
                     # The mock DB assigns labels based on filename stem title-cased
-                    # (matching the build_mock_db logic above)
+                    # (matching the build_mock_db logic above). A page is named by
+                    # its first level-1 heading; on a namespace readme that is the
+                    # __Namespace heading (#39), not the file name.
                     file_path = f"{ns_id}/{f}"
                     # Query the DB for the expected label
                     rows = db.query(
                         "SELECT __label FROM objects "
                         "WHERE __file = ? AND CAST(__level AS INTEGER) = 1 "
-                        "AND __kind NOT GLOB '__*' AND __label IS NOT NULL",
+                        "AND (__kind NOT GLOB '__*' "
+                        "OR __kind IN ('__Namespace', '__Workspace')) "
+                        "AND __label IS NOT NULL "
+                        "ORDER BY CAST(__line AS INTEGER) ASC",
                         params=(file_path,),
                     )
                     if rows:

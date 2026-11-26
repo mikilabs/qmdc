@@ -107,6 +107,41 @@ class TestGenerateNav:
                     break
 
 
+class TestReadmeLabels:
+    """A namespace or workspace readme is named by its own heading, not "Readme" (#39)."""
+
+    FILES = {
+        "readme.qmd.md": "# Repro [[repro: __Workspace]]\n",
+        "products/readme.qmd.md": "# Products [[products: __Namespace]]\n",
+        "products/alpha.qmd.md": "# Zebra [[zebra: Product]]\n\nText.\n",
+    }
+
+    def _nav(self, tmp_path, **kwargs):
+        from qmdc_mkdocs.database import load_workspace
+
+        for rel_path, content in self.FILES.items():
+            p = tmp_path / rel_path
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        ws = load_workspace(tmp_path)
+        try:
+            return generate_nav(ws, **kwargs)
+        finally:
+            ws.close()
+
+    def test_readmes_use_their_heading(self, tmp_path):
+        assert self._nav(tmp_path) == [
+            {"Repro": "index.md"},
+            {"Products": [{"Products": "products/index.md"}, {"Zebra": "products/alpha.md"}]},
+        ]
+
+    def test_namespace_build_names_its_index_page(self, tmp_path):
+        assert self._nav(tmp_path, namespace_prefix="products") == [
+            {"Products": "index.md"},
+            {"Zebra": "alpha.md"},
+        ]
+
+
 class TestDeriveSectionTitle:
     """Tests for _derive_section_title."""
 
