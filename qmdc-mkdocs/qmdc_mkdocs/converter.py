@@ -627,7 +627,6 @@ def _build_front_matter(
             }
             for sib in graph_ctx.siblings
         ],
-        "toc": graph_ctx.toc,
     }
 
     # Build semantic hints data with hrefs

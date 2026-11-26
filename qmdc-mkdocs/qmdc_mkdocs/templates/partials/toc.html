@@ -38,14 +38,26 @@
     {% endif %}
   </div>
 
-  {# Page TOC #}
-  {% if sidebar.toc %}
+  {# Page TOC: every rendered heading, nested, from MkDocs' own page.toc (#36), so
+     text fields and plain Markdown headings are listed with their real anchors.
+     Like Material, the page title (the first h1) is not repeated in its own TOC;
+     unlike Material, headings after a second h1 are kept, not dropped.
+     toc.title is already escaped HTML text, as Material renders it. #}
+  {% set toc = (page.toc | list) if page and page.toc else [] %}
+  {% set first = toc | first %}
+  {% if first and first.level == 1 %}
+    {% set toc = first.children + toc[1:] %}
+  {% endif %}
+  {% if toc %}
   <div class="sb-section sb-section--toc">
     <div class="sb-section-title">On this page</div>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      {% for item in sidebar.toc %}
+      {% for item in toc recursive %}
       <li class="md-nav__item">
-        <a href="#{{ item.id | e }}" class="md-nav__link sb-toc-link">{{ item.label | e }}</a>
+        <a href="{{ item.url }}" class="md-nav__link sb-toc-link">{{ item.title }}</a>
+        {% if item.children %}
+        <ul class="md-nav__list sb-toc-sub">{{ loop(item.children) }}</ul>
+        {% endif %}
       </li>
       {% endfor %}
     </ul>

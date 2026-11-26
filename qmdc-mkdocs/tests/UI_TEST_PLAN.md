@@ -63,8 +63,10 @@ Agent-executable test plan for verifying the rendered site using Playwright.
 - The workspace and namespace items are links to their index pages, except the item for the current page
 
 ### 2.3 Page TOC section
-- On `/architecture/algorithms/`: "On this page" section lists headings: Parsing Algorithm, Rebuild Algorithm, Workspace Indexing, SQLite Mapping, Reference Resolution
-- TOC links have `href="#heading_id"` format
+- On `/architecture/algorithms/`: "On this page" section lists headings: Parsing Algorithm, Rebuild Algorithm, Workspace Indexing, SQLite Mapping, Reference Resolution, each with its `Description` text-field heading nested under it
+- Every rendered `h2`-`h6` below the page title is listed in page order, including text-field headings (`[[x: text]]`) and plain Markdown headings; deeper headings are indented under their parent
+- On a phone, the drawer's page-TOC panel lists the same entries
+- TOC links have `href="#heading_id"` format and every target id exists on the page
 - Clicking a TOC link scrolls to the heading
 
 ### 2.4 Links-to section

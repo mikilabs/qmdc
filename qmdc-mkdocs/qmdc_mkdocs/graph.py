@@ -41,7 +41,6 @@ class GraphContext:
     links_to: list[EdgeItem]
     linked_from: list[EdgeItem]
     siblings: list[SiblingItem]
-    toc: list[dict]  # [{id, label, level}]
     # Which breadcrumb item is the current page: "workspace" or "namespace" on that
     # object's own readme, otherwise "file".
     current_level: str = "file"
@@ -65,7 +64,7 @@ def compute_graph_context(
 
     Args:
         source_file: Workspace-relative path (e.g. 'api/endpoints.qmd.md').
-        ws_data: WorkspaceData with DB for SQL queries and objects_by_file for TOC.
+        ws_data: WorkspaceData with DB for SQL queries.
         ignore_patterns: Optional list of .qmdc-mkdocs.ignore patterns to filter edges.
         hidden_kinds: Optional list of Kind names to exclude from sidebar edges.
         namespace_prefix: When building a single namespace, the prefix being built;
@@ -73,7 +72,7 @@ def compute_graph_context(
             rule as page generation (ignore.is_excluded).
 
     Returns:
-        GraphContext with breadcrumb, edges, siblings, and TOC data.
+        GraphContext with breadcrumb, edges and siblings.
     """
     from .ignore import is_excluded
 
@@ -140,8 +139,7 @@ def compute_graph_context(
     # Siblings: other files in same directory
     siblings = _get_siblings(source_file, ws_data)
 
-    # TOC: headings on this page (from objects_by_file, level >= 2, non-system)
-    toc = _get_toc(source_file, ws_data)
+    # "On this page" is rendered from MkDocs' page.toc in partials/toc.html (#36).
 
     # Filter out edges pointing to/from excluded pages (same rule as page gen)
     if ignore_patterns:
@@ -197,7 +195,6 @@ def compute_graph_context(
             for r in linked_from_rows
         ],
         siblings=siblings,
-        toc=toc,
         current_level=current_level,
         workspace_page=_linkable(ws_file),
         namespace_page=_linkable(ns_file),
@@ -406,54 +403,3 @@ def _get_siblings(source_file: str, ws_data: WorkspaceData) -> list[SiblingItem]
             )
         )
     return siblings
-
-
-def _get_toc(source_file: str, ws_data: WorkspaceData) -> list[dict]:
-    """Get non-system headings on this page as TOC entries.
-
-    Uses ws_data.objects_by_file for direct access to parser objects.
-    Filters to __level >= 2 (excludes page title) and non-system kinds.
-
-    Returns list of dicts with keys: id, label, level.
-    """
-    objects_by_file = getattr(ws_data, "objects_by_file", None)
-    if objects_by_file is None:
-        # Fallback to SQL query if objects_by_file not available
-        rows = ws_data.query(
-            """
-            SELECT __id, __label, __level FROM objects
-            WHERE __file = ? AND __kind NOT GLOB '__*'
-              AND CAST(__level AS INTEGER) >= 2
-            ORDER BY CAST(__line AS INTEGER) ASC
-            """,
-            params=(source_file,),
-        )
-        return [
-            {
-                "id": r["__id"],
-                "label": r["__label"] or r["__id"],
-                "level": int(r["__level"]) if r["__level"] else 2,
-            }
-            for r in rows
-        ]
-
-    file_objects = objects_by_file.get(source_file, [])
-    toc: list[dict] = []
-    for obj in file_objects:
-        kind = obj.get("__kind", "")
-        # Skip system kinds (starting with __)
-        if kind.startswith("__"):
-            continue
-        level = obj.get("__level")
-        if level is None:
-            continue
-        level_int = int(level) if not isinstance(level, int) else level
-        # Only include level >= 2 (sub-headings, not page title)
-        if level_int < 2:
-            continue
-        toc.append({
-            "id": obj.get("__id", ""),
-            "label": obj.get("__label") or obj.get("__id", ""),
-            "level": level_int,
-        })
-    return toc

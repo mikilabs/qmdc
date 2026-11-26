@@ -371,7 +371,6 @@ class TestBuildFrontMatter:
             links_to=[],
             linked_from=[],
             siblings=[],
-            toc=[],
         )
         result = _build_front_matter(ctx, {}, "storage/tables.qmd.md")
 
@@ -394,7 +393,6 @@ class TestBuildFrontMatter:
             links_to=[],
             linked_from=[],
             siblings=[],
-            toc=[],
         )
         hints = {
             "users": [
@@ -418,7 +416,6 @@ class TestBuildFrontMatter:
             links_to=[],
             linked_from=[],
             siblings=[],
-            toc=[],
         )
         result = _build_front_matter(ctx, {}, "readme.qmd.md")
 
@@ -442,7 +439,6 @@ class TestBuildFrontMatter:
             ],
             linked_from=[],
             siblings=[],
-            toc=[],
         )
         result = _build_front_matter(ctx, {}, "storage/tables.qmd.md")
 
@@ -463,7 +459,6 @@ class TestBuildFrontMatter:
                 SiblingItem(file="storage/indexes.qmd.md", label="Indexes", is_current=False),
                 SiblingItem(file="storage/tables.qmd.md", label="Tables", is_current=True),
             ],
-            toc=[],
         )
         result = _build_front_matter(ctx, {}, "storage/tables.qmd.md")
 

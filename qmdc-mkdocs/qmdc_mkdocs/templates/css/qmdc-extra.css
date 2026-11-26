@@ -282,13 +282,11 @@ a.sb-crumb:hover {
   border-radius: 0 4px 4px 0;
 }
 
-.sb-toc-indent {
-  padding-left: 1em;
+/* Nested headings (h3 under h2, …) indent one step per level. Needs the
+   !important of the sidebar's own list reset above to win. */
+.qmdc-sidebar ul.md-nav__list.sb-toc-sub {
+  padding-left: 1em !important;
   font-size: 0.95em;
-}
-
-.sb-toc-indent.sb-toc-active {
-  padding-left: calc(1em + 0.2em - 2px);
 }
 
 /* ── Edge items (links-to / linked-from) ── */
