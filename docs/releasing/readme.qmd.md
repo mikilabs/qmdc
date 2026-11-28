@@ -100,7 +100,9 @@ bash scripts/release-publish.sh --publish pypi|npm|crate|vscode
 `qmdc` binaries (darwin, linux gnu+musl, windows; via `cargo` / `cargo-zigbuild`), 7 npm
 `@qmdc/cli-<platform>` packages + the main tarball, 7 PyPI platform wheels for `qmdc` plus
 `qmdc-semantic` / `qmdc-mkdocs` sdist+wheel, and 6 `qmdc-vscode` VSIX. `cargo install qmdc`
-is the universal fallback for any target not in the matrix.
+is the universal fallback for any target not in the matrix. A glibc binary is linked against
+the glibc its `manylinux_X_Y` wheel tag names (2.17 for x86_64, 2.28 for aarch64), and
+`scripts/check-glibc.sh` fails the build if it needs anything newer.
 
 ### Semantic Artifacts [[release_semantic: text]]
 
