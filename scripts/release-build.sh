@@ -37,18 +37,27 @@ mkdir -p "$OUT/bin" "$OUT/npm" "$OUT/pypi"
 # can't link CoreFoundation); linux/windows cross-compile via cargo-zigbuild.
 # Staging is keyed by the unique npm suffix (glibc vs musl share a py bindir
 # but must NOT share a staging slot, or one overwrites the other).
+# A glibc target links against the glibc its manylinux_X_Y wheel tag promises
+# (cargo-zigbuild's `<triple>.X.Y` form); without it zig picks a newer glibc
+# and pip installs a binary that cannot start (#58). check-glibc.sh then
+# fails the build if the binary still needs anything newer.
 for entry in "${TARGETS[@]}"; do
-    IFS='|' read -r triple bindir suffix _ _ _ <<< "$entry"
+    IFS='|' read -r triple bindir suffix _ _ tag <<< "$entry"
     rustup target add "$triple" >/dev/null 2>&1 || true
-    echo "--- building $triple ---"
+    zigtarget="$triple"
+    if [[ "$tag" =~ ^manylinux_([0-9]+)_([0-9]+)_ ]]; then
+        zigtarget="$triple.${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+    fi
+    echo "--- building $zigtarget ---"
     if [[ "$triple" == *-apple-darwin ]]; then
         (cd qmdc-rs && cargo build --release --target "$triple")
     else
-        (cd qmdc-rs && cargo zigbuild --release --target "$triple")
+        (cd qmdc-rs && cargo zigbuild --release --target "$zigtarget")
     fi
     ext=""; [[ "$triple" == *windows* ]] && ext=".exe"
     mkdir -p "$OUT/bin/$suffix"
     cp "qmdc-rs/target/$triple/release/qmdc$ext" "$OUT/bin/$suffix/qmdc$ext"
+    bash scripts/check-glibc.sh "$OUT/bin/$suffix/qmdc$ext" "$tag"
 done
 
 # --- 2. npm: per-platform packages + main tarball --------------------------
